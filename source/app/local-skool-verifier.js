@@ -18,6 +18,7 @@ const BROWSER_CANDIDATES = [
 ].filter(Boolean)
 let running = null
 let context = null
+let verifierPage = null
 
 async function ensureContext(chromium) {
   if (context) {
@@ -27,6 +28,7 @@ async function ensureContext(chromium) {
     } catch {
       // The user closed the verifier window; discard the stale Playwright object.
       context = null
+      verifierPage = null
     }
   }
   context = await chromium.launchPersistentContext(PROFILE, {
@@ -35,8 +37,22 @@ async function ensureContext(chromium) {
     chromiumSandbox: true,
     viewport: { width: 1280, height: 900 },
   })
-  context.on('close', () => { context = null })
+  context.on('close', () => { context = null; verifierPage = null })
   return context
+}
+
+async function ensureVerifierPage(chromium) {
+  await ensureContext(chromium)
+  if (verifierPage) {
+    try {
+      if (!verifierPage.isClosed()) return verifierPage
+    } catch {
+      verifierPage = null
+    }
+  }
+  verifierPage = context.pages()[0] || await context.newPage()
+  verifierPage.once('close', () => { verifierPage = null })
+  return verifierPage
 }
 
 async function loadPlaywright() {
@@ -56,8 +72,7 @@ export async function verifySkool() {
   if (running) return running
   running = (async () => {
     const { chromium } = await loadPlaywright()
-    await ensureContext(chromium)
-    const page = context.pages()[0] || await context.newPage()
+    const page = await ensureVerifierPage(chromium)
     await page.goto(TARGET, { waitUntil: 'domcontentloaded', timeout: 30000 })
     await page.waitForTimeout(1500)
     const url = page.url()
