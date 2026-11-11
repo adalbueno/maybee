@@ -3,7 +3,7 @@ set -euo pipefail
 
 WORKSPACE="$(pwd)"
 RELEASE_FILE="${MAYBEE_RELEASE_FILE:-}"
-RELEASE_URL="${MAYBEE_RELEASE_URL:-https://github.com/adalbueno/maybee/releases/download/v0.1.3/maybee-package-0.1.3.zip}"
+RELEASE_URL="${MAYBEE_RELEASE_URL:-https://github.com/adalbueno/maybee/releases/download/v0.1.4/maybee-package-0.1.4.zip}"
 UPDATE=0
 
 while [ "$#" -gt 0 ]; do
@@ -80,4 +80,4 @@ for client in .claude .agents; do
 done
 
 printf 'Maybee %s installed at %s\n' "$VERSION" "$TARGET"
-printf 'Next on the target machine: "%s/start.sh"\n' "$TARGET"
+printf 'Next action: execute "%s/start.command" on this machine with user authorization if requested.\n' "$TARGET"

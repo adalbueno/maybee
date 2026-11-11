@@ -11,7 +11,7 @@ This directory is installed under `.maybee/package/` in the user's workspace. Th
 Start the app with the workspace root as its project. The first start prepares native dependencies for the current machine, so a package installed by a Linux agent can safely be started later on macOS:
 
 ```bash
-"$PWD/.maybee/package/start.sh"
+Double-click `$PWD/.maybee/package/start.command`.
 ```
 
-`start.sh` installs a local Node.js runtime when needed, the app dependencies and Playwright into `.maybee/package/app/node_modules`, and Playwright's Chromium into `.maybee/browsers/<platform>`. It records the platform in `.maybee/deps.json` and refreshes native dependencies when the platform changes.
+`start.command` launches `start.sh`, which installs a local Node.js runtime when needed, the app dependencies and Playwright into `.maybee/package/app/node_modules`, and Playwright's Chromium into `.maybee/browsers/<platform>`. It records the platform in `.maybee/deps.json` and refreshes native dependencies when the platform changes, then opens Maybee in the browser.
