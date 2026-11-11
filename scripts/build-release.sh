@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-APP_SRC="$ROOT/system/app"
-SKILLS_SRC="$ROOT/system/skills"
-RELEASE_SRC="$ROOT/experiments/maybee-package/release"
-BOOTSTRAP_SRC="$ROOT/experiments/maybee-package/skill/maybee"
-DIST="$ROOT/experiments/maybee-package/dist"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_SRC="$ROOT/source/app"
+SKILLS_SRC="$ROOT/source/skills"
+RELEASE_SRC="$ROOT/release"
+BOOTSTRAP_SRC="$ROOT/skill/maybee"
+DIST="$ROOT/dist"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 
