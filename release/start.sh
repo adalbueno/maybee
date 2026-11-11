@@ -58,7 +58,6 @@ platform_id() {
 
 PLATFORM="$(platform_id)"
 RUNTIME_DIR="$WORKSPACE/.maybee/runtime/$PLATFORM"
-BROWSERS_DIR="$WORKSPACE/.maybee/browsers/$PLATFORM"
 
 stop_previous_maybee() {
   [ -f "$PID_FILE" ] || return 0
@@ -94,14 +93,11 @@ stop_previous_maybee() {
 ensure_dependencies() {
   local platform="$1"
   local marker="$WORKSPACE/.maybee/deps.json"
-  if [ -d "$APP_DIR/node_modules" ] && [ -f "$marker" ] && grep -q '"platform": "'$platform'"' "$marker" && [ -d "$BROWSERS_DIR" ]; then
+  if [ -d "$APP_DIR/node_modules" ] && [ -f "$marker" ] && grep -q '"platform": "'$platform'"' "$marker"; then
     return
   fi
   echo "Preparing Maybee dependencies for $platform..."
-  mkdir -p "$BROWSERS_DIR"
   "$NODE_BIN/npm" ci --prefix "$APP_DIR" --no-audit --no-fund
-  "$NODE_BIN/npm" install --prefix "$APP_DIR" --no-save --no-audit --no-fund playwright
-  (cd "$APP_DIR" && PLAYWRIGHT_BROWSERS_PATH="$BROWSERS_DIR" "$NODE_BIN/npx" playwright install chromium)
   printf '{\n  "platform": "%s",\n  "installedAt": "%s"\n}\n' "$platform" "$(date -Iseconds)" > "$marker"
 }
 
@@ -110,4 +106,4 @@ ensure_dependencies "$PLATFORM"
 mkdir -p "$(dirname "$PID_FILE")"
 stop_previous_maybee
 printf '%s\n' "$$" > "$PID_FILE"
-PLAYWRIGHT_BROWSERS_PATH="$BROWSERS_DIR" PORT="$PORT" exec "$NODE_BIN/node" "$APP_DIR/server.js" --project "$WORKSPACE" "$@"
+MAYBEE_ACCESS_MODE="${MAYBEE_ACCESS_MODE:-agent-browser}" PORT="$PORT" exec "$NODE_BIN/node" "$APP_DIR/server.js" --project "$WORKSPACE" "$@"

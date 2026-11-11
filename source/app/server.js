@@ -1,6 +1,7 @@
 // Maybee app server: reads the project folder, serves the Vue page, pushes live changes.
 // The .md files are the only source of truth. This server never deletes, moves or renames files.
 import http from 'node:http'
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
@@ -20,7 +21,11 @@ const HOST = '127.0.0.1'
 // A packaged Maybee can be started from any directory. The project is explicit
 // when provided, and the existing How I layout remains the safe default.
 const ROOT = path.resolve(process.env.MAYBEE_PROJECT_ROOT || argValue('--project') || DEFAULT_ROOT)
-const ACCESS_MODE = process.env.MAYBEE_ACCESS_MODE || 'skool'
+// The default verifier is the agent's already-available browser. This avoids
+// launching a second Chrome/Chromium process from a sandboxed local server.
+const ACCESS_MODE = process.env.MAYBEE_ACCESS_MODE || 'agent-browser'
+let accessChallenge = crypto.randomBytes(24).toString('hex')
+const SKOOL_TARGET = process.env.MAYBEE_SKOOL_URL || 'https://www.skool.com/how-i-9301/about'
 const ACCESS_RECHECK_MS = Number(process.env.MAYBEE_ACCESS_RECHECK_HOURS || 6) * 3600000
 const ACCESS_IDLE_MS = Number(process.env.MAYBEE_ACCESS_IDLE_HOURS || 2) * 3600000
 const ACCESS_SWEEP_MS = 60 * 1000
@@ -154,6 +159,8 @@ function accessStatus() {
     method: accessSession.method,
     details: accessSession.details,
     mode: ACCESS_MODE,
+    verificationTarget: SKOOL_TARGET,
+    verificationChallenge: accessSession.valid ? null : accessChallenge,
   }
 }
 
@@ -177,6 +184,14 @@ async function verifyAccess(body = {}) {
     saveAccessSession({ type: 'access-verified', method: 'demo', reason: body.reason || 'manual' })
     return accessStatus()
   }
+  if (ACCESS_MODE === 'agent-browser') {
+    if (body.reason === 'scheduled-6-hour-renewal') expireAccess('A fresh How I membership check is required for this session.')
+    return {
+      ...accessStatus(),
+      waitingForBrowser: true,
+      details: `Open ${SKOOL_TARGET} in the browser available to the agent, confirm that the account is a member, then send the local confirmation.`,
+    }
+  }
   try {
     const result = await verifySkool()
     const now = Date.now()
@@ -187,6 +202,28 @@ async function verifyAccess(body = {}) {
     accessSession = { ...accessSession, valid: false, member: false, community: 'How I', checkedAt: Date.now(), expiresAt: Date.now(), method: 'playwright-persistent-profile', details: error.message || 'The local Skool verifier could not start.' }
     saveAccessSession({ type: 'access-error', method: 'playwright-persistent-profile', reason: body.reason || 'manual' })
   }
+  return accessStatus()
+}
+
+function confirmAgentBrowser(body = {}) {
+  const url = String(body.url || '')
+  const evidence = String(body.evidence || '')
+  const member = body.member === true
+  const isHowI = /^https:\/\/www\.skool\.com\/how-i-9301(?:\/|$)/i.test(url)
+  const looksLoggedOut = /\/login|\/sign-in|\/auth\//i.test(url) || /\b(LOG IN|SIGN IN|JOIN GROUP|JOIN COMMUNITY)\b/i.test(evidence)
+  const hasMemberControl = /\b(SETTINGS|LEAVE GROUP|CLASSROOM)\b/i.test(evidence)
+  if (ACCESS_MODE !== 'agent-browser') return { ...accessStatus(), details: 'Agent-browser verification is disabled for this session.' }
+  if (String(body.challenge || '') !== accessChallenge) return { ...accessStatus(), details: 'This browser verification request has expired. Start a new Maybee session.' }
+  if (!member || !isHowI || looksLoggedOut || !hasMemberControl) {
+    accessSession = { ...accessSession, valid: false, member: false, checkedAt: Date.now(), expiresAt: Date.now(), method: 'agent-browser', details: 'The available browser did not confirm access to the How I community.' }
+    saveAccessSession({ type: 'access-denied', method: 'agent-browser', reason: 'browser evidence did not confirm membership' })
+    return accessStatus()
+  }
+  const now = Date.now()
+  accessSession = { ...accessSession, valid: true, member: true, community: 'How I', checkedAt: now, lastSkoolCheckAt: now, lastAppActivityAt: now, expiresAt: now + ACCESS_RECHECK_MS, method: 'agent-browser', details: `The available browser confirmed membership at ${url}.`, url }
+  saveAccessSession({ type: 'access-verified', method: 'agent-browser', reason: 'confirmed by the agent browser' })
+  accessChallenge = crypto.randomBytes(24).toString('hex')
+  openMaybeeAfterAccess()
   return accessStatus()
 }
 
@@ -319,6 +356,7 @@ async function main() {
     try {
       if (url.pathname === '/api/access' && req.method === 'GET') return sendJSON(res, accessStatus())
       if (url.pathname === '/api/access/verify' && req.method === 'POST') return sendJSON(res, await verifyAccess(await readBody(req)))
+      if (url.pathname === '/api/access/confirm' && req.method === 'POST') return sendJSON(res, confirmAgentBrowser(await readBody(req)))
       if (url.pathname === '/api/session/heartbeat' && req.method === 'POST') return sendJSON(res, await heartbeat())
       if (url.pathname.startsWith('/api/') && !accessSession.valid) return sendJSON(res, { error: 'Skool membership must be verified for this session.', access: accessStatus() }, 403)
       if (url.pathname.startsWith('/api/')) touchAppActivity(url.pathname)
