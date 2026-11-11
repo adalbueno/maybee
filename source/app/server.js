@@ -25,7 +25,7 @@ const ROOT = path.resolve(process.env.MAYBEE_PROJECT_ROOT || argValue('--project
 // launching a second Chrome/Chromium process from a sandboxed local server.
 const ACCESS_MODE = process.env.MAYBEE_ACCESS_MODE || 'agent-browser'
 let accessChallenge = crypto.randomBytes(24).toString('hex')
-const SKOOL_TARGET = process.env.MAYBEE_SKOOL_URL || 'https://www.skool.com/how-i-9301/about'
+const SKOOL_TARGET = process.env.MAYBEE_SKOOL_URL || 'https://www.skool.com/how-i-9301'
 const ACCESS_RECHECK_MS = Number(process.env.MAYBEE_ACCESS_RECHECK_HOURS || 6) * 3600000
 const ACCESS_IDLE_MS = Number(process.env.MAYBEE_ACCESS_IDLE_HOURS || 2) * 3600000
 const ACCESS_SWEEP_MS = 60 * 1000
