@@ -8,14 +8,7 @@ const APP_DIR = path.dirname(fileURLToPath(import.meta.url))
 const PROFILE = path.join(APP_DIR, 'data', 'skool-profile')
 const TARGET = process.env.MAYBEE_SKOOL_URL || 'https://www.skool.com/how-i-9301/about'
 const COMMUNITY_MARKER = process.env.MAYBEE_SKOOL_MEMBER_MARKER || 'How I Accountability Club'
-const BROWSER_CANDIDATES = [
-  process.env.MAYBEE_BROWSER_EXECUTABLE,
-  '/usr/bin/chromium',
-  '/usr/lib/chromium/chromium',
-  '/usr/bin/google-chrome',
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-].filter(Boolean)
+const BROWSER_EXECUTABLE = process.env.MAYBEE_BROWSER_EXECUTABLE || null
 let running = null
 let context = null
 let verifierPage = null
@@ -31,12 +24,15 @@ async function ensureContext(chromium) {
       verifierPage = null
     }
   }
-  context = await chromium.launchPersistentContext(PROFILE, {
+  const launchOptions = {
     headless: false,
-    executablePath: BROWSER_CANDIDATES.find(candidate => fs.existsSync(candidate)),
     chromiumSandbox: true,
     viewport: { width: 1280, height: 900 },
-  })
+  }
+  // Prefer Playwright's own Chromium. A system Chrome profile can be blocked
+  // by macOS Crashpad/TCC when launched with a persistent automation profile.
+  if (BROWSER_EXECUTABLE && fs.existsSync(BROWSER_EXECUTABLE)) launchOptions.executablePath = BROWSER_EXECUTABLE
+  context = await chromium.launchPersistentContext(PROFILE, launchOptions)
   context.on('close', () => { context = null; verifierPage = null })
   return context
 }

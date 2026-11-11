@@ -5,6 +5,7 @@ PACKAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE="$(cd "$PACKAGE_DIR/../.." && pwd)"
 APP_DIR="$PACKAGE_DIR/app"
 NODE_VERSION="${MAYBEE_NODE_VERSION:-22.14.0}"
+PORT="${PORT:-8780}"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -75,6 +76,19 @@ stop_previous_maybee() {
     fi
   fi
   rm -f "$PID_FILE"
+
+  # Also recover servers started by an older Maybee version without a PID file.
+  if command -v lsof >/dev/null 2>&1; then
+    local port_pid port_command
+    while read -r port_pid; do
+      [ -n "$port_pid" ] || continue
+      port_command="$(ps -p "$port_pid" -o command= 2>/dev/null || true)"
+      if [[ "$port_command" == *".maybee/package/app/server.js"* ]]; then
+        echo "Stopping the previous Maybee server on port $PORT..."
+        kill "$port_pid" 2>/dev/null || true
+      fi
+    done < <(lsof -nP -iTCP:"$PORT" -sTCP:LISTEN -t 2>/dev/null || true)
+  fi
 }
 
 ensure_dependencies() {
@@ -96,4 +110,4 @@ ensure_dependencies "$PLATFORM"
 mkdir -p "$(dirname "$PID_FILE")"
 stop_previous_maybee
 printf '%s\n' "$$" > "$PID_FILE"
-PLAYWRIGHT_BROWSERS_PATH="$BROWSERS_DIR" exec "$NODE_BIN/node" "$APP_DIR/server.js" --project "$WORKSPACE" "$@"
+PLAYWRIGHT_BROWSERS_PATH="$BROWSERS_DIR" PORT="$PORT" exec "$NODE_BIN/node" "$APP_DIR/server.js" --project "$WORKSPACE" "$@"
