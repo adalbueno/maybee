@@ -41,6 +41,7 @@ let accessSession = {
   details: 'Access has not been verified for this session.',
 }
 let lastServerActivityAt = Date.now()
+const accessClients = new Set()
 
 function saveAccessSession(event = null) {
   try {
@@ -223,6 +224,7 @@ function confirmAgentBrowser(body = {}) {
   accessSession = { ...accessSession, valid: true, member: true, community: 'How I', checkedAt: now, lastSkoolCheckAt: now, lastAppActivityAt: now, expiresAt: now + ACCESS_RECHECK_MS, method: 'agent-browser', details: `The available browser confirmed membership at ${url}.`, url }
   saveAccessSession({ type: 'access-verified', method: 'agent-browser', reason: 'confirmed by the agent browser' })
   accessChallenge = crypto.randomBytes(24).toString('hex')
+  for (const client of accessClients) client.write('data: ' + JSON.stringify({ valid: true }) + '\n\n')
   openMaybeeAfterAccess()
   return accessStatus()
 }
@@ -355,6 +357,13 @@ async function main() {
     const q = Object.fromEntries(url.searchParams)
     try {
       if (url.pathname === '/api/access' && req.method === 'GET') return sendJSON(res, accessStatus())
+      if (url.pathname === '/api/access/events' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' })
+        res.write('data: ' + JSON.stringify({ valid: accessStatus().valid }) + '\n\n')
+        accessClients.add(res)
+        req.on('close', () => accessClients.delete(res))
+        return
+      }
       if (url.pathname === '/api/access/verify' && req.method === 'POST') return sendJSON(res, await verifyAccess(await readBody(req)))
       if (url.pathname === '/api/access/confirm' && req.method === 'POST') return sendJSON(res, confirmAgentBrowser(await readBody(req)))
       if (url.pathname === '/api/session/heartbeat' && req.method === 'POST') return sendJSON(res, await heartbeat())

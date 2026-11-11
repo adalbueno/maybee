@@ -1,6 +1,6 @@
 {
   "name": "maybee",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "format": 1,
   "description": "Maybee local app, MCP bridge and bundled workflows.",
   "entrypoint": "app/server.js",

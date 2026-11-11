@@ -3,7 +3,7 @@ set -euo pipefail
 
 WORKSPACE="$(pwd)"
 RELEASE_FILE="${MAYBEE_RELEASE_FILE:-}"
-RELEASE_URL="${MAYBEE_RELEASE_URL:-https://github.com/adalbueno/maybee/releases/download/v0.1.10/maybee-package-0.1.10.zip}"
+RELEASE_URL="${MAYBEE_RELEASE_URL:-https://github.com/adalbueno/maybee/releases/download/v0.1.11/maybee-package-0.1.11.zip}"
 UPDATE=0
 
 while [ "$#" -gt 0 ]; do

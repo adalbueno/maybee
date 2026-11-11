@@ -1,11 +1,12 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 
 const emit = defineEmits(['verified'])
 const status = ref(null)
 const checking = ref(false)
 const error = ref('')
 const opened = ref(false)
+let accessEvents
 
 async function jsonResponse(response) {
   const text = await response.text()
@@ -35,7 +36,14 @@ async function verify() {
 }
 // The app starts locked. The browser agent confirms membership; the member
 // explicitly starts another check with the button after logging in.
-onMounted(load)
+onMounted(() => {
+  load()
+  accessEvents = new EventSource('/api/access/events')
+  accessEvents.onmessage = event => {
+    if (JSON.parse(event.data).valid) load()
+  }
+})
+onUnmounted(() => accessEvents?.close())
 </script>
 
 <template>
@@ -48,7 +56,7 @@ onMounted(load)
       <div class="access-rule"><b>Required every session</b><span>Without a successful check, the app stays locked.</span></div>
       <p v-if="error" class="onboarding-error">{{ error }}</p>
       <button class="onboarding-next access-button" :disabled="checking" @click="verify">{{ checking ? 'Checking…' : (opened ? 'Check again' : 'Open How I') }}</button>
-      <p class="access-help">Keep the tab open after logging in, then click “Check again”. No password or cookie is sent to Maybee.</p>
+      <p class="access-help">After logging in, tell your assistant to verify access in the open Skool tab. This screen unlocks when verification is complete.</p>
     </section>
   </div>
 </template>

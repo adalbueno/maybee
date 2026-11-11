@@ -215,7 +215,7 @@ async function loadSetup() {
   } catch {}
 }
 function onboardingDone(data) { setup.value = data; showOnboarding.value = false; loadFeed(); loadNumbers() }
-function accessVerified(data) { access.value = data; accessReady.value = true; startHeartbeat(); loadSetup(); loadFeed(); loadNumbers() }
+function accessVerified(data) { access.value = data; accessReady.value = true; connect(); startHeartbeat(); loadSetup(); loadFeed(); loadNumbers() }
 
 function accessExpired(data) {
   access.value = data
@@ -273,7 +273,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
     </header>
 
 
-    <div class="body">
+    <div v-if="accessReady" class="body">
       <main v-if="place === 'workspace'" class="board-wrap">
         <Board :changed-at="lastChange" :active-path="open && open.path" @open="openItem" />
       </main>
