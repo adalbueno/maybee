@@ -13,6 +13,8 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
+PID_FILE="$WORKSPACE/.maybee/server.pid"
+
 download() {
   if command -v curl >/dev/null 2>&1; then
     curl --fail --location --silent --show-error "$1" --output "$2"
@@ -57,6 +59,24 @@ PLATFORM="$(platform_id)"
 RUNTIME_DIR="$WORKSPACE/.maybee/runtime/$PLATFORM"
 BROWSERS_DIR="$WORKSPACE/.maybee/browsers/$PLATFORM"
 
+stop_previous_maybee() {
+  [ -f "$PID_FILE" ] || return 0
+  local old_pid old_command
+  old_pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+  if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+    old_command="$(ps -p "$old_pid" -o command= 2>/dev/null || true)"
+    if [[ "$old_command" == *".maybee/package/app/server.js"* ]]; then
+      echo "Stopping the previous Maybee session..."
+      kill "$old_pid" 2>/dev/null || true
+      for _ in $(seq 1 20); do
+        kill -0 "$old_pid" 2>/dev/null || break
+        sleep 0.25
+      done
+    fi
+  fi
+  rm -f "$PID_FILE"
+}
+
 ensure_dependencies() {
   local platform="$1"
   local marker="$WORKSPACE/.maybee/deps.json"
@@ -73,4 +93,7 @@ ensure_dependencies() {
 
 ensure_node
 ensure_dependencies "$PLATFORM"
+mkdir -p "$(dirname "$PID_FILE")"
+stop_previous_maybee
+printf '%s\n' "$$" > "$PID_FILE"
 PLAYWRIGHT_BROWSERS_PATH="$BROWSERS_DIR" exec "$NODE_BIN/node" "$APP_DIR/server.js" --project "$WORKSPACE" "$@"
