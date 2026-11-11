@@ -2,6 +2,8 @@
 
 This is an isolated prototype for distributing Maybee as a thin bootstrap skill plus a versioned release ZIP.
 
+Releases are built automatically by GitHub Actions when a matching version tag is pushed. The tag must match `release/manifest.json`, for example `v0.1.2` for version `0.1.2`.
+
 ## Intended user flow
 
 The user installs only the `maybee` bootstrap skill from this public repository through their agent. They then ask the agent to install Maybee. The skill runs the fixed installer from its own folder; the installer downloads the current release, prepares the workspace and installs all local runtime dependencies under `.maybee/`.
