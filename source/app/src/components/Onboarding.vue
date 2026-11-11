@@ -30,6 +30,16 @@ async function finish() {
   } catch (e) { error.value = e.message }
   finally { saving.value = false }
 }
+async function skip() {
+  saving.value = true; error.value = ''
+  try {
+    const res = await fetch('/api/setup/skip', { method: 'POST' })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Could not skip onboarding')
+    emit('done', data)
+  } catch (e) { error.value = e.message }
+  finally { saving.value = false }
+}
 </script>
 
 <template>
@@ -44,6 +54,7 @@ async function finish() {
       </label>
       <p v-if="error" class="onboarding-error">{{ error }}</p>
       <div class="onboarding-actions">
+        <button class="onboarding-back" :disabled="saving" @click="skip">Skip for now</button>
         <button v-if="step" class="onboarding-back" @click="step--">Back</button>
         <button class="onboarding-next" :disabled="saving || !answers[current()[0]].trim()" @click="next">{{ saving ? 'Creating…' : step === questions.length - 1 ? 'Create my project' : 'Continue' }}</button>
       </div>

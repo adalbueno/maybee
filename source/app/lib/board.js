@@ -1,4 +1,4 @@
-// The Maybee board: ideas and tasks in ideas/, by stage. Routines are not on the board.
+// The Maybee board: ideas and tasks by stage. Routines are returned separately by the server.
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import YAML from 'yaml'

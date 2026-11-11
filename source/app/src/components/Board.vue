@@ -10,7 +10,8 @@ const cols = ref(null)
 const dragging = ref(null)
 const over = ref(null)
 const openCol = ref('now') // the board always starts on Now
-// D242: today's routines, on top of Now until done (not draggable: a routine comes back every day)
+const nearNot = ref(false)
+// Routines have their own column; today's due state still controls their Run buttons.
 const routines = ref([])
 const rLeft = computed(() => routines.value.filter(r => !r.done).length)
 const rDone = computed(() => routines.value.filter(r => r.done).length)
@@ -96,6 +97,7 @@ const COLS = [
   { key: 'maybe', label: 'Maybe', hint: 'Worth a look, by priority' },
   { key: 'next', label: 'Next', hint: 'The short queue' },
   { key: 'now', label: 'Now', hint: 'What we are working on' },
+  { key: 'routine', label: 'Routine', hint: 'Recurring work' },
   { key: 'done', label: 'Done', hint: '' },
   { key: 'not', label: 'Not', hint: "Won't do", onlyWhileDragging: true },
 ]
@@ -103,7 +105,7 @@ const weekAgo = Date.now() - 7 * 86400000
 const wins = computed(() => cols.value ? cols.value.done.cards : [])
 const winsThisWeek = computed(() => wins.value.filter(c => c.mtime >= weekAgo).length)
 const when = ms => { const d = Math.round((Date.now() - ms) / 86400000); return d <= 0 ? 'today' : d === 1 ? 'yesterday' : d < 7 ? d + ' days ago' : new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) }
-const shown = computed(() => COLS.filter(c => !c.onlyWhileDragging || dragging.value || openCol.value === c.key))
+const shown = computed(() => COLS.filter(c => !c.onlyWhileDragging || dragging.value || openCol.value === c.key || (c.key === 'not' && nearNot.value)))
 
 async function load() {
   const res = await fetch('/api/board').then(r => r.json())
@@ -155,40 +157,26 @@ const ownerMark = o => ({ agent: 'Agent', Adal: 'You', owner: 'You', both: 'You 
 </script>
 
 <template>
-  <div class="board" v-if="cols">
+  <div class="board" v-if="cols" @mouseleave="nearNot = false">
+    <div class="not-edge" aria-label="Reveal Not column" @mouseenter="nearNot = true"></div>
     <section
       v-for="col in shown" :key="col.key" class="col" :class="[col.key, { open: openCol === col.key, over: over === col.key }]"
       @dragover.prevent="over = col.key" @dragleave.self="over = null" @drop.prevent="onDrop(col.key)"
+      @mouseenter="col.key === 'not' && (nearNot = true)" @mouseleave="col.key === 'not' && (nearNot = false)"
     >
       <!-- collapsed: a narrow tab -->
       <button v-if="openCol !== col.key" class="col-tab" @click="toggle(col.key)" :title="'Open ' + col.label">
         <span v-if="col.key === 'done'" class="check sm">✓</span><span v-else class="dot" :class="col.key"></span><span class="v">{{ col.label }}</span><small>{{ cols[col.key].count }}</small>
       </button>
 
-      <!-- open: Done shows the wins -->
-      <template v-else-if="col.key === 'done'">
-        <header class="wins-head">
-          <h2><span class="check">✓</span>Done<small>{{ cols.done.count }}</small></h2>
-          <p v-if="winsThisWeek">{{ winsThisWeek }} this week. Nice.</p>
-          <p v-else>Drag a card here when it's finished.</p>
-        </header>
-        <div class="wins-list">
-          <div v-for="c in wins" :key="c.path" class="win" :class="{ recent: c.mtime >= weekAgo }" draggable="true"
-               @dragstart="onDragStart(c, $event)" @dragend="onDragEnd" @click="emit('open', { path: c.path, key: c.path })">
-            <span class="win-dot">✓</span>
-            <div><b>{{ c.title }}</b><small>{{ when(c.mtime) }}</small></div>
-          </div>
-        </div>
-      </template>
-
       <!-- open -->
       <template v-else>
         <header class="col-head">
-          <h2><span class="dot" :class="col.key"></span>{{ col.label }}<small>{{ cols[col.key].count }}<template v-if="col.key === 'now' && rLeft"> + {{ rLeft }} routines</template></small></h2>
+          <h2><span class="dot" :class="col.key"></span>{{ col.label }}<small>{{ cols[col.key].count }}</small></h2>
           <p>{{ col.hint }}</p>
         </header>
         <div class="col-body">
-          <div v-if="col.key === 'now' && routines.length" class="r-today">
+          <div v-if="col.key === 'routine' && routines.length" class="r-today">
             <div v-if="undo" class="r-undo">Removed “{{ undo.r.full || undo.r.title }}” <button class="link-btn" @click.stop="undoRemove">Undo</button></div>
             <div class="r-head">Today's routines <b class="r-count">{{ rDone }} of {{ routines.length }} done</b> <small>drag to set the order · they run in this order</small>
               <button v-if="rTodo.length" class="r-all" @click.stop="runAll" title="Send every routine that can run now to Claude, top to bottom">Run all ({{ rTodo.length }})</button>
@@ -206,7 +194,7 @@ const ownerMark = o => ({ agent: 'Agent', Adal: 'You', owner: 'You', both: 'You 
                 <b>{{ r.full || r.title }}</b>
                 <span v-if="runState(r) === 'working'" class="r-state run">Claude is doing this now…</span>
                 <span v-else-if="runState(r) === 'queued'" class="r-state">In line, Claude does it after the one running</span>
-                <span v-else>{{ r.recurring }}<template v-if="r.at"> · at {{ r.at }}</template><template v-if="r.stale"> · <em>{{ r.idle }} days without</em></template><template v-if="r.auto"> · {{ autoLabel(r) }}</template></span>
+                <span v-else>{{ r.recurring }}<template v-if="r.at"> · at {{ r.at }}</template><template v-if="r.stale"> · <em>{{ r.last ? `${r.idle} days without` : 'Never run' }}</em></template><template v-if="r.auto"> · {{ autoLabel(r) }}</template></span>
                 <a v-if="r.deliverable" class="r-deliv" @click.stop="emit('open', { path: r.deliverable, key: r.deliverable })" :title="r.deliverable">📄 {{ delivName(r) }}</a>
               </div>
               <button class="r-gear" :class="{ on: r.auto, open: gearFor === r.path }" @click.stop="openGear(r)" title="Run by itself: every session, or every N hours, days, weeks or months">⚙</button>
@@ -279,7 +267,8 @@ const ownerMark = o => ({ agent: 'Agent', Adal: 'You', owner: 'You', both: 'You 
               <AskClaude v-if="col.key === 'now'" class="k-ask" :path="c.path" :title="c.title" :quick="c.nextStep ? ['Do the next step', 'What is blocking this?'] : ['What should the next step be?', 'What is blocking this?']" small />
             </div>
           </article>
-          <div v-if="!cols[col.key].cards.length" class="empty">Nothing here. Drag a card onto this column.</div>
+          <div v-if="col.key === 'routine' && !routines.length" class="empty">No routines yet. Ask Maybee to create one.</div>
+          <div v-else-if="!cols[col.key].cards.length" class="empty">Nothing here. Drag a card onto this column.</div>
         </div>
         <button v-if="col.key === 'maybe' && cols.maybe.count > cols.maybe.cards.length" class="more-ideas" @click="openBacklog">
           +{{ cols.maybe.count - cols.maybe.cards.length }} more ideas

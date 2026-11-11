@@ -1,6 +1,7 @@
 // Maybee app server: reads the project folder, serves the Vue page, pushes live changes.
 // The .md files are the only source of truth. This server never deletes, moves or renames files.
 import http from 'node:http'
+import { startInstance, stopInstance } from './lib/instance.js'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
@@ -9,20 +10,32 @@ import { fileURLToPath } from 'node:url'
 import { createServer as createVite } from 'vite'
 import { buildIndex, feed, numbers, library, search, readNote, resolveName, statFile, allPaths, getIndex } from './lib/project.js'
 import { board, backlog, setStage, logChange } from './lib/board.js'
-import { desktop, setFields, dayKey, nowCards, routinesOn, overviewState } from './lib/desktop.js'
+import { desktop, setFields, dayKey, nowCards, routinesOn, overviewState, resolveWaiting } from './lib/desktop.js'
 import { initInbox, readInbox, addRequest, listening, promptFor } from './lib/inbox.js'
 import { initSnapshots, snapshot, diffFor } from './lib/snapshots.js'
 import { verifySkool } from './local-skool-verifier.js'
 
 const APP_DIR = path.dirname(fileURLToPath(import.meta.url))
 const DEFAULT_ROOT = path.resolve(APP_DIR, '..', '..')
-const PORT = Number(process.env.PORT || argValue('--port') || 8780)
+let PORT = Number(process.env.PORT || argValue('--port') || 8780)
+let instance
 const HOST = '127.0.0.1'
 // A packaged Maybee can be started from any directory. The project is explicit
-// when provided, and the existing How I layout remains the safe default.
-const ROOT = path.resolve(process.env.MAYBEE_PROJECT_ROOT || argValue('--project') || DEFAULT_ROOT)
-// The default verifier is the agent's already-available browser. This avoids
-// launching a second Chrome/Chromium process from a sandboxed local server.
+// when provided; every project workspace lives below its workspaces/ folder.
+const BASE_ROOT = path.resolve(process.env.MAYBEE_PROJECT_ROOT || argValue('--project') || DEFAULT_ROOT)
+const WORKSPACES_ROOT = path.join(BASE_ROOT, 'workspaces')
+let ROOT = BASE_ROOT
+let activeWorkspace = 'default'
+function workspaceRoot(name) {
+  return path.join(WORKSPACES_ROOT, name)
+}
+try {
+  const saved = JSON.parse(fs.readFileSync(path.join(BASE_ROOT, '.maybee', 'active-workspace.json'), 'utf8'))
+  if (saved.name && /^[a-z0-9][a-z0-9-]{0,48}$/.test(saved.name)) {
+    const candidate = workspaceRoot(saved.name)
+    if (fs.existsSync(candidate)) { activeWorkspace = saved.name; ROOT = candidate }
+  }
+} catch {}
 const ACCESS_MODE = process.env.MAYBEE_ACCESS_MODE || 'agent-browser'
 let accessChallenge = crypto.randomBytes(24).toString('hex')
 const SKOOL_TARGET = process.env.MAYBEE_SKOOL_URL || 'https://www.skool.com/how-i-9301'
@@ -94,7 +107,7 @@ function enforceIdleExpiry() {
 }
 
 // What Adal has seen: { baseline: ms, items: { key: ms } }. Agents can read it too.
-const SEEN_FILE = path.join(APP_DIR, 'data', 'seen.json')
+let SEEN_FILE = path.join(ROOT, '.maybee', 'seen.json')
 let seen = { baseline: 0, items: {} }
 function loadSeen() {
   try { seen = JSON.parse(fs.readFileSync(SEEN_FILE, 'utf8')) } catch {
@@ -122,6 +135,47 @@ function readBody(req) {
 function argValue(name) {
   const i = process.argv.indexOf(name)
   return i > -1 ? process.argv[i + 1] : null
+}
+
+function workspaceName(name) {
+  return name === 'default' ? 'default' : /^[a-z0-9][a-z0-9-]{0,48}$/.test(String(name || '')) ? String(name) : null
+}
+
+function workspaceList() {
+  const out = [
+    { name: 'default', label: 'Default', root: workspaceRoot('default'), active: activeWorkspace === 'default' },
+    { name: 'how-i', label: 'How I', root: workspaceRoot('how-i'), active: activeWorkspace === 'how-i' },
+  ]
+  let entries = []
+  try { entries = fs.readdirSync(path.join(BASE_ROOT, 'workspaces'), { withFileTypes: true }) } catch {}
+  for (const e of entries) {
+    if (!e.isDirectory() || !workspaceName(e.name)) continue
+    if (out.some(w => w.name === e.name)) continue
+    out.push({ name: e.name, label: e.name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), root: workspaceRoot(e.name), active: activeWorkspace === e.name })
+  }
+  return out
+}
+
+async function switchWorkspace(name) {
+  const valid = workspaceName(name)
+  const target = valid ? workspaceRoot(valid) : null
+  if (!target) throw new Error('Workspace names use lowercase letters, numbers and hyphens.')
+  const stat = await fsp.stat(target).catch(() => null)
+  if (!stat?.isDirectory()) throw new Error('Workspace not found.')
+  ROOT = target
+  activeWorkspace = valid
+  SEEN_FILE = path.join(ROOT, '.maybee', 'seen.json')
+  await buildIndex(ROOT)
+  loadSeen()
+  await initSnapshots(ROOT, APP_DIR, allPaths('.md'))
+  watcher?.close()
+  watcher = watch()
+  try {
+    fs.mkdirSync(path.join(BASE_ROOT, '.maybee'), { recursive: true })
+    fs.writeFileSync(path.join(BASE_ROOT, '.maybee', 'active-workspace.json'), JSON.stringify({ name: activeWorkspace }, null, 2))
+  } catch {}
+  broadcast('workspace', { workspace: activeWorkspace, root: ROOT, workspaces: workspaceList() })
+  return { workspace: activeWorkspace, root: ROOT, workspaces: workspaceList() }
 }
 
 const MIME = {
@@ -242,9 +296,11 @@ async function heartbeat() {
 const ONBOARDING_DIRS = ['owner', 'knowledge', 'ideas', 'people', 'outputs', 'logs']
 function setupStatus() {
   const has = rel => fs.existsSync(path.join(ROOT, rel))
+  const skipped = has('.maybee/onboarding-skipped.json')
   return {
     root: ROOT,
     initialized: has('PROJECT.md') && has('STATE.md'),
+    skipped,
     hasProject: has('PROJECT.md'),
     hasState: has('STATE.md'),
     directories: ONBOARDING_DIRS.map(name => ({ name, exists: has(name) })),
@@ -268,9 +324,11 @@ async function initializeProject(body) {
   const files = {
     'PROJECT.md': `---\ntitle: ${projectName}\nlanguage: ${language}\ncreated: ${now}\n---\n\n# ${projectName}\n\n## Purpose\n${purpose}\n\n## Who this is for\n${audience}\n\n## Current goal\n${goal}\n\nThis project is operated through Maybee. Project facts belong here and in the linked folders; the app reads this workspace locally.\n`,
     'STATE.md': `---\ntitle: ${projectName} — state\nupdated: ${now}\nby: Maybee onboarding\n---\n\n# State\n\n## Focus\n- ${goal}\n\n## Next\n- Decide the smallest useful next action.\n`,
+    'DASHBOARD.md': `# ${projectName}\n\n- [Project](PROJECT.md)\n- [State](STATE.md)\n- [Decisions](knowledge/decisions.md)\n- [Ideas](ideas/README.md)\n- [Changelog](logs/CHANGELOG.md)\n`,
     'owner/preferences.md': `---\ntitle: Preferences\nsource: Maybee onboarding\n---\n\n# Preferences\n\n${preferences}\n`,
     'owner/voice.md': `---\ntitle: Voice\nsource: Maybee onboarding\n---\n\n# Voice\n\n${voice}\n`,
     'knowledge/README.md': '# Knowledge\n\nFacts, references and lessons that belong to this project.\n',
+    'knowledge/decisions.md': '# Decisions\n\n## In force\n\nNo project decisions have been recorded yet.\n',
     'ideas/README.md': '# Ideas\n\nIdeas and tasks begin here.\n',
     'people/README.md': '# People\n\nPeople connected to this project.\n',
     'outputs/README.md': '# Outputs\n\nThings this project produces.\n',
@@ -320,8 +378,10 @@ function broadcast(event, data) {
 const IGNORED = /(^|\/)(node_modules|\.git|\.obsidian|\.trash|__pycache__)(\/|$)|\.pyc$|~$|\.swp$/
 let pending = new Set()
 let timer = null
+let watcher = null
 function watch() {
-  fs.watch(ROOT, { recursive: true }, (_type, file) => {
+  const watchedRoot = ROOT
+  const handle = fs.watch(watchedRoot, { recursive: true }, (_type, file) => {
     if (!file) return
     const rel = file.split(path.sep).join('/')
     if (IGNORED.test(rel) || rel.startsWith('system/app/')) return
@@ -334,6 +394,7 @@ function watch() {
       broadcast('change', { paths, at: Date.now() })
     }, 250)
   })
+  return handle
 }
 
 async function main() {
@@ -356,6 +417,8 @@ async function main() {
     const url = new URL(req.url, `http://${HOST}`)
     const q = Object.fromEntries(url.searchParams)
     try {
+      if (url.pathname === '/api/instance' && req.method === 'GET') return sendJSON(res, instance ? { workspace: ROOT, pid: process.pid, url: instance.url } : { error: 'Starting' }, instance ? 200 : 503)
+      if (url.pathname === '/api/instance/stop' && req.method === 'POST') return stopInstance(req, res, instance, await readBody(req))
       if (url.pathname === '/api/access' && req.method === 'GET') return sendJSON(res, accessStatus())
       if (url.pathname === '/api/access/events' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' })
@@ -369,7 +432,28 @@ async function main() {
       if (url.pathname === '/api/session/heartbeat' && req.method === 'POST') return sendJSON(res, await heartbeat())
       if (url.pathname.startsWith('/api/') && !accessSession.valid) return sendJSON(res, { error: 'Skool membership must be verified for this session.', access: accessStatus() }, 403)
       if (url.pathname.startsWith('/api/')) touchAppActivity(url.pathname)
+      if (url.pathname === '/api/workspaces' && req.method === 'GET') return sendJSON(res, { active: activeWorkspace, items: workspaceList() })
+      if (url.pathname === '/api/workspaces/switch' && req.method === 'POST') {
+        const body = await readBody(req)
+        return sendJSON(res, await switchWorkspace(body.name))
+      }
+      if (url.pathname === '/api/workspaces' && req.method === 'POST') {
+        const body = await readBody(req)
+        const name = workspaceName(body.name)
+        if (!name || name === 'default') return sendJSON(res, { error: 'Choose a lowercase workspace name.' }, 400)
+        const target = workspaceRoot(name)
+        if (fs.existsSync(target)) return sendJSON(res, { error: 'That workspace already exists.' }, 409)
+        await fsp.mkdir(target, { recursive: true })
+        await switchWorkspace(name)
+        const initialized = body.projectName ? await initializeProject(body) : setupStatus()
+        return sendJSON(res, { ...initialized, workspace: activeWorkspace, workspaces: workspaceList() })
+      }
       if (url.pathname === '/api/setup' && req.method === 'GET') return sendJSON(res, setupStatus())
+      if (url.pathname === '/api/setup/skip' && req.method === 'POST') {
+        fs.mkdirSync(path.join(ROOT, '.maybee'), { recursive: true })
+        fs.writeFileSync(path.join(ROOT, '.maybee', 'onboarding-skipped.json'), JSON.stringify({ skippedAt: new Date().toISOString() }, null, 2))
+        return sendJSON(res, setupStatus())
+      }
       if (url.pathname === '/api/setup' && req.method === 'POST') {
         const body = await readBody(req)
         return sendJSON(res, await initializeProject(body))
@@ -397,9 +481,10 @@ async function main() {
         const b = await board(ROOT, getIndex())
         const withFiles = await nowCards(ROOT, getIndex())
         b.columns.now.cards = b.columns.now.cards.map(c => ({ ...c, ...(withFiles.find(w => w.path === c.path) || {}) }))
-        // D242: today's routines sit on top of Now; done ones stay there with a check (Adal, 2026-11-08)
+        // Routines have their own board column; the Desktop still shows today's due state.
         const d = await desktop(ROOT, getIndex(), APP_DIR, seen)
         b.routinesToday = d.rhythm.due.filter(r => !r.skipped).sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title))
+        b.columns.routine = { count: b.routinesToday.length, cards: [] }
         return sendJSON(res, b)
       }
       if (url.pathname === '/api/backlog') return sendJSON(res, await backlog(ROOT, getIndex()))
@@ -491,7 +576,17 @@ async function main() {
       if (url.pathname === '/api/library') return sendJSON(res, await library())
       if (url.pathname === '/api/search') return sendJSON(res, await search(q.q))
       if (url.pathname === '/api/numbers') return sendJSON(res, await numbers(ROOT))
-      if (url.pathname === '/api/state') return sendJSON(res, await overviewState(ROOT))
+      if (url.pathname === '/api/state') return sendJSON(res, await overviewState(ROOT, getIndex()))
+      if (url.pathname === '/api/waiting/resolve' && req.method === 'POST') {
+        const body = await readBody(req)
+        try {
+          const result = await resolveWaiting(ROOT, String(body.title || ''), String(body.destination || ''))
+          await statFile(ROOT, 'STATE.md'); await statFile(ROOT, result.path)
+          seen.items[result.path] = Date.now() + 2000; saveSeen(); await snapshot(result.path)
+          await logChange(ROOT, `${result.title}: resolved from Waiting for you → ${result.stage} (${result.path})`)
+          return sendJSON(res, { ok: true, ...result })
+        } catch (err) { return sendJSON(res, { error: err.message }, 400) }
+      }
       if (url.pathname === '/api/note') {
         if (!safePath(q.path)) return sendJSON(res, { error: 'outside the project' }, 403)
         return sendJSON(res, await readNote(ROOT, q.path))
@@ -549,8 +644,10 @@ async function main() {
     process.exit(0)
   }, ACCESS_SWEEP_MS)
 
-  watch()
-  server.listen(PORT, HOST, () => {
+  watcher = watch()
+  instance = await startInstance(server, ROOT, PORT, HOST)
+  PORT = instance.port
+  {
     const url = `http://${HOST}:${PORT}`
     console.log(`Maybee is open at ${url}  (Ctrl+C to stop)`)
     if (!process.argv.includes('--no-open')) {
@@ -559,7 +656,7 @@ async function main() {
         spawn(cmd, [url + '/?place=workspace'], { detached: true, stdio: 'ignore' }).unref() // D241: start on the Workspace (D260)
       })
     }
-  })
+  }
 }
 
-main()
+main().catch(error => { console.error(error); process.exit(1) })

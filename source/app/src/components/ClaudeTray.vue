@@ -15,7 +15,7 @@ const ago = iso => { const m = Math.round((Date.now() - new Date(iso)) / 60000);
     <div v-if="open" class="tray-pop">
       <p class="tray-state">
         <b>{{ claude.listening ? 'Listening.' : 'Not listening.' }}</b>
-        {{ claude.listening ? 'Buttons send straight to the open session.' : 'Ask Claude in the chat to "listen to Maybee". Until then, buttons copy a prompt for you to paste.' }}
+        {{ claude.listening ? 'Buttons send straight to the open session.' : 'The Maybee skill should start the listener for this session. Until then, requests are saved and the prompt is copied.' }}
       </p>
       <div v-if="!claude.items.length" class="tray-empty">No requests yet.</div>
       <div v-for="r in claude.items" :key="r.id" class="req" :class="r.status">

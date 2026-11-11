@@ -122,30 +122,124 @@ async function routines(root, index, today, keepUntil) {
 }
 
 // A section of STATE.md as items, one bullet per item ("## Waiting on the owner", "## Focus"...)
+function stateItem(raw, shorten = true) {
+  const bold = /^\*\*(.+?)\*\*:?\s*/.exec(raw)
+  const clean = raw.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+  const title = (bold ? bold[1].replace(/:$/, '') : clean.split(/[:(]|\. /)[0]).replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+  const rest = (bold ? raw.slice(bold[0].length) : clean.slice(title.length))
+    .replace(/\*\*/g, '').replace(/`/g, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/^[:.\s]+/, '')
+  const links = [...raw.matchAll(/\]\(([^)]+)\)/g)].map(x => x[1]).filter(h => !/^https?:/.test(h)).map(h => decodeURIComponent(h.split('#')[0]))
+  return { title, text: shorten && rest.length > 260 ? rest.slice(0, 260).replace(/\s+\S*$/, '') + '…' : rest, link: links[0] || null }
+}
+
 async function stateSection(root, heading) {
   let text = ''
   try { text = await fsp.readFile(path.join(root, 'STATE.md'), 'utf8') } catch { return [] }
   const m = new RegExp('## ' + heading + '\\n([\\s\\S]*?)(\\n## |$)').exec(text)
   if (!m) return []
-  return m[1].split('\n').filter(l => l.startsWith('- ')).map(l => {
-    const raw = l.slice(2)
-    const bold = /^\*\*(.+?)\*\*:?\s*/.exec(raw)
-    const clean = raw.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-    const title = (bold ? bold[1].replace(/:$/, '') : clean.split(/[:(]|\. /)[0]).replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-    const rest = (bold ? raw.slice(bold[0].length) : clean.slice(title.length))
-      .replace(/\*\*/g, '').replace(/`/g, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/^[:.\s]+/, '')
-    const links = [...raw.matchAll(/\]\(([^)]+)\)/g)].map(x => x[1]).filter(h => !/^https?:/.test(h)).map(h => decodeURIComponent(h.split('#')[0]))
-    return { title, text: rest.length > 260 ? rest.slice(0, 260).replace(/\s+\S*$/, '') + '…' : rest, link: links[0] || null }
-  })
+  return m[1].split('\n').filter(l => l.startsWith('- ')).map(l => stateItem(l.slice(2)))
 }
 const waiting = root => stateSection(root, 'Waiting on the owner')
 
-// The Overview page (D261): where we are (STATE's Focus) and what waits for the owner
-export async function overviewState(root) {
-  const [focus, wait] = await Promise.all([stateSection(root, 'Focus'), waiting(root)])
+function safeIdeaName(title) {
+  return String(title || 'Decision').replace(/[<>:"/\\|?*\x00-\x1f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 100) || 'Decision'
+}
+
+let waitingWrite = Promise.resolve()
+
+// Turn a STATE.md › Waiting on the owner bullet into a normal Maybee card and remove it from the queue.
+// Writes are serialized so two quick decisions cannot overwrite each other's STATE update.
+export function resolveWaiting(root, title, destination) {
+  const run = waitingWrite.then(() => resolveWaitingNow(root, title, destination))
+  waitingWrite = run.catch(() => {})
+  return run
+}
+
+async function resolveWaitingNow(root, title, destination) {
+  if (!['task', 'idea', 'not'].includes(destination)) throw new Error('unknown decision')
+  const stateFile = path.join(root, 'STATE.md')
+  let state = await fsp.readFile(stateFile, 'utf8')
+  const section = /## Waiting on the owner\n([\s\S]*?)(\n## |$)/.exec(state)
+  if (!section) throw new Error('Waiting on the owner is not present in STATE.md')
+  const lines = section[1].split('\n')
+  const lineIndex = lines.findIndex(line => line.startsWith('- ') && stateItem(line.slice(2)).title === title)
+  if (lineIndex < 0) throw new Error('This waiting item changed. Refresh and try again.')
+  const raw = lines[lineIndex].slice(2)
+  const item = stateItem(raw, false)
+  const today = dayKey()
+  const type = destination === 'task' ? 'task' : 'idea'
+  const stage = destination === 'task' ? 'next' : destination === 'idea' ? 'maybe' : 'not'
+  await fsp.mkdir(path.join(root, 'ideas'), { recursive: true })
+  const base = safeIdeaName(item.title)
+  let rel = `ideas/${base}.md`
+  let n = 2
+  while (fs.existsSync(path.join(root, rel))) rel = `ideas/${base} ${n++}.md`
+  const description = plainMarkdown(item.text || item.title).slice(0, 220)
+  const head = YAML.stringify({ title: item.title, type, stage, captured: today, description }).trimEnd()
+  const source = item.link ? `\n\nSource: [${path.basename(item.link, '.md')}](../${encodeURI(item.link).replace(/#/g, '%23')})` : ''
+  const note = `---\n${head}\n---\n\n> [Dashboard](../DASHBOARD.md) · [State](../STATE.md)\n\n# ${item.title}\n\n## Context\n\n${plainMarkdown(item.text) || 'Created from a decision waiting in STATE.md.'}${source}\n`
+  await fsp.writeFile(path.join(root, rel), note)
+  lines.splice(lineIndex, 1)
+  const updatedSection = lines.join('\n')
+  state = state.slice(0, section.index) + `## Waiting on the owner\n${updatedSection}` + state.slice(section.index + section[0].length - section[2].length)
+  state = state.replace(/^updated:\s*.*$/m, `updated: ${today}`).replace(/^by:\s*.*$/m, 'by: Maybee decision queue')
+  await fsp.writeFile(stateFile, state)
+  return { path: rel, title: item.title, type, stage }
+}
+
+function plainMarkdown(value) {
+  return String(value || '')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/\*\*|__|`/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+async function projectSummary(root) {
+  for (const rel of ['PROJECT.md', 'README.md']) {
+    let text = ''
+    try { text = await fsp.readFile(path.join(root, rel), 'utf8') } catch { continue }
+    const body = frontmatter(text).body
+    const title = plainMarkdown((/^#\s+(.+)$/m.exec(body) || [])[1] || path.basename(root))
+    const blocks = body.split(/\n\s*\n/).map(x => x.trim())
+    const summary = blocks.find(x => x && !/^(#|>|-|\*|\||```|!\[)/.test(x) && !/^\[.*\]\(.*\)$/.test(x))
+    return { title: title || path.basename(root), summary: plainMarkdown(summary), path: rel }
+  }
+  return { title: path.basename(root), summary: '', path: null }
+}
+
+async function recentDecisions(root, limit = 4) {
+  let text = ''
+  try { text = await fsp.readFile(path.join(root, 'knowledge', 'decisions.md'), 'utf8') } catch { return [] }
+  const rows = text.split('\n').filter(line => /^\|\s*D\d+(?:\s*\([^)]*\))?\s*\|/.test(line))
+  return rows.slice(-limit).reverse().map(line => {
+    const cells = line.split('|').slice(1, -1).map(x => x.trim())
+    const id = plainMarkdown(cells[0]).split(' ')[0]
+    const decision = plainMarkdown(cells[1])
+    const first = decision.match(/^(.+?[.!?])(?:\s|$)/)
+    return { id, title: first ? first[1] : decision, text: first ? decision.slice(first[1].length).trim() : '', path: 'knowledge/decisions.md' }
+  })
+}
+
+async function recentChanges(root, limit = 5) {
+  let text = ''
+  try { text = await fsp.readFile(path.join(root, 'logs', 'CHANGELOG.md'), 'utf8') } catch { return [] }
+  return text.split('\n').filter(line => /^-\s+\d{4}-\d{2}-\d{2}:/.test(line)).slice(-limit).reverse().map(line => {
+    const match = /^-\s+(\d{4}-\d{2}-\d{2}):\s*(.*)$/.exec(line)
+    return { date: match[1], text: plainMarkdown(match[2]), path: 'logs/CHANGELOG.md' }
+  })
+}
+
+// The Overview page (D273): a generic project briefing assembled from ordinary workspace files.
+export async function overviewState(root, index) {
+  const [project, focus, wait, decisions, changes, cards] = await Promise.all([
+    projectSummary(root), stateSection(root, 'Focus'), waiting(root), recentDecisions(root), recentChanges(root), loadCards(root, index),
+  ])
   let updated = null
   try { updated = (/^updated:\s*(.+)$/m.exec(await fsp.readFile(path.join(root, 'STATE.md'), 'utf8')) || [])[1] || null } catch {}
-  return { focus, waiting: wait, updated }
+  const now = cards.filter(card => card.stage === 'now').sort((a, b) => b.mtime - a.mtime).slice(0, 5)
+  return { project, focus, waiting: wait, now, decisions, changes, updated }
 }
 
 // One maybe idea a day: stays the same all day; ideas never offered come first, then the least recently touched.

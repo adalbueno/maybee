@@ -1,26 +1,51 @@
 #!/usr/bin/env bash
 # SessionStart hook: make sure the Maybee app is running (opens it in the browser if it had to start it),
 # and tell the agent to start listening for "Ask Claude" requests.
-ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
-APP="$ROOT/system/app"
-status="already running, opened at http://127.0.0.1:8780"
-if curl -s -o /dev/null --max-time 2 http://127.0.0.1:8780/api/inbox; then
-  # D240: every session opens the app in the browser, even when the server was already running.
-  (setsid nohup xdg-open "http://127.0.0.1:8780/?place=desktop" > /dev/null 2>&1 < /dev/null &) > /dev/null 2>&1 < /dev/null
+APP="$(cd "$(dirname "$0")/.." && pwd)"
+if [ "$(basename "$(dirname "$APP")")" = "package" ]; then
+  ROOT="$(cd "$APP/../../.." && pwd)"
 else
-  if [ -d "$APP/node_modules" ]; then
-    (cd "$APP" && setsid nohup node server.js > "$APP/data/server.log" 2>&1 < /dev/null &) > /dev/null 2>&1 < /dev/null
-    status="started and opened at http://127.0.0.1:8780"
-    for i in $(seq 1 20); do curl -s -o /dev/null --max-time 1 http://127.0.0.1:8780/api/inbox && break; sleep 0.5; done
-  else
-    status="not installed: run npm install in the project folder"
-  fi
+  ROOT="$(cd "$APP/../.." && pwd)"
+fi
+instance_url() {
+  node --input-type=module - "$ROOT" <<'JS'
+import fs from 'node:fs';
+try {
+  const root = process.argv[2];
+  const info = JSON.parse(fs.readFileSync(root + '/.maybee/server.json'));
+  if (info.workspace !== root || !Number.isInteger(info.port)) process.exit(1);
+  const url = 'http://127.0.0.1:' + info.port;
+  const live = await (await fetch(url + '/api/instance', { signal: AbortSignal.timeout(1000) })).json();
+  if (live.workspace !== root || live.pid !== info.pid) process.exit(1);
+  console.log(url);
+} catch { process.exit(1); }
+JS
+}
+url="$(instance_url 2>/dev/null)"
+if [ -n "$url" ]; then
+  status="already running, opened at $url"
+  opener=xdg-open
+  [ "$(uname -s)" = Darwin ] && opener=open
+  (nohup "$opener" "$url/workspace" > /dev/null 2>&1 < /dev/null &) > /dev/null 2>&1 < /dev/null
+elif [ -d "$APP/node_modules" ]; then
+  mkdir -p "$APP/data"
+  (nohup node "$APP/server.js" --project "$ROOT" > "$APP/data/server.log" 2>&1 < /dev/null &) > /dev/null 2>&1 < /dev/null
+  for i in $(seq 1 20); do
+    url="$(instance_url 2>/dev/null)"
+    [ -n "$url" ] && break
+    sleep 0.5
+  done
+  status="started and opened at $url"
+  [ -n "$url" ] || status="startup not confirmed; inspect $APP/data/server.log"
+else
+  status="dependencies missing; the agent should run the package launcher"
 fi
 # D241: routines marked auto_run go to the inbox (once a day, when due); the listener below picks them up
 auto=""
-if curl -s -o /dev/null --max-time 2 http://127.0.0.1:8780/api/inbox; then
-  sent=$(curl -s --max-time 5 -X POST http://127.0.0.1:8780/api/autorun | jq -r '(.sent // []) | join(", ")' 2>/dev/null)
+if [ -n "$url" ] && curl -fsS -o /dev/null --max-time 2 "$url/api/inbox"; then
+  sent=$(curl -s --max-time 5 -X POST "$url/api/autorun" | jq -r '(.sent // []) | join(", ")' 2>/dev/null)
   [ -n "$sent" ] && auto=" Automatic routines queued for today: $sent (they arrive with the first listener run)."
 fi
-ctx="Maybee app: $status.$auto Start listening for Ask Claude requests now: run \`node system/app/scripts/listen.js 55\` with the Bash tool in the background (run_in_background). When it exits with requests, do them (\"Do the next step\" = the note's next_step, D239), answer with \`node system/app/scripts/reply.js <id> \"reply\"\`, and start the listener again. When a routine produced a file to look at, run `node system/app/scripts/deliverable.js \"<note path>\" \"<file path>\"` before replying, so its card links to it (D263). Anything that goes outside (publishing, messages) still needs Adal's OK in the chat."
+LISTENER="$APP/scripts/listen.js"
+ctx="Maybee app: $status.$auto Start the Maybee listener now by executing node \"$LISTENER\" 55 in the background with the agent's shell tool; do not ask the owner to run a terminal command. When it exits with requests, do them (\"Do the next step\" = the note's next_step, D239), answer with node \"$APP/scripts/reply.js\" <id> \"reply\", and start the listener again. Do not execute old queued requests without reviewing them. When a routine produced a file to look at, run node \"$APP/scripts/deliverable.js\" \"<note path>\" \"<file path>\" before replying, so its card links to it (D263). Anything that goes outside (publishing, messages) still needs Adal's OK in the chat."
 jq -n --arg c "$ctx" --arg m "Maybee app: $status" '{systemMessage: $m, hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $c}}'

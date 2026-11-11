@@ -14,8 +14,6 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-PID_FILE="$WORKSPACE/.maybee/server.pid"
-
 download() {
   if command -v curl >/dev/null 2>&1; then
     curl --fail --location --silent --show-error "$1" --output "$2"
@@ -59,37 +57,6 @@ platform_id() {
 PLATFORM="$(platform_id)"
 RUNTIME_DIR="$WORKSPACE/.maybee/runtime/$PLATFORM"
 
-stop_previous_maybee() {
-  [ -f "$PID_FILE" ] || return 0
-  local old_pid old_command
-  old_pid="$(cat "$PID_FILE" 2>/dev/null || true)"
-  if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
-    old_command="$(ps -p "$old_pid" -o command= 2>/dev/null || true)"
-    if [[ "$old_command" == *".maybee/package/app/server.js"* ]]; then
-      echo "Stopping the previous Maybee session..."
-      kill "$old_pid" 2>/dev/null || true
-      for _ in $(seq 1 20); do
-        kill -0 "$old_pid" 2>/dev/null || break
-        sleep 0.25
-      done
-    fi
-  fi
-  rm -f "$PID_FILE"
-
-  # Also recover servers started by an older Maybee version without a PID file.
-  if command -v lsof >/dev/null 2>&1; then
-    local port_pid port_command
-    while read -r port_pid; do
-      [ -n "$port_pid" ] || continue
-      port_command="$(ps -p "$port_pid" -o command= 2>/dev/null || true)"
-      if [[ "$port_command" == *".maybee/package/app/server.js"* ]]; then
-        echo "Stopping the previous Maybee server on port $PORT..."
-        kill "$port_pid" 2>/dev/null || true
-      fi
-    done < <(lsof -nP -iTCP:"$PORT" -sTCP:LISTEN -t 2>/dev/null || true)
-  fi
-}
-
 ensure_dependencies() {
   local platform="$1"
   local marker="$WORKSPACE/.maybee/deps.json"
@@ -101,9 +68,7 @@ ensure_dependencies() {
   printf '{\n  "platform": "%s",\n  "installedAt": "%s"\n}\n' "$platform" "$(date -Iseconds)" > "$marker"
 }
 
+mkdir -p "$WORKSPACE/.maybee"
 ensure_node
 ensure_dependencies "$PLATFORM"
-mkdir -p "$(dirname "$PID_FILE")"
-stop_previous_maybee
-printf '%s\n' "$$" > "$PID_FILE"
 MAYBEE_ACCESS_MODE="${MAYBEE_ACCESS_MODE:-agent-browser}" PORT="$PORT" exec "$NODE_BIN/node" "$APP_DIR/server.js" --project "$WORKSPACE" "$@"

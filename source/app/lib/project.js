@@ -9,7 +9,7 @@ const index = new Map() // rel -> { rel, ext, mtime, size }
 const noteCache = new Map() // rel -> { mtime, data }
 let root = ''
 
-const SKIP_DIR = new Set(['node_modules', '.git', '.obsidian', '.trash', '__pycache__'])
+const SKIP_DIR = new Set(['node_modules', '.git', '.obsidian', '.trash', '__pycache__', '.maybee', 'workspaces'])
 const MEDIA = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm', '.mov'])
 const VIDEO = new Set(['.mp4', '.webm', '.mov'])
 

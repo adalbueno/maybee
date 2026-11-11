@@ -5,7 +5,6 @@ import Viewer from './components/Viewer.vue'
 import Board from './components/Board.vue'
 import StatePanel from './components/StatePanel.vue'
 import Library from './components/Library.vue'
-import Numbers from './components/Numbers.vue'
 import ClaudeTray from './components/ClaudeTray.vue'
 import Onboarding from './components/Onboarding.vue'
 import AccessGate from './components/AccessGate.vue'
@@ -26,30 +25,33 @@ const setup = ref(null)
 const showOnboarding = ref(false)
 const access = ref(null)
 const accessReady = ref(false)
+const workspaces = ref([])
+const activeWorkspace = ref('default')
+const workspaceMenuOpen = ref(false)
 // D254: routes. /overview · /workspace · /activity · /vault (D260, D261: renamed from /numbers, /desktop, /feed, /library; the old names still work), plus ?note=<path>&tab=<settings|changes> for a note.
 // ?place=desktop (the SessionStart hook, D241) still works; with no route, the remembered place.
 // D245: the Desktop is the board (old 'kanban' place maps to it)
 const PLACES = ['overview', 'workspace', 'activity', 'vault']
-// D261: Overview has two tabs, Numbers first (Adal 8/11) and "Where we are" (STATE)
-const ovTab = ref((() => { try { return localStorage.getItem('maybee.ovTab') || 'numbers' } catch { return 'numbers' } })())
-function setOvTab(t) { ovTab.value = t; try { localStorage.setItem('maybee.ovTab', t) } catch {} }
 const ALIASES = { kanban: 'workspace', desktop: 'workspace', feed: 'activity', library: 'vault', numbers: 'overview' }
 const fixPlace = p => ALIASES[p] || p
 function readUrl() {
   const q = new URLSearchParams(location.search)
-  const seg = location.pathname.replace(/^\/+|\/+$/g, '')
-  let p = PLACES.includes(fixPlace(seg)) ? fixPlace(seg) : q.get('place') ? fixPlace(q.get('place')) : null
+  const parts = location.pathname.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean)
+  const routePlace = parts.length > 1 ? parts[1] : parts[0]
+  const workspace = parts.length > 1 ? parts[0] : null
+  let p = PLACES.includes(fixPlace(routePlace)) ? fixPlace(routePlace) : q.get('place') ? fixPlace(q.get('place')) : null
   if (!p) { try { p = fixPlace(localStorage.getItem('maybee.place') || 'workspace') } catch { p = 'workspace' } }
   if (!PLACES.includes(p)) p = 'workspace'
   const note = q.get('note')
-  return { place: p, open: note ? { path: note, tab: q.get('tab') || undefined } : null }
+  return { place: p, workspace, open: note ? { path: note, tab: q.get('tab') || undefined } : null }
 }
 const start = readUrl()
 const place = ref(start.place)
+const requestedWorkspace = start.workspace
 open.value = start.open
 const openTab = ref(start.open && start.open.tab || 'content')
 function urlFor() {
-  let u = '/' + place.value
+  let u = '/' + (activeWorkspace.value || 'default') + '/' + place.value
   if (open.value && open.value.path) {
     u += '?note=' + encodeURIComponent(open.value.path)
     if (openTab.value && openTab.value !== 'content') u += '&tab=' + openTab.value
@@ -66,6 +68,7 @@ function syncUrl(push = true) {
 syncUrl(false)
 window.addEventListener('popstate', () => {
   const r = readUrl()
+  if (r.workspace && r.workspace !== activeWorkspace.value && workspaces.value.some(w => w.name === r.workspace)) chooseWorkspace(r.workspace)
   place.value = r.place
   if (!r.open) open.value = null
   else if (!open.value || open.value.path !== r.open.path) open.value = r.open
@@ -204,6 +207,15 @@ function connect() {
       if (data.paths.some(p => p.startsWith('logs/metrics/'))) loadNumbers()
     }, 150)
   })
+  es.addEventListener('workspace', e => {
+    const data = JSON.parse(e.data)
+    activeWorkspace.value = data.workspace
+    workspaces.value = data.workspaces || workspaces.value
+    lastChange.value = Date.now()
+    syncUrl(false)
+    open.value = null
+    loadSetup(); loadFeed(); loadNumbers()
+  })
   es.onerror = () => { live.value = false }
 }
 
@@ -211,8 +223,36 @@ function onKey(e) { if (e.key === 'Escape' && open.value) closeViewer() }
 async function loadSetup() {
   try {
     setup.value = await fetch('/api/setup').then(r => r.json())
-    showOnboarding.value = !setup.value.initialized || new URLSearchParams(location.search).get('setup') === '1'
+    showOnboarding.value = (!setup.value.initialized && !setup.value.skipped) || new URLSearchParams(location.search).get('setup') === '1'
   } catch {}
+}
+async function loadWorkspaces() {
+  try {
+    const data = await fetch('/api/workspaces').then(r => r.json())
+    workspaces.value = data.items || []
+    const requested = requestedWorkspace && workspaces.value.some(w => w.name === requestedWorkspace) ? requestedWorkspace : data.active
+    activeWorkspace.value = requested
+    if (requested !== data.active) {
+      const switched = await fetch('/api/workspaces/switch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: requested }) })
+      if (switched.ok) {
+        const next = await switched.json()
+        workspaces.value = next.workspaces || workspaces.value
+      }
+    }
+    syncUrl(false)
+  } catch {}
+}
+async function chooseWorkspace(name) {
+  workspaceMenuOpen.value = false
+  if (!name || name === activeWorkspace.value) return
+  const res = await fetch('/api/workspaces/switch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
+  if (!res.ok) return
+  const data = await res.json()
+  activeWorkspace.value = data.workspace
+  workspaces.value = data.workspaces || workspaces.value
+  open.value = null
+  syncUrl()
+  await loadSetup(); await loadFeed(); await loadNumbers()
 }
 function onboardingDone(data) { setup.value = data; showOnboarding.value = false; loadFeed(); loadNumbers() }
 function accessVerified(data) { access.value = data; accessReady.value = true; connect(); startHeartbeat(); loadSetup(); loadFeed(); loadNumbers() }
@@ -241,19 +281,31 @@ function startHeartbeat() {
   heartbeatTimer = setInterval(heartbeat, 60 * 1000)
 }
 
-onMounted(() => { fetch('/api/access').then(r => r.json()).then(data => { access.value = data; accessReady.value = !!data.valid; if (data.valid) { loadFeed(); loadNumbers(); loadSetup(); connect(); startHeartbeat() } }); window.addEventListener('keydown', onKey) })
+onMounted(() => { fetch('/api/access').then(r => r.json()).then(data => { access.value = data; accessReady.value = !!data.valid; if (data.valid) { loadWorkspaces(); loadFeed(); loadNumbers(); loadSetup(); connect(); startHeartbeat() } }); window.addEventListener('keydown', onKey) })
 onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.removeEventListener('keydown', onKey) })
 </script>
 
 <template>
-  <div class="shell" :class="{ 'with-viewer': open }">
+  <div class="shell" :class="{ 'with-viewer': open }" @click="workspaceMenuOpen = false">
     <AccessGate v-if="!accessReady" @verified="accessVerified" />
     <Onboarding v-if="showOnboarding" @done="onboardingDone" />
     <header class="top">
       <div class="brand">
         <span class="mark">M</span>
         <span class="name">Maybee</span>
-        <span class="project">How I</span>
+        <div v-if="workspaces.length" class="workspace-picker" @click.stop>
+          <button class="workspace-select" :aria-expanded="workspaceMenuOpen" aria-haspopup="listbox" @click="workspaceMenuOpen = !workspaceMenuOpen">
+            <span class="workspace-dot"></span>{{ (workspaces.find(w => w.name === activeWorkspace) || {}).label || activeWorkspace }}<span class="workspace-chevron">⌄</span>
+          </button>
+          <div v-if="workspaceMenuOpen" class="workspace-menu" role="listbox">
+            <div class="workspace-menu-label">Workspaces</div>
+            <button v-for="w in workspaces" :key="w.name" class="workspace-option" :class="{ selected: w.name === activeWorkspace }" role="option" :aria-selected="w.name === activeWorkspace" @click="chooseWorkspace(w.name)">
+              <span class="workspace-option-icon">{{ w.name === 'default' ? 'M' : '↗' }}</span>
+              <span><b>{{ w.label }}</b><small>{{ w.name === 'default' ? 'Default workspace' : 'Playbook workspace' }}</small></span>
+              <span v-if="w.name === activeWorkspace" class="workspace-check">✓</span>
+            </button>
+          </div>
+        </div>
       </div>
       <nav class="places">
         <a class="place" :class="{ active: place === 'overview' }" @click="go('overview')">Overview</a>
@@ -281,12 +333,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
         <Library :changed-at="lastChange" :active-path="open && open.path" @open="openItem" />
       </main>
       <main v-else-if="place === 'overview'" class="lib-wrap">
-        <div class="ov-tabs">
-          <button :class="{ on: ovTab === 'numbers' }" @click="setOvTab('numbers')">Numbers</button>
-          <button :class="{ on: ovTab === 'state' }" @click="setOvTab('state')">Where we are</button>
-        </div>
-        <Numbers v-if="ovTab === 'numbers'" :data="nums" @open="openItem" />
-        <StatePanel v-else :changed-at="lastChange" @open="openItem" />
+        <StatePanel :changed-at="lastChange" @open="openItem" />
       </main>
       <main v-else class="feed">
         <div class="feed-inner">
