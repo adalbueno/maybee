@@ -3,7 +3,7 @@ set -euo pipefail
 
 WORKSPACE="$(pwd)"
 RELEASE_FILE="${MAYBEE_RELEASE_FILE:-}"
-RELEASE_URL="${MAYBEE_RELEASE_URL:-https://github.com/adalbueno/maybee/releases/download/v0.1.1/maybee-0.1.1.zip}"
+RELEASE_URL="${MAYBEE_RELEASE_URL:-https://github.com/adalbueno/maybee/releases/download/v0.1.2/maybee-package-0.1.2.zip}"
 UPDATE=0
 NODE_VERSION="${MAYBEE_NODE_VERSION:-22.14.0}"
 

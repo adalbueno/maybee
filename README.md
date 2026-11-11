@@ -16,7 +16,7 @@ For Codex, the skill path is `skill/maybee`. Once installed, the user can say: `
 experiments/maybee-package/scripts/build-release.sh
 ```
 
-The release is written to `dist/`. It contains the current Maybee app and the maintained `maybee-*` workflows, but not `node_modules`, app data, the Skool profile or this project's user files. The same command also creates `maybee-skill-<version>.zip`, which contains only the bootstrap skill and is the ZIP to upload to Claude Desktop.
+The release is written to `dist/`. It contains the current Maybee app and the maintained `maybee-*` workflows, but not `node_modules`, app data, the Skool profile or this project's user files. The same command also creates `maybee-<version>.zip`, which contains only the bootstrap skill and is the ZIP to upload to Claude Desktop. The full application archive is named `maybee-package-<version>.zip`.
 
 ## Install into an isolated workspace
 

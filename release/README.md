@@ -1,6 +1,6 @@
 # Maybee release package
 
-This directory is installed under `.maybee/package/` in the user's workspace.
+This directory is installed under `.maybee/package/` in the user's workspace. The distributable archive is named `maybee-package-<version>.zip`; the separate `maybee-<version>.zip` archive is only the bootstrap skill for Claude/Codex.
 
 - `app/` is the local visualization and bridge.
 - `skills/` contains the versioned Maybee workflows and knowledge.
