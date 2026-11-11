@@ -1,0 +1,11 @@
+{
+  "name": "maybee",
+  "version": "0.1.0",
+  "format": 1,
+  "description": "Maybee local app, MCP bridge and bundled workflows.",
+  "entrypoint": "app/server.js",
+  "bootstrapSkill": "skill/maybee",
+  "installRoot": ".maybee/package",
+  "userDataRoot": "workspace",
+  "requires": { "node": ">=20" }
+}
