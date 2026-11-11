@@ -8,10 +8,10 @@ This directory is installed under `.maybee/package/` in the user's workspace. Th
 - `knowledge/` contains package-level documentation and defaults.
 - User project files stay at the workspace root and are never replaced by an update.
 
-Start the app with the workspace root as its project. The installer prints the exact local Node.js command after installation:
+Start the app with the workspace root as its project. The first start prepares native dependencies for the current machine, so a package installed by a Linux agent can safely be started later on macOS:
 
 ```bash
-"$PWD/.maybee/runtime/bin/node" "$PWD/.maybee/package/app/server.js" --project "$PWD"
+"$PWD/.maybee/package/start.sh"
 ```
 
-The installer installs a local Node.js runtime when needed, the app dependencies and Playwright into `.maybee/package/app/node_modules`, and Playwright's Chromium into `.maybee/browsers`. Set `MAYBEE_SKIP_DEPENDENCIES=1` only for an archive/layout test.
+`start.sh` installs a local Node.js runtime when needed, the app dependencies and Playwright into `.maybee/package/app/node_modules`, and Playwright's Chromium into `.maybee/browsers/<platform>`. It records the platform in `.maybee/deps.json` and refreshes native dependencies when the platform changes.

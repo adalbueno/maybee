@@ -3,9 +3,8 @@ set -euo pipefail
 
 WORKSPACE="$(pwd)"
 RELEASE_FILE="${MAYBEE_RELEASE_FILE:-}"
-RELEASE_URL="${MAYBEE_RELEASE_URL:-https://github.com/adalbueno/maybee/releases/download/v0.1.2/maybee-package-0.1.2.zip}"
+RELEASE_URL="${MAYBEE_RELEASE_URL:-https://github.com/adalbueno/maybee/releases/download/v0.1.3/maybee-package-0.1.3.zip}"
 UPDATE=0
-NODE_VERSION="${MAYBEE_NODE_VERSION:-22.14.0}"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -39,36 +38,8 @@ extract_zip() {
   fi
 }
 
-ensure_node() {
-  if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
-    NODE_BIN="$(dirname "$(command -v node)")"
-    return
-  fi
-
-  local os arch platform archive url runtime_root
-  os="$(uname -s)"
-  arch="$(uname -m)"
-  case "$os:$arch" in
-    Linux:x86_64) platform="linux-x64" ;;
-    Linux:aarch64|Linux:arm64) platform="linux-arm64" ;;
-    Darwin:x86_64) platform="darwin-x64" ;;
-    Darwin:arm64) platform="darwin-arm64" ;;
-    *) echo "Cannot install the bundled Node.js runtime automatically on $os/$arch." >&2; exit 1 ;;
-  esac
-  runtime_root="$WORKSPACE/.maybee/runtime"
-  archive="$TMP/node.tar.xz"
-  url="https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${platform}.tar.xz"
-  echo "Node.js/npm not found; downloading Node.js v${NODE_VERSION} locally..."
-  download "$url" "$archive"
-  mkdir -p "$runtime_root"
-  tar -xJf "$archive" -C "$runtime_root" --strip-components=1
-  NODE_BIN="$runtime_root/bin"
-}
-
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-
-ensure_node
 
 if [ -n "$RELEASE_FILE" ]; then
   cp "$RELEASE_FILE" "$TMP/release.zip"
@@ -95,13 +66,6 @@ mkdir -p "$TARGET"
 cp -a "$PACKAGE/." "$TARGET/"
 printf '{\n  "version": "%s",\n  "installedAt": "%s",\n  "workspace": "%s"\n}\n' "$VERSION" "$(date -Iseconds)" "$WORKSPACE" > "$WORKSPACE/.maybee/installation.json"
 
-if [ "${MAYBEE_SKIP_DEPENDENCIES:-0}" != 1 ]; then
-  "$NODE_BIN/npm" ci --prefix "$TARGET/app" --no-audit --no-fund
-  "$NODE_BIN/npm" install --prefix "$TARGET/app" --no-save --no-audit --no-fund playwright
-  mkdir -p "$WORKSPACE/.maybee/browsers"
-  (cd "$TARGET/app" && PLAYWRIGHT_BROWSERS_PATH="$WORKSPACE/.maybee/browsers" "$NODE_BIN/npx" playwright install chromium)
-fi
-
 # Make the bundled bootstrap discoverable by the two first target clients.
 # Existing user skills are left untouched; this only owns the Maybee skill path.
 for client in .claude .agents; do
@@ -116,4 +80,4 @@ for client in .claude .agents; do
 done
 
 printf 'Maybee %s installed at %s\n' "$VERSION" "$TARGET"
-printf 'Next: "%s/node" "%s/app/server.js" --project "%s"\n' "$NODE_BIN" "$TARGET" "$WORKSPACE"
+printf 'Next on the target machine: "%s/start.sh"\n' "$TARGET"

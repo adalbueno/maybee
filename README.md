@@ -21,9 +21,9 @@ The release is written to `dist/`. It contains the current Maybee app and the ma
 ## Install into an isolated workspace
 
 ```bash
-MAYBEE_RELEASE_FILE="$(pwd)/experiments/maybee-package/dist/maybee-0.1.1.zip" \
+MAYBEE_RELEASE_FILE="$(pwd)/experiments/maybee-package/dist/maybee-package-0.1.3.zip" \
   experiments/maybee-package/skill/maybee/scripts/install-release.sh \
   --workspace "$(pwd)/experiments/maybee-package/test-workspace"
 ```
 
-The installer installs app dependencies inside `.maybee/package/app/`, writes `.maybee/` plus the owned `maybee` skill path in `.claude/skills/` and `.agents/skills/`, and leaves the user's project files untouched. Set `MAYBEE_SKIP_DEPENDENCIES=1` only for a layout test. This is still a packaging experiment, not yet a cross-platform production installer.
+The installer writes the platform-neutral package under `.maybee/` plus the owned `maybee` skill path in `.claude/skills/` and `.agents/skills/`. Native dependencies are installed by `.maybee/package/start.sh` on the machine that will actually run Maybee.
