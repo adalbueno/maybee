@@ -38,6 +38,20 @@ extract_zip() {
   fi
 }
 
+seed_default_workspace() {
+  local template="$1" target="$WORKSPACE/workspaces/default" source rel destination
+  [ -d "$template" ] || return 0
+  mkdir -p "$target"
+  while IFS= read -r -d '' source; do
+    rel="${source#"$template/"}"
+    destination="$target/$rel"
+    if [ ! -e "$destination" ]; then
+      mkdir -p "$(dirname "$destination")"
+      cp "$source" "$destination"
+    fi
+  done < <(find "$template" -type f -print0)
+}
+
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -64,6 +78,7 @@ if [ -e "$TARGET" ]; then
 fi
 mkdir -p "$TARGET"
 cp -a "$PACKAGE/." "$TARGET/"
+seed_default_workspace "$PACKAGE/workspaces/default"
 printf '{\n  "version": "%s",\n  "installedAt": "%s",\n  "workspace": "%s"\n}\n' "$VERSION" "$(date -Iseconds)" "$WORKSPACE" > "$WORKSPACE/.maybee/installation.json"
 
 # Make the bundled bootstrap discoverable by the two first target clients.

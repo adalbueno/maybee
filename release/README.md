@@ -5,6 +5,7 @@ This directory is installed under `.maybee/package/` in the user's workspace. Th
 - `app/` is the local visualization and bridge.
 - `skills/` contains the versioned Maybee workflows and knowledge.
 - `skill/maybee/` is the bootstrap skill that can install or update this package.
+- `workspaces/default/` is the ready-made default playbook: project, state, dashboard, onboarding cards, routines and supporting folders.
 - `knowledge/` contains package-level documentation and defaults.
 - User project files stay at the workspace root and are never replaced by an update.
 
@@ -19,5 +20,7 @@ When the Maybee skill starts a session, it also starts the local agent bridge in
 `start.sh` stops the previous Maybee process recorded for the workspace, tries port 8780 (or `PORT`) and chooses a free port if occupied, installs a local Node.js runtime when needed, and installs only the app dependencies into `.maybee/package/app/node_modules`. It records the platform in `.maybee/deps.json`, then opens Maybee in the browser. Membership verification uses the browser already available to Claude/Codex; Maybee does not launch or install Playwright/Chromium. Everything stays inside `.maybee/`; nothing is installed globally.
 
 Maybee can contain multiple workspaces in one installation. The original project is `default`; new workspaces live in `workspaces/<name>/` and can be switched from the selector in the top bar. Each workspace keeps its own notes, routines, preferences and history. A package may include prebuilt workspaces, which is the basis for distributing playbooks. The current app keeps one server and one access session while changing the active workspace.
+
+On a fresh install, the installer seeds `workspaces/default/` from the package. Existing files are preserved, so updating Maybee never replaces a user's playbook or notes.
 
 Workspace routes are addressable directly: `http://127.0.0.1:<port>/<workspace>/overview` (for example `/playbook-demo/overview`). Opening a workspace URL selects that workspace automatically.
