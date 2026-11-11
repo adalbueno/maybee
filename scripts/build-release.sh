@@ -26,3 +26,12 @@ ARCHIVE="$DIST/maybee-$VERSION.zip"
 rm -f "$ARCHIVE"
 (cd "$STAGE" && zip -qr "$ARCHIVE" maybee)
 printf 'Built %s\n' "$ARCHIVE"
+
+SKILL_STAGE="$(mktemp -d)"
+trap 'rm -rf "$STAGE" "$SKILL_STAGE"' EXIT
+mkdir -p "$SKILL_STAGE/maybee"
+cp -a "$BOOTSTRAP_SRC/." "$SKILL_STAGE/maybee/"
+SKILL_ARCHIVE="$DIST/maybee-skill-$VERSION.zip"
+rm -f "$SKILL_ARCHIVE"
+(cd "$SKILL_STAGE" && zip -qr "$SKILL_ARCHIVE" maybee)
+printf 'Built %s\n' "$SKILL_ARCHIVE"
