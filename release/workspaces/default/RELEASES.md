@@ -2,6 +2,12 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.20 · 13 Nov 2026
+
+**Fixed: "Ask AI" and "Run" now work without asking your assistant to start Maybee first.**
+
+Opening a session with your assistant in this workspace now starts Maybee if it is not running and connects the board's Run and Ask AI buttons to that session. Before, the buttons only saved the request ("Not listening") until the assistant had been asked to start Maybee.
+
 ## 0.1.19 · 13 Nov 2026
 
 **A cleaner tab, and a short answer when asked to change Maybee.**

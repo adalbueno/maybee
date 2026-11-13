@@ -39,6 +39,13 @@ function claude() {
   if (!pre.some(h => (h.hooks || []).some(x => x.command === command))) {
     pre.push({ matcher: 'Bash|Edit|Write|MultiEdit|NotebookEdit', hooks: [{ type: 'command', command }] })
   }
+  // Start of every session: make sure the app is up and have the agent start the listener that connects
+  // the app's Run / Ask AI buttons to this session (see app/scripts/session-start.sh).
+  const start = '"$CLAUDE_PROJECT_DIR"/.maybee/package/app/scripts/session-start.sh'
+  const sessionStart = (settings.hooks.SessionStart ??= [])
+  if (!sessionStart.some(h => (h.hooks || []).some(x => x.command === start))) {
+    sessionStart.push({ hooks: [{ type: 'command', command: start }] })
+  }
   writeJSON(file, settings)
 }
 
