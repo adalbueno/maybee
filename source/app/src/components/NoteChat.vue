@@ -46,7 +46,7 @@ function toggle(force) {
   if (open.value) { seen.value = replies.value; scrollEnd() }
 }
 const label = i => i.action === 'Request' ? i.text : i.action + (i.text ? ': ' + i.text : '')
-const state = i => i.status === 'done' ? '' : i.status === 'working' ? 'Working on it…' : i.status === 'queued' ? 'In line…' : (claude.listening ? 'Sent…' : 'Saved, waiting for a session to listen.')
+const state = i => i.status === 'done' ? '' : i.status === 'working' ? 'Working on it…' : i.status === 'queued' ? 'In line…' : (claude.listening ? 'Sent…' : 'Saved. It waits until a Claude session listens again.')
 const clock = iso => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 
 function grow() {
@@ -80,7 +80,7 @@ function onDockKey(e) {
       <div v-if="open" class="panel">
         <header>
           <b>Ask AI about this note</b>
-          <span class="live" :class="{ on: claude.listening }"><i></i>{{ claude.listening ? 'A session is listening' : 'No session is listening' }}</span>
+          <span class="live" :class="{ on: claude.listening }"><i></i>{{ claude.listening ? 'A session is listening' : 'No session is listening: open Claude and write "listen to Maybee"' }}</span>
           <button class="close" title="Hide (Esc)" @click="toggle(false)">⌄</button>
         </header>
         <div ref="box" class="msgs">

@@ -59,10 +59,10 @@ Use this only when the user's setup makes Maybee's own browser impossible, and s
 
 Once the app is running and unlocked, start the bridge. This is what connects the board's **Run** and **Ask AI** buttons to this session. Without it the app saves the request and copies a prompt instead.
 
-- **With the Monitor tool:** run `node .maybee/package/app/scripts/listen.js --watch 55` with it (persistent). The bridge stays alive and prints one `MAYBEE REQUEST` line per request, each one waking you, so there is nothing to restart until it prints `MAYBEE LISTENER ENDED` after 55 minutes.
+- **With the Monitor tool:** run `node .maybee/package/app/scripts/listen.js --watch 29` with it, with the longest timeout it allows (`timeout_ms` 1800000). The bridge stays alive and prints one `MAYBEE REQUEST` line per request, each one waking you. Monitor stops everything after 30 minutes, so the bridge ends itself at 29 and prints `MAYBEE LISTENER ENDED`. When you see that line, or Monitor says the watch expired, run the same command again right away.
 - **Without it:** run `node .maybee/package/app/scripts/listen.js 55` with the shell tool's own background mode (`run_in_background`). It exits when a request arrives, and that exit wakes you.
 - Never detach it with `nohup`, `&` or a subshell. A detached copy makes the app say it is listening, but the request never reaches you.
-- In the one-shot mode the bridge exits at every request and after 55 minutes: handle the request, update its status, reply, then start it again the same way. Without that restart the app shows "Not listening". In watch mode, start it again only after `MAYBEE LISTENER ENDED`.
+- In the one-shot mode the bridge exits at every request and after 55 minutes: handle the request, update its status, reply, then start it again the same way. Without that restart the app shows "Not listening". In watch mode, start it again when it prints `MAYBEE LISTENER ENDED` or Monitor reports the expiry. Without a restart the app shows "Not listening" and the requests wait.
 - **Run** only sends the request. It does not do the work on its own.
 - Read old queued requests before acting on them. They may be out of date.
 - Anything external, such as publishing, sending messages or spending money, waits for the owner's explicit approval.

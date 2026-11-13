@@ -32,7 +32,7 @@ const workspaceMenuOpen = ref(false)
 // ?place=desktop (the SessionStart hook, D241) still works; with no route, the remembered place.
 // D245: the Desktop is the board (old 'kanban' place maps to it)
 const PLACES = ['overview', 'workspace', 'activity', 'vault']
-const ALIASES = { kanban: 'workspace', desktop: 'workspace', feed: 'activity', library: 'vault', numbers: 'overview' }
+const ALIASES = { kanban: 'workspace', desktop: 'workspace', feed: 'activity', library: 'vault', numbers: 'overview', about: 'overview' }
 const fixPlace = p => ALIASES[p] || p
 function readUrl() {
   const q = new URLSearchParams(location.search)
@@ -40,7 +40,7 @@ function readUrl() {
   const routePlace = parts.length > 1 ? parts[1] : parts[0]
   const workspace = parts.length > 1 ? parts[0] : null
   let p = PLACES.includes(fixPlace(routePlace)) ? fixPlace(routePlace) : q.get('place') ? fixPlace(q.get('place')) : null
-  if (!p) { try { p = fixPlace(localStorage.getItem('maybee.place') || 'workspace') } catch { p = 'workspace' } }
+  if (!p) p = 'workspace' // a fresh start always lands where the work happens
   if (!PLACES.includes(p)) p = 'workspace'
   const note = q.get('note')
   return { place: p, workspace, open: note ? { path: note, tab: q.get('tab') || undefined } : null }
@@ -310,19 +310,13 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
         </div>
       </div>
       <nav class="places">
-        <a class="place" :class="{ active: place === 'overview' }" @click="go('overview')">Overview</a>
         <a class="place" :class="{ active: place === 'workspace' }" @click="go('workspace')">Workspace</a>
         <a class="place" :class="{ active: place === 'activity' }" @click="go('activity')">Activity</a>
         <a class="place" :class="{ active: place === 'vault' }" @click="go('vault')">Vault</a>
+        <a class="place" :class="{ active: place === 'overview' }" @click="go('overview')">About</a>
       </nav>
       <div class="tools">
-        <ClaudeTray @open="openItem" />
-        <button class="switch" :class="{ on: showAll }" @click="toggleAll" :title="showAll ? 'Showing every file' : 'Showing what tells the story'">
-          {{ showAll ? 'Everything' : 'Story' }}
-        </button>
-        <span class="live" :class="{ on: live }" :title="live ? 'Updates as files change' : 'Not connected'">
-          <i></i>{{ live ? 'Live' : 'Offline' }}
-        </span>
+        <ClaudeTray :live="live" @open="openItem" />
       </div>
     </header>
 
@@ -335,7 +329,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
         <Library :changed-at="lastChange" :active-path="open && open.path" @open="openItem" />
       </main>
       <main v-else-if="place === 'overview'" class="lib-wrap">
-        <StatePanel :changed-at="lastChange" @open="openItem" />
+        <StatePanel :changed-at="lastChange" @open="openItem" @go="go" />
       </main>
       <main v-else class="feed">
         <div class="feed-inner">
@@ -353,6 +347,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
           <button v-for="f in filters" :key="f.key" class="filter" :class="{ on: filter === f.key }" @click="filter = f.key">
             {{ f.label }}<small v-if="f.key === 'unread' ? unread : (f.key !== 'all' && f.count)">{{ f.key === 'unread' ? unread : f.count }}</small>
           </button>
+          <button class="filter files-toggle" :class="{ on: showAll }" @click="toggleAll" title="Also list the project's own files: STATE, README, owner/, knowledge/ and the like. They are always in the Vault.">Project files<small>{{ showAll ? 'shown' : 'hidden' }}</small></button>
         </div>
         <section v-for="g in days" :key="g.key" class="day">
           <h2 class="day-label"><span>{{ dayLabel(g.date)[0] }}</span> {{ dayLabel(g.date)[1] }}</h2>
@@ -367,7 +362,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
         </section>
         <div class="more">
           <button v-if="next" class="more-btn" :disabled="loading" @click="loadFeed(true)">Earlier</button>
-          <p v-else-if="items.length" class="end">That's everything{{ showAll ? '' : ' in the story' }}.</p>
+          <p v-else-if="items.length" class="end">That's everything{{ showAll ? '' : ' here. Project files are hidden' }}.</p>
           <p v-else-if="!loading" class="end">Nothing here yet.</p>
         </div>
         </div>

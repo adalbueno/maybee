@@ -26,6 +26,7 @@ A Maybee board is a folder of Markdown files. The app reads them, shows them as 
 | `kind` | free label | A small tag on the card, such as `Do`, `Decide` or `Routine`. |
 | `next_step` | text | The first concrete action. |
 | `needed_by` | date | When it matters. |
+| `rank` | a number | Order inside Maybe, Next and Now by hand (lower is higher up). The app writes it when the user drags a card; leave it alone. Cards without one come after, in the usual order. |
 | `captured`, `done` | `YYYY-MM-DD` | When the idea was written down, and when it was finished. |
 | `importance` | `must`, `should`, `nice` | Weight of a routine or task. Missing counts as `should`. |
 

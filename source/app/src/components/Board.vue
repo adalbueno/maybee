@@ -136,7 +136,53 @@ async function move(card, stage) {
 }
 
 function onDragStart(card, e) { dragging.value = card; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', card.path) }
-function onDragEnd() { dragging.value = null; over.value = null }
+function onDragEnd() { dragging.value = null; over.value = null; dropAt.value = null }
+
+// Arrange cards inside Maybe, Next and Now by hand: drop on the upper or lower half of a card.
+const RANKED = ['maybe', 'next', 'now']
+const dropAt = ref(null)
+const sameColumn = c => dragging.value && dragging.value.stage === c.stage && dragging.value.path !== c.path && RANKED.includes(c.stage)
+function cardOver(c, e) {
+  if (!sameColumn(c)) return
+  e.preventDefault(); e.stopPropagation()
+  const r = e.currentTarget.getBoundingClientRect()
+  dropAt.value = { path: c.path, pos: e.clientY < r.top + r.height / 2 ? 'before' : 'after' }
+}
+async function cardDrop(c, e) {
+  if (!sameColumn(c) || !dropAt.value) return
+  e.preventDefault(); e.stopPropagation()
+  const d = dragging.value, pos = dropAt.value.pos
+  onDragEnd()
+  const col = cols.value[c.stage], list = col.cards.filter(x => x.path !== d.path)
+  const at = list.findIndex(x => x.path === c.path) + (pos === 'after' ? 1 : 0)
+  list.splice(at, 0, d); col.cards = list
+  const res = await fetch('/api/rank', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(pos === 'before' ? { path: d.path, before: c.path } : { path: d.path, after: c.path }),
+  })
+  if (!res.ok) say('Could not reorder: ' + ((await res.json().catch(() => ({}))).error || res.status))
+  load()
+}
+async function sortByPriority(stage) {
+  const res = await fetch('/api/rank', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ byScore: true, stage }) })
+  say(res.ok ? 'Sorted by priority' : 'Could not sort it')
+  load()
+}
+
+// Quick capture at the bottom of Maybe: the title is the whole idea, Enter adds it at the top
+const newTitle = ref('')
+const adding = ref(false)
+async function addIdea() {
+  const title = newTitle.value.trim()
+  if (!title || adding.value) return
+  adding.value = true
+  try {
+    const res = await fetch('/api/card', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title }) })
+    const out = await res.json().catch(() => ({}))
+    if (res.ok) { newTitle.value = ''; say('Added to Maybe'); await load() }
+    else say(out.error || 'Could not add it')
+  } finally { adding.value = false }
+}
 function onDrop(stage) { const c = dragging.value; onDragEnd(); move(c, stage) }
 
 async function openBacklog() {
@@ -174,6 +220,7 @@ const ownerMark = o => ({ agent: 'Agent', Adal: 'You', owner: 'You', both: 'You 
         <header class="col-head">
           <h2><span class="dot" :class="col.key"></span>{{ col.label }}<small>{{ cols[col.key].count }}</small></h2>
           <p>{{ col.hint }}</p>
+          <button v-if="col.key === 'maybe' && cols.maybe.count > 1" class="sort-btn" @click.stop="sortByPriority('maybe')" title="Put the column in priority order once. You can still drag cards after">Sort by priority</button>
         </header>
         <div class="col-body">
           <div v-if="col.key === 'routine' && routines.length" class="r-today">
@@ -238,8 +285,8 @@ const ownerMark = o => ({ agent: 'Agent', Adal: 'You', owner: 'You', both: 'You 
             </template>
           </div>
           <article
-            v-for="c in cols[col.key].cards" :key="c.path" class="kcard" :class="{ dragging: dragging && dragging.path === c.path, active: activePath === c.path }"
-            draggable="true" @dragstart="onDragStart(c, $event)" @dragend="onDragEnd" @click="emit('open', { path: c.path, key: c.path })"
+            v-for="c in cols[col.key].cards" :key="c.path" class="kcard" :class="{ dragging: dragging && dragging.path === c.path, active: activePath === c.path, 'drop-before': dropAt && dropAt.path === c.path && dropAt.pos === 'before', 'drop-after': dropAt && dropAt.path === c.path && dropAt.pos === 'after' }"
+            draggable="true" @dragstart="onDragStart(c, $event)" @dragend="onDragEnd" @dragover="cardOver(c, $event)" @drop="cardDrop(c, $event)" @click="emit('open', { path: c.path, key: c.path })"
           >
             <div class="k-meta">
               <span class="tag">{{ c.type === 'task' ? 'Task' : 'Idea' }}</span>
@@ -273,6 +320,9 @@ const ownerMark = o => ({ agent: 'Agent', Adal: 'You', owner: 'You', both: 'You 
         <button v-if="col.key === 'maybe' && cols.maybe.count > cols.maybe.cards.length" class="more-ideas" @click="openBacklog">
           +{{ cols.maybe.count - cols.maybe.cards.length }} more ideas
         </button>
+        <form v-if="col.key === 'maybe'" class="capture" @submit.prevent="addIdea" @dragover.stop @drop.stop>
+          <input v-model="newTitle" maxlength="140" placeholder="Write an idea and press Enter" aria-label="New idea" :disabled="adding" />
+        </form>
       </template>
     </section>
 

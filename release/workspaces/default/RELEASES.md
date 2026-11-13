@@ -2,6 +2,21 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.25 · 13 Nov 2026
+
+**Write an idea straight into Maybe, and arrange your cards by hand.**
+
+- **A field at the bottom of the Maybe column.** Type an idea and press Enter: it becomes a card at the top of the column, and the field stays ready for the next one. Nothing is sent to your assistant.
+- **Drag cards to put them in your own order.** In Maybe, Next and Now, drop a card above or below another one. The order is kept in the cards, so it travels with your files. A card you move to another column lands at the top of it.
+- **Sort by priority, once.** A link under the Maybe title puts the column in priority order. After that you can still drag cards wherever you want.
+- **One button less at the top.** The Story / Everything switch moved into Activity as "Project files", next to the filters. Files like STATE, README, owner/ and knowledge/ are always in the Vault, where you can open and edit them.
+- **Maybee's own files stay out of sight.** Nothing inside the `.maybee` folder shows up in Activity, the Vault or search anymore, and notes can no longer open it. Before, a few of its files could appear in Activity with Project files on.
+- **One dot for the assistant.** The Claude and Live buttons became a single dot at the top. Green: connected and a session is listening. Grey: connected, but nobody is listening. Red: the app is unreachable. Click it for the requests and the details.
+- **Same page width everywhere.** Activity now has the width of the Vault and Overview.
+- **Maybee opens on the Workspace.** It no longer reopens on the page you left. Workspace is now first in the menu, and Overview, now called About, is last.
+- **About is now the project's cover.** It shows the project's name and summary, how many cards are in Now, Next, Maybe and done this week, shortcuts to the Workspace, Activity and Vault, and the project's own files (the brief, the state, the owner and knowledge notes). The long lists of focus, Now and decisions are gone from it: they live in the Workspace and in `knowledge/decisions.md`. "Waiting for you" stays when something needs a decision.
+- **A clearer "Not listening".** The assistant's bridge lasts about 30 minutes, then your Claude session has to start it again. Maybee now says when the last one stopped and what to write in Claude to start it, and the session is told to restart it by itself when it ends.
+
 ## 0.1.24 · 13 Nov 2026
 
 **Ask AI is now a chat at the bottom of every note, and notes are always ready to edit.**

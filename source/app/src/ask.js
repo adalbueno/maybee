@@ -1,12 +1,13 @@
 // Shared "Ask Claude" state: the inbox, whether a session is listening, and sending a request.
 import { reactive } from 'vue'
 
-export const claude = reactive({ listening: false, items: [], toast: '' })
+export const claude = reactive({ listening: false, heardAt: null, items: [], toast: '' })
 
 export async function refreshInbox() {
   try {
     const r = await fetch('/api/inbox').then(x => x.json())
     claude.listening = r.listening
+    claude.heardAt = r.heardAt || null
     claude.items = r.items
   } catch {}
 }

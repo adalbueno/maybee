@@ -57,6 +57,7 @@ async function readCard(root, rel) {
     description: desc,
     captured: fm.captured ? String(fm.captured).slice(0, 10) : null,
     nextStep: fm.next_step ? String(fm.next_step) : null,
+    rank: Number.isFinite(Number(fm.rank)) && fm.rank !== null && fm.rank !== '' ? Number(fm.rank) : null,
     mtime: st.mtimeMs,
     ...priority(fm),
   }
@@ -76,11 +77,22 @@ export async function loadCards(root, index) {
 const byPriority = (a, b) => (b.priority || 0) - (a.priority || 0) || (b.score || 0) - (a.score || 0) || b.mtime - a.mtime
 const byRecent = (a, b) => b.mtime - a.mtime
 
+// Columns you can arrange by hand keep their order in a `rank` line of each card (lower = higher up).
+// Cards without a rank come after the ranked ones, in the old order (priority in Maybe, newest first elsewhere).
+export const RANKED = ['maybe', 'next', 'now']
+const orderOf = stage => (a, b) => {
+  if (RANKED.includes(stage)) {
+    if (a.rank != null && b.rank != null && a.rank !== b.rank) return a.rank - b.rank
+    if ((a.rank != null) !== (b.rank != null)) return a.rank != null ? -1 : 1
+  }
+  return (stage === 'maybe' ? byPriority : byRecent)(a, b)
+}
+
 export async function board(root, index, { top = 15 } = {}) {
   const cards = await loadCards(root, index)
   const cols = {}
   for (const s of STAGES) {
-    const list = cards.filter(c => c.stage === s).sort(s === 'maybe' ? byPriority : byRecent)
+    const list = cards.filter(c => c.stage === s).sort(orderOf(s))
     cols[s] = { count: list.length, cards: s === 'maybe' ? list.slice(0, top) : list }
   }
   return { columns: cols }
@@ -121,4 +133,81 @@ export async function logChange(root, msg) {
   const d = new Date()
   const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   await fsp.appendFile(file, (text && !text.endsWith('\n') ? '\n' : '') + `- ${day}: (Maybee app) ${msg}\n`)
+}
+
+const safeName = t => t.replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().replace(/^\.+/, '').slice(0, 80).trim()
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+
+// Quick capture: a new idea in Maybe, at the top of the column. Returns the new note's path.
+export async function createCard(root, index, title) {
+  title = String(title || '').replace(/\s+/g, ' ').trim().slice(0, 140)
+  if (!title) throw new Error('write a title first')
+  const base = safeName(title)
+  if (!base) throw new Error('that title has no usable characters')
+  const cards = await loadCards(root, index)
+  let n = 0
+  for (const c of cards) { const m = /^I(\d+)$/.exec(c.id || ''); if (m) n = Math.max(n, Number(m[1])) }
+  const ranks = cards.filter(c => c.stage === 'maybe' && c.rank != null).map(c => c.rank)
+  const rank = (ranks.length ? Math.min(...ranks) : 10) - 10
+  let rel = `ideas/${base}.md`, i = 2
+  while (true) {
+    try { await fsp.access(path.join(root, rel)); rel = `ideas/${base} ${i++}.md` } catch { break }
+  }
+  const text = `---\nid: I${n + 1}\ntitle: ${JSON.stringify(title)}\ntype: idea\nstage: maybe\nowner: both\nrank: ${rank}\ncaptured: ${today()}\n---\n\n# ${title}\n`
+  await fsp.mkdir(path.join(root, 'ideas'), { recursive: true })
+  await fsp.writeFile(path.join(root, rel), text, { flag: 'wx' })
+  return { path: rel, id: `I${n + 1}`, title }
+}
+
+async function writeRank(root, rel, rank) {
+  const abs = path.join(root, rel)
+  const text = await fsp.readFile(abs, 'utf8')
+  const fm = splitFm(text)
+  if (!fm) return false
+  const lines = fm.head.split('\n')
+  const i = lines.findIndex(l => /^rank:(\s|$)/.test(l))
+  if (i >= 0) lines[i] = `rank: ${rank}`; else lines.push(`rank: ${rank}`)
+  await fsp.writeFile(abs, '---\n' + lines.join('\n') + text.slice(fm.end))
+  return true
+}
+
+// Put a card at a new place in its column, or sort the column by priority (`byScore`).
+// One file changes when there is room between neighbours; otherwise the column is numbered again, once.
+// Returns the paths that were written.
+export async function placeCard(root, index, { path: rel, before = null, after = null, stage = null, byScore = false }) {
+  const cards = await loadCards(root, index)
+  const moved = rel ? cards.find(c => c.path === rel) : null
+  const st = byScore ? stage : moved && moved.stage
+  if (!RANKED.includes(st)) throw new Error('that column keeps its own order')
+  let list = cards.filter(c => c.stage === st).sort(orderOf(st))
+  if (byScore) list = list.slice().sort(byPriority)
+  else {
+    list = list.filter(c => c.path !== rel)
+    let at = list.length
+    if (before) { const k = list.findIndex(c => c.path === before); if (k >= 0) at = k }
+    else if (after) { const k = list.findIndex(c => c.path === after); if (k >= 0) at = k + 1 }
+    list.splice(at, 0, moved)
+  }
+  const written = []
+  const k = byScore ? -1 : list.findIndex(c => c.path === rel)
+  const prev = k > 0 ? list[k - 1] : null, next = k >= 0 && k < list.length - 1 ? list[k + 1] : null
+  const room = k >= 0 && list.every(c => c.rank != null || c.path === rel) &&
+    (!prev || !next || next.rank - prev.rank >= 2)
+  if (room) {
+    const rank = prev && next ? Math.floor((prev.rank + next.rank) / 2) : prev ? prev.rank + 10 : next ? next.rank - 10 : 10
+    if (moved.rank !== rank && await writeRank(root, rel, rank)) written.push(rel)
+  } else {
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].rank !== (i + 1) * 10 && await writeRank(root, list[i].path, (i + 1) * 10)) written.push(list[i].path)
+    }
+  }
+  return written
+}
+
+// A card that changes column goes to the top of the new one.
+export async function topOfColumn(root, index, rel, stage) {
+  if (!RANKED.includes(stage)) return false
+  const cards = await loadCards(root, index)
+  const ranks = cards.filter(c => c.stage === stage && c.path !== rel && c.rank != null).map(c => c.rank)
+  return writeRank(root, rel, (ranks.length ? Math.min(...ranks) : 10) - 10)
 }

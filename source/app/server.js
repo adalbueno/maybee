@@ -7,10 +7,10 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildIndex, feed, numbers, library, search, readNote, resolveName, statFile, allPaths, getIndex } from './lib/project.js'
-import { board, backlog, setStage, logChange } from './lib/board.js'
+import { buildIndex, feed, numbers, library, search, readNote, resolveName, statFile, isHidden, allPaths, getIndex } from './lib/project.js'
+import { board, backlog, setStage, logChange, createCard, placeCard, topOfColumn } from './lib/board.js'
 import { desktop, setFields, dayKey, nowCards, routinesOn, overviewState, resolveWaiting } from './lib/desktop.js'
-import { initInbox, readInbox, addRequest, listening, promptFor } from './lib/inbox.js'
+import { initInbox, readInbox, addRequest, listening, lastHeard, promptFor } from './lib/inbox.js'
 import { initSnapshots, snapshot, diffFor } from './lib/snapshots.js'
 import { verifySkool } from './local-skool-verifier.js'
 import { openAppWindow } from './lib/browser.js'
@@ -231,7 +231,7 @@ const MIME = {
 
 // Only paths inside the project folder.
 function safePath(rel) {
-  if (!rel) return null
+  if (!rel || isHidden(rel)) return null
   const abs = path.resolve(ROOT, rel)
   if (abs !== ROOT && !abs.startsWith(ROOT + path.sep)) return null
   return abs
@@ -463,7 +463,7 @@ function broadcast(event, data) {
   for (const res of clients) res.write(msg)
 }
 
-const IGNORED = /(^|\/)(node_modules|\.git|\.obsidian|\.trash|__pycache__)(\/|$)|\.pyc$|~$|\.swp$/
+const IGNORED = /(^|\/)(node_modules|\.git|\.obsidian|\.trash|__pycache__|\.maybee)(\/|$)|\.pyc$|~$|\.swp$/
 let pending = new Set()
 let timer = null
 let watcher = null
@@ -593,6 +593,7 @@ async function main() {
         const body = await readBody(req)
         try {
           const r = await setStage(ROOT, body.path, body.stage, body.mtime)
+          if (r.from !== r.to) await topOfColumn(ROOT, getIndex(), body.path, body.stage).catch(() => {})
           await statFile(ROOT, body.path)
           seen.items[body.path] = Date.now() + 2000; saveSeen(); await snapshot(body.path)
           if (r.from !== r.to) await logChange(ROOT, `${body.title || body.path}: stage ${r.from || '—'} → ${r.to} (${body.path})`)
@@ -600,6 +601,30 @@ async function main() {
         } catch (err) {
           return sendJSON(res, { error: err.message }, err.code === 409 ? 409 : 400)
         }
+      }
+      // Quick capture from the Maybe column: a new idea at the top
+      if (url.pathname === '/api/card' && req.method === 'POST') {
+        const body = await readBody(req)
+        try {
+          const c = await createCard(ROOT, getIndex(), body.title)
+          await statFile(ROOT, c.path)
+          seen.items[c.path] = Date.now() + 2000; saveSeen(); await snapshot(c.path)
+          await logChange(ROOT, `New idea in Maybe: ${c.title} (${c.path})`)
+          return sendJSON(res, { ok: true, ...c })
+        } catch (err) { return sendJSON(res, { error: err.message }, 400) }
+      }
+      // Arrange a column by hand (or sort it by priority once). The order lives in each card's `rank` line.
+      if (url.pathname === '/api/rank' && req.method === 'POST') {
+        const body = await readBody(req)
+        const ok = p => typeof p === 'string' && /^ideas\/[^/]+\.md$/.test(p)
+        if (!body.byScore && !ok(body.path)) return sendJSON(res, { error: 'unknown card' }, 400)
+        try {
+          const written = await placeCard(ROOT, getIndex(), { path: body.path, before: ok(body.before) ? body.before : null, after: ok(body.after) ? body.after : null, stage: body.stage, byScore: !!body.byScore })
+          for (const p of written) { await statFile(ROOT, p); seen.items[p] = Date.now() + 2000 }
+          saveSeen()
+          if (body.byScore) await logChange(ROOT, `${body.stage} sorted by priority`)
+          return sendJSON(res, { ok: true, written: written.length })
+        } catch (err) { return sendJSON(res, { error: err.message }, 400) }
       }
       if (url.pathname === '/api/routines') {
         const t = new Date(); t.setDate(t.getDate() + 1)
@@ -676,7 +701,7 @@ async function main() {
         // With ?path=, only the requests about that note (its chat); otherwise the latest ones across the project.
         const all = readInbox()
         const items = q.path ? all.filter(r => r.path === String(q.path)).slice(-30) : all.slice(-20)
-        return sendJSON(res, { listening: listening(), items: items.reverse() })
+        return sendJSON(res, { listening: listening(), heardAt: lastHeard(), items: items.reverse() })
       }
       if (url.pathname === '/api/ask' && req.method === 'POST') {
         const body = await readBody(req)

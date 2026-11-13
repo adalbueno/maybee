@@ -1,15 +1,43 @@
 <script setup>
-// D273: Overview is the workspace's live briefing, assembled from its ordinary files.
-import { ref, watch, onMounted } from 'vue'
+// About: the project's cover page. Where things are and where to go, not a long note. Built from the ordinary files.
+import { ref, computed, watch, onMounted } from 'vue'
 const props = defineProps({ changedAt: Number })
-const emit = defineEmits(['open'])
+const emit = defineEmits(['open', 'go'])
 const st = ref({ project: {}, focus: [], waiting: [], now: [], decisions: [], changes: [], updated: null })
 const selectedWaiting = ref(null)
 const resolving = ref(false)
 const decisionMessage = ref('')
+const counts = ref(null)
+const files = ref([])
 async function load() {
   try { st.value = await (await fetch('/api/state')).json() } catch {}
+  try {
+    const b = (await (await fetch('/api/board')).json()).columns
+    const weekAgo = Date.now() - 7 * 86400000
+    counts.value = { now: b.now.count, next: b.next.count, maybe: b.maybe.count, week: b.done.cards.filter(c => c.mtime >= weekAgo).length }
+  } catch {}
+  try { files.value = (await (await fetch('/api/library')).json()).items.filter(i => i.ext === '.md') } catch {}
 }
+const fileName = f => f.path.split('/').pop().replace(/\.md$/, '')
+const cleanChange = t => String(t || '').replace(/^\(Maybee app\)\s*/, '').replace(/\s*\((?:[\w .'’-]+\/)*[^()]*\.\w+\)\s*$/, '')
+const sub = f => { const t = f.desc || f.title || ''; return t.toLowerCase() === fileName(f).toLowerCase() ? '' : t }
+const PLACES = [
+  { key: 'workspace', name: 'Workspace', text: 'The board: what is in Maybe, Next, Now and Done, and the routines of the day.' },
+  { key: 'activity', name: 'Activity', text: 'What changed lately, newest first.' },
+  { key: 'vault', name: 'Vault', text: 'Every file of the project, with search.' },
+]
+// the files that hold the project's memory: its brief and state, and the owner and knowledge folders
+const KEY_FILES = ['PROJECT.md', 'STATE.md', 'README.md']
+const memory = computed(() => {
+  const by = path => files.value.find(f => f.path === path)
+  const group = (label, items) => items.length ? { label, items } : null
+  const inFolder = dir => files.value.filter(f => f.path.startsWith(dir) && f.path.split('/').length === 2).sort((a, b) => a.title.localeCompare(b.title)).slice(0, 8)
+  return [
+    group('The project', KEY_FILES.map(by).filter(Boolean)),
+    group('Owner', inFolder('owner/')),
+    group('Knowledge', inFolder('knowledge/')),
+  ].filter(Boolean)
+})
 onMounted(load)
 watch(() => props.changedAt, load)
 const dayLabel = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : ''
@@ -38,40 +66,15 @@ async function resolveItem(item, destination) {
   <section class="overview-brief">
     <header class="brief-hero">
       <div>
-        <span class="eyebrow">Project overview</span>
+        <span class="eyebrow">About</span>
         <h1>{{ st.project.title || 'Your project' }}</h1>
         <p v-if="st.project.summary">{{ st.project.summary }}</p>
       </div>
       <button v-if="st.project.path" class="source-link" @click="open(st.project.path)">Open project brief</button>
     </header>
 
-    <div class="brief-meta">
-      <span class="status-dot"></span><span>Current workspace</span>
-      <span v-if="st.updated">STATE updated {{ dayLabel(st.updated) }}</span>
-    </div>
-
-    <div class="brief-grid">
-      <section class="brief-block focus-block">
-        <div class="block-head"><div><span class="eyebrow">Current state</span><h2>What matters now</h2></div><small>{{ st.focus.length }} focus item{{ st.focus.length === 1 ? '' : 's' }}</small></div>
-        <div v-if="st.focus.length" class="stack">
-          <article v-for="(item, i) in st.focus" :key="'focus-' + i" class="brief-card" :class="{ clickable: item.link }" @click="open(item.link)">
-            <b>{{ item.title }}</b><p>{{ item.text }}</p>
-          </article>
-        </div>
-        <p v-else class="empty">Nothing is marked as a current focus yet.</p>
-      </section>
-
-      <section class="brief-block now-block">
-        <div class="block-head"><div><span class="eyebrow">Workspace</span><h2>In Now</h2></div><small>{{ st.now.length }} card{{ st.now.length === 1 ? '' : 's' }}</small></div>
-        <div v-if="st.now.length" class="stack">
-          <article v-for="card in st.now" :key="card.path" class="brief-card clickable" @click="open(card.path)">
-            <div class="card-line"><b>{{ card.title }}</b><span>{{ card.type }}</span></div>
-            <p v-if="card.description">{{ card.description }}</p>
-            <em v-if="card.nextStep">Next: {{ card.nextStep }}</em>
-          </article>
-        </div>
-        <p v-else class="empty">Nothing is in Now. Move one clear next action there when it deserves attention.</p>
-      </section>
+    <div v-if="counts" class="about-nums">
+      <button v-for="(n, i) in [['Now', counts.now], ['Next', counts.next], ['Maybe', counts.maybe], ['Done this week', counts.week]]" :key="n[0]" :class="{ hot: i === 0 && n[1] }" @click="emit('go', 'workspace')"><span>{{ n[0] }}</span><b>{{ n[1] }}</b></button>
     </div>
 
     <section v-if="st.waiting.length" class="brief-block waiting-block">
@@ -91,32 +94,37 @@ async function resolveItem(item, destination) {
       </div>
     </section>
 
-    <div class="brief-grid lower-grid">
-      <section class="brief-block">
-        <div class="block-head"><div><span class="eyebrow">Why we work this way</span><h2>Recent decisions</h2></div></div>
-        <div v-if="st.decisions.length" class="timeline">
-          <button v-for="decision in st.decisions" :key="decision.id" @click="open(decision.path)">
-            <span>{{ decision.id }}</span><div><b>{{ decision.title }}</b><p v-if="decision.text">{{ decision.text }}</p></div>
-          </button>
-        </div>
-        <p v-else class="empty">No decision register yet. Decisions recorded in knowledge/decisions.md will appear here.</p>
-      </section>
+    <section class="brief-block">
+      <div class="block-head"><div><span class="eyebrow">Go to</span><h2>Where things are</h2></div></div>
+      <div class="place-cards">
+        <button v-for="p in PLACES" :key="p.key" class="place-card" @click="emit('go', p.key)"><b>{{ p.name }}<i>→</i></b><p>{{ p.text }}</p></button>
+      </div>
+    </section>
 
-      <section class="brief-block">
-        <div class="block-head"><div><span class="eyebrow">Latest movement</span><h2>Recent changes</h2></div></div>
-        <div v-if="st.changes.length" class="timeline changes">
-          <button v-for="(change, i) in st.changes" :key="change.date + i" @click="open(change.path)">
-            <span>{{ dayLabel(change.date) }}</span><div><p>{{ change.text }}</p></div>
-          </button>
+    <section v-if="memory.length" class="brief-block">
+      <div class="block-head"><div><span class="eyebrow">Memory</span><h2>The project's own files</h2></div></div>
+      <div class="memory-grid">
+        <div v-for="g in memory" :key="g.label" class="file-group">
+          <span class="eyebrow">{{ g.label }}</span>
+          <button v-for="f in g.items" :key="f.path" class="mem-row" @click="open(f.path)" :title="f.path"><b>{{ fileName(f) }}</b><span v-if="sub(f)">{{ sub(f) }}</span></button>
         </div>
-        <p v-else class="empty">Changes recorded in logs/CHANGELOG.md will appear here.</p>
-      </section>
-    </div>
+      </div>
+    </section>
+
+    <section class="brief-block">
+      <div class="block-head"><div><span class="eyebrow">Latest movement</span><h2>Recent changes</h2></div><button class="source-link" @click="emit('go', 'activity')">See all</button></div>
+      <div v-if="st.changes.length" class="timeline changes">
+        <button v-for="(change, i) in st.changes.slice(0, 5)" :key="change.date + i" @click="open(change.path)">
+          <span>{{ dayLabel(change.date) }}</span><div><p>{{ cleanChange(change.text) }}</p></div>
+        </button>
+      </div>
+      <p v-else class="empty">Changes recorded in logs/CHANGELOG.md will appear here.</p>
+    </section>
   </section>
 </template>
 
 <style scoped>
-.overview-brief { max-width: 1180px; margin: 0 auto 42px; }
+.overview-brief { max-width: 820px; margin: 0 auto 42px; }
 .brief-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; padding: 30px 2px 24px; border-bottom: 1px solid var(--line); }
 .eyebrow { display: block; color: var(--ink-3); font: 700 11px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 9px; }
 .brief-hero h1 { margin: 0; max-width: 760px; font: 750 38px/1.08 var(--sans); letter-spacing: -.035em; }
@@ -126,10 +134,10 @@ async function resolveItem(item, destination) {
 .brief-meta { display: flex; gap: 10px; align-items: center; padding: 11px 2px 28px; color: var(--ink-3); font: 600 11.5px/1 var(--sans); }
 .brief-meta span:last-child:not(:first-child) { margin-left: auto; }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #4f9b69; }
-.brief-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 34px; }
-.lower-grid { margin-top: 34px; grid-template-columns: 1fr 1fr; }
+.brief-grid { display: grid; grid-template-columns: 1fr; gap: 34px; }
+.lower-grid { margin-top: 34px; grid-template-columns: 1fr; }
 .brief-block { min-width: 0; }
-.block-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; margin: 0 4px 13px; }
+.block-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; margin: 0 0 14px; }
 .block-head .eyebrow { margin-bottom: 6px; }
 .block-head h2 { margin: 0; font: 720 20px/1.1 var(--sans); letter-spacing: -.02em; }
 .block-head small { color: var(--ink-3); font: 650 11px/1 var(--sans); }
@@ -165,4 +173,31 @@ async function resolveItem(item, destination) {
 .empty { margin: 0; min-height: 92px; display: grid; place-items: center; padding: 18px; border: 1px dashed var(--line); border-radius: 20px; background: rgba(255,255,255,.2); color: var(--ink-3); font-size: 13px; line-height: 1.5; text-align: center; }
 @media (max-width: 900px) { .brief-grid, .lower-grid { grid-template-columns: 1fr; } .compact-grid { grid-template-columns: 1fr; } }
 @media (max-width: 620px) { .brief-hero { align-items: flex-start; flex-direction: column; } .brief-hero h1 { font-size: 31px; } .brief-meta span:last-child { display: none; } }
+.about-nums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 26px 0 0; }
+.about-nums button { background: var(--card); border-radius: 18px; padding: 15px 17px 14px; text-align: left; display: flex; flex-direction: column; gap: 10px; }
+.about-nums button:hover { background: var(--card-hi); box-shadow: 0 0 0 2px var(--accent); }
+.about-nums button.hot { background: var(--accent); }
+.about-nums span { font-size: 12.5px; color: var(--ink-2); font-weight: 650; }
+.about-nums b { font: 750 32px/1 var(--sans); letter-spacing: -.035em; }
+.overview-brief > .brief-block { margin-top: 46px; }
+.place-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.place-card { background: var(--card); border-radius: 18px; padding: 17px 18px; text-align: left; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 6px; }
+.place-card:hover { background: var(--card-hi); box-shadow: 0 0 0 2px var(--accent); }
+.place-card b { width: 100%; display: flex; justify-content: space-between; font-size: 15.5px; letter-spacing: -.015em; }
+.place-card b i { font-style: normal; color: var(--ink-3); }
+.place-card:hover b i { color: var(--ink); }
+.place-card p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.memory-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 26px; }
+.file-group { display: flex; flex-direction: column; gap: 2px; }
+.file-group .eyebrow { margin: 0 0 8px 12px; }
+.mem-row { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; text-align: left; width: 100%; padding: 9px 12px; border-radius: 14px; }
+.mem-row:hover { background: var(--card); }
+.mem-row b { font-size: 14px; letter-spacing: -.01em; }
+.mem-row span { font-size: 12.5px; color: var(--ink-3); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.timeline.changes { gap: 0; }
+.timeline.changes button { background: transparent; border-radius: 0; border: 0; border-top: 1px solid var(--line); padding: 14px 6px; grid-template-columns: 64px 1fr; align-items: baseline; box-shadow: none; transform: none; }
+.timeline.changes button:hover { background: var(--card); box-shadow: none; transform: none; }
+.timeline.changes button p { margin: 0; font-size: 13.5px; color: var(--ink); }
+.timeline.changes button > span { font-size: 12px; }
+@media (max-width: 640px) { .about-nums { grid-template-columns: 1fr 1fr; } .place-cards, .memory-grid { grid-template-columns: 1fr; } }
 </style>

@@ -14,6 +14,9 @@ function writeInbox(list) { fs.mkdirSync(path.dirname(file), { recursive: true }
 // A session is listening when listen.js touched the heartbeat in the last 20 seconds.
 export function listening() { try { return Date.now() - fs.statSync(beat).mtimeMs < 20000 } catch { return false } }
 
+// When a session last listened (ms since epoch), or null if none ever did.
+export function lastHeard() { try { return fs.statSync(beat).mtimeMs } catch { return null } }
+
 export function addRequest({ action, text, path: p, title }) {
   const list = readInbox()
   const req = { id: Date.now().toString(36), at: new Date().toISOString(), action: String(action || 'ask').slice(0, 60), text: String(text || '').slice(0, 2000), path: p || null, title: title || null, status: 'pending', reply: null }

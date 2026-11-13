@@ -40,7 +40,11 @@ export function allPaths(ext) {
   return [...index.values()].filter(f => !ext || f.ext === ext).map(f => f.rel)
 }
 
+// Maybee's own folder (and the other places the index never walks) is never part of the project's notes.
+export const isHidden = rel => String(rel || '').split('/').some(seg => SKIP_DIR.has(seg))
+
 export async function statFile(dir, rel) {
+  if (isHidden(rel)) { index.delete(rel); return }
   try {
     const st = await fsp.stat(path.join(dir, rel))
     if (st.isDirectory()) {
