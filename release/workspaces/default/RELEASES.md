@@ -2,6 +2,12 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.21 · 13 Nov 2026
+
+**Fixed: updating Maybee no longer gets blocked by its own protection.**
+
+Maybee's protection stopped your assistant from running the update, even after you said yes. Updates now go through, and the protection still stops any other change to Maybee's files.
+
 ## 0.1.20 · 13 Nov 2026
 
 **Fixed: "Ask AI" and "Run" now work without asking your assistant to start Maybee first.**
