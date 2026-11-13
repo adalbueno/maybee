@@ -64,11 +64,16 @@ ensure_dependencies() {
     return
   fi
   echo "Preparing Maybee dependencies for $platform..."
-  "$NODE_BIN/npm" ci --prefix "$APP_DIR" --no-audit --no-fund
+  # The package is read-only; open only the app folder for the install, then lock it again.
+  chmod -R u+w "$APP_DIR"
+  "$NODE_BIN/npm" ci --omit=dev --prefix "$APP_DIR" --no-audit --no-fund
+  chmod -R a-w "$APP_DIR"
   printf '{\n  "platform": "%s",\n  "installedAt": "%s"\n}\n' "$platform" "$(date -Iseconds)" > "$marker"
 }
 
-mkdir -p "$WORKSPACE/.maybee"
+mkdir -p "$WORKSPACE/.maybee" "$WORKSPACE/.maybee/data"
 ensure_node
 ensure_dependencies "$PLATFORM"
+# Keep agents from changing this installed package (agent settings and instructions in the workspace; idempotent).
+"$NODE_BIN/node" "$PACKAGE_DIR/guard-settings.mjs" "$WORKSPACE" || echo "Maybee: could not update the agent protection settings." >&2
 MAYBEE_ACCESS_MODE="${MAYBEE_ACCESS_MODE:-skool}" PORT="$PORT" exec "$NODE_BIN/node" "$APP_DIR/server.js" --project "$WORKSPACE" "$@"

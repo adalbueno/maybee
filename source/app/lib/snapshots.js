@@ -4,6 +4,7 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { diffLines } from 'diff'
+import { dataPath } from './paths.js'
 
 let root = ''
 let dir = ''
@@ -11,7 +12,7 @@ const fileOf = rel => path.join(dir, crypto.createHash('sha1').update(rel).diges
 
 export async function initSnapshots(projectRoot, appDir, mdPaths) {
   root = projectRoot
-  dir = path.join(appDir, 'data', 'snapshots')
+  dir = dataPath('snapshots')
   await fsp.mkdir(dir, { recursive: true })
   for (const rel of mdPaths) {
     const f = fileOf(rel)

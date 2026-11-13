@@ -4,7 +4,7 @@ title: "Capture an idea"
 type: idea
 area: community
 stage: maybe
-workspaces/how-i/owner: both
+owner: both
 description: "Keep a useful idea visible until you decide what it should become"
 value_members: 3
 value_money: 2
@@ -18,7 +18,7 @@ source: "Maybee playbook"
 
 # Capture an idea
 
-This card explains the **Maybe** column. Maybe is where workspaces/how-i/ideas wait without becoming commitments. It should reflect possibilities you want to keep visible while you learn more or decide what they are worth.
+This card explains the **Maybe** column. Maybe is where ideas wait without becoming commitments. It should reflect possibilities you want to keep visible while you learn more or decide what they are worth.
 
 An idea can stay here, become a task when you decide to act, become a routine when it repeats, move to Done if it is already resolved, or move to Not when you deliberately leave it aside.
 

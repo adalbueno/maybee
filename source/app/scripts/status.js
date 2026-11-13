@@ -6,7 +6,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-const inbox = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'inbox.json')
+import { dataPath } from '../lib/paths.js'
+const inbox = dataPath('inbox.json')
 const [cmd, ...args] = process.argv.slice(2)
 let list = []
 try { list = JSON.parse(fs.readFileSync(inbox, 'utf8')) } catch {}

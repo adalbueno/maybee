@@ -120,5 +120,5 @@ export async function logChange(root, msg) {
   try { text = await fsp.readFile(file, 'utf8') } catch {}
   const d = new Date()
   const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  await fsp.appendFile(file, (text && !text.endsWith('\n') ? '\n' : '') + `- ${day}: (Adal, Maybee app) ${msg}\n`)
+  await fsp.appendFile(file, (text && !text.endsWith('\n') ? '\n' : '') + `- ${day}: (Maybee app) ${msg}\n`)
 }

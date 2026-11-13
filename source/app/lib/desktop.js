@@ -4,6 +4,7 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import YAML from 'yaml'
 import { loadCards } from './board.js'
+import { dataPath } from './paths.js'
 
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
 const MEDIA = /\.(png|jpe?g|webp|gif|mp4|webm|mov)$/i
@@ -244,7 +245,7 @@ export async function overviewState(root, index) {
 
 // One maybe idea a day: stays the same all day; ideas never offered come first, then the least recently touched.
 async function ideaOfTheDay(root, index, appDir, today) {
-  const file = path.join(appDir, 'data', 'daily.json')
+  const file = dataPath('daily.json')
   let daily = { offered: {} }
   try { daily = JSON.parse(fs.readFileSync(file, 'utf8')) } catch {}
   daily.offered = daily.offered || {}

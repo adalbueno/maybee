@@ -5,9 +5,13 @@
   "description": "Maybee: see the project folder as a live feed (Vue 3 + plain JavaScript).",
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build": "node ../../scripts/build-app.mjs"
   },
   "dependencies": {
+    "playwright-core": "1.65.0"
+  },
+  "devDependencies": {
     "@codemirror/commands": "6.8.1",
     "@codemirror/lang-markdown": "6.3.4",
     "@codemirror/language": "6.11.3",
@@ -17,7 +21,6 @@
     "@vitejs/plugin-vue": "5.2.1",
     "diff": "7.0.0",
     "markdown-it": "14.1.0",
-    "playwright-core": "1.65.0",
     "vite": "6.0.7",
     "vue": "3.5.13",
     "yaml": "2.6.1"

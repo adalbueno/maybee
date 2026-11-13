@@ -2,12 +2,13 @@
 
 This directory is installed under `.maybee/package/` in the user's workspace. The distributable archive is named `maybee-package-<version>.zip`; the separate `maybee-<version>.zip` archive is only the bootstrap skill for Claude/Codex.
 
-- `app/` is the local visualization and bridge.
-- `skills/` contains the versioned Maybee workflows and knowledge.
+- `app/` is the local visualization and bridge, delivered built and minified (`web/` is the pre-compiled interface; the server and the agent scripts are single bundled files). Only `playwright-core` is installed on the user's machine.
+- `skills/` contains the skills the package ships (today `maybee-board`, the card format and rules). The installer makes them available to the agent clients in the workspace.
 - `skill/maybee/` is the bootstrap skill that can install or update this package.
 - `workspaces/default/` is the ready-made default playbook: project, state, dashboard, onboarding cards, routines and supporting folders.
 - `knowledge/` contains package-level documentation and defaults.
 - User project files stay at the workspace root and are never replaced by an update.
+- The installed package is read-only. Agents are told, and blocked where the client allows it, not to change it; Maybee's own working data is kept in `.maybee/data/`, outside the package.
 
 Start the app with the workspace root as its project. The first start prepares native dependencies for the current machine, so a package installed by a Linux agent can safely be started later on macOS:
 

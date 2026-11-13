@@ -7,7 +7,6 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createServer as createVite } from 'vite'
 import { buildIndex, feed, numbers, library, search, readNote, resolveName, statFile, allPaths, getIndex } from './lib/project.js'
 import { board, backlog, setStage, logChange } from './lib/board.js'
 import { desktop, setFields, dayKey, nowCards, routinesOn, overviewState, resolveWaiting } from './lib/desktop.js'
@@ -15,6 +14,7 @@ import { initInbox, readInbox, addRequest, listening, promptFor } from './lib/in
 import { initSnapshots, snapshot, diffFor } from './lib/snapshots.js'
 import { verifySkool } from './local-skool-verifier.js'
 import { openAppWindow } from './lib/browser.js'
+import { dataPath, DATA_DIR } from './lib/paths.js'
 
 const APP_DIR = path.dirname(fileURLToPath(import.meta.url))
 const DEFAULT_ROOT = path.resolve(APP_DIR, '..', '..')
@@ -47,7 +47,7 @@ const SKOOL_TARGET = process.env.MAYBEE_SKOOL_URL || 'https://www.skool.com/how-
 const ACCESS_RECHECK_MS = Number(process.env.MAYBEE_ACCESS_RECHECK_HOURS || 6) * 3600000
 const ACCESS_IDLE_MS = Number(process.env.MAYBEE_ACCESS_IDLE_HOURS || 2) * 3600000
 const ACCESS_SWEEP_MS = 60 * 1000
-const ACCESS_SESSION_FILE = path.join(APP_DIR, 'data', 'access-session.json')
+const ACCESS_SESSION_FILE = dataPath('access-session.json')
 let accessSession = {
   valid: false,
   checkedAt: 0,
@@ -149,7 +149,6 @@ function workspaceName(name) {
 function workspaceList() {
   const out = [
     { name: 'default', label: 'Default', root: workspaceRoot('default'), active: activeWorkspace === 'default' },
-    { name: 'how-i', label: 'How I', root: workspaceRoot('how-i'), active: activeWorkspace === 'how-i' },
   ]
   let entries = []
   try { entries = fs.readdirSync(path.join(BASE_ROOT, 'workspaces'), { withFileTypes: true }) } catch {}
@@ -181,6 +180,35 @@ async function switchWorkspace(name) {
   } catch {}
   broadcast('workspace', { workspace: activeWorkspace, root: ROOT, workspaces: workspaceList() })
   return { workspace: activeWorkspace, root: ROOT, workspaces: workspaceList() }
+}
+
+// The released package is built (see scripts/build-release.sh): the interface is pre-compiled into web/ and
+// served as static files. From the source repository, Vite serves it live.
+const BUNDLED = typeof __MAYBEE_BUNDLED__ !== 'undefined'
+const WEB_DIR = path.join(APP_DIR, 'web')
+const WEB_TYPES = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
+  '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.map': 'application/json',
+}
+async function serveStatic(req, res, pathname) {
+  let abs = path.join(WEB_DIR, decodeURIComponent(pathname))
+  if (abs !== WEB_DIR && !abs.startsWith(WEB_DIR + path.sep)) { res.writeHead(403); return res.end() }
+  let stat = await fsp.stat(abs).catch(() => null)
+  if (stat?.isDirectory()) stat = null
+  if (!stat) {
+    // Files with an extension that do not exist are a 404; any other path is a screen of the app.
+    if (path.extname(pathname)) { res.writeHead(404); return res.end() }
+    abs = path.join(WEB_DIR, 'index.html')
+    stat = await fsp.stat(abs).catch(() => null)
+    if (!stat) { res.writeHead(404); return res.end('Maybee interface not found.') }
+  }
+  const ext = path.extname(abs)
+  res.writeHead(200, {
+    'Content-Type': WEB_TYPES[ext] || 'application/octet-stream',
+    'Cache-Control': ext === '.html' ? 'no-store' : 'public, max-age=31536000, immutable',
+  })
+  fs.createReadStream(abs).pipe(res)
 }
 
 const MIME = {
@@ -448,12 +476,21 @@ async function main() {
   initInbox(APP_DIR)
   await initSnapshots(ROOT, APP_DIR, allPaths('.md'))
   const server = http.createServer()
-  const vite = await createVite({
-    root: APP_DIR,
-    configFile: path.join(APP_DIR, 'vite.config.js'),
-    server: { middlewareMode: true, hmr: { server } },
-    appType: 'spa',
-  })
+  let vite = null
+  if (!BUNDLED) {
+    const { createServer: createVite } = await import('vite')
+    const vue = (await import('@vitejs/plugin-vue')).default
+    vite = await createVite({
+      root: APP_DIR,
+      // Inline config: Vite would otherwise write a temp file next to vite.config.js.
+      configFile: false,
+      plugins: [vue()],
+      logLevel: 'warn',
+      cacheDir: dataPath('vite-cache'),
+      server: { middlewareMode: true, hmr: { server } },
+      appType: 'spa',
+    })
+  }
 
   server.on('request', async (req, res) => {
     touchServerActivity()
@@ -652,7 +689,8 @@ async function main() {
       console.error(err)
       return sendJSON(res, { error: String(err.message || err) }, 500)
     }
-    vite.middlewares(req, res)
+    if (vite) vite.middlewares(req, res)
+    else serveStatic(req, res, url.pathname).catch(() => { res.writeHead(500); res.end() })
   })
 
   // D246: routines that run by themselves, in priority order.

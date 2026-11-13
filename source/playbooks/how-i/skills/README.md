@@ -1,4 +1,6 @@
-# Skills
+# How I playbook skills
+
+> These skills are not part of the Maybee package. They hold the How I content workflow (posts, ads, shorts, publishing) and refer to files and decisions from that project. To distribute them, build a separate workspace playbook that ships them together with the files they need. The skills Maybee ships are in `source/skills/`.
 
 > [Dashboard](../../DASHBOARD.md) · [AGENTS](../../AGENTS.md) · [Guide](../guide.md) · [Setup](../setup.md)
 

@@ -3,7 +3,7 @@ id: T2
 title: "Choose a next step"
 type: task
 stage: next
-workspaces/how-i/owner: both
+owner: both
 kind: Do
 description: "Choose one concrete next step from the workspace instead of keeping the project vague"
 importance: should

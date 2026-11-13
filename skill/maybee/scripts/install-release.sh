@@ -52,6 +52,40 @@ seed_default_workspace() {
   done < <(find "$template" -type f -print0)
 }
 
+version_number() {
+  local major minor patch
+  IFS=. read -r major minor patch <<< "${1%%[-+]*}"
+  echo $(( 10#${major:-0} * 1000000 + 10#${minor:-0} * 1000 + 10#${patch:-0} ))
+}
+
+# After an update, add a "What's new" card for each version the user has not seen yet (the latest three at most).
+# A fresh install gets none: a new user has nothing to compare against. Cards are only added, never overwritten.
+seed_release_cards() {
+  local source_dir="$1/whats-new" target="$WORKSPACE/workspaces/default/ideas" file version number previous current total i
+  local chosen=()
+  [ -n "$PREVIOUS_VERSION" ] && [ -d "$source_dir" ] || return 0
+  previous="$(version_number "$PREVIOUS_VERSION")"
+  current="$(version_number "$VERSION")"
+  while IFS= read -r version; do
+    number="$(version_number "$version")"
+    if [ "$number" -gt "$previous" ] && [ "$number" -le "$current" ]; then chosen+=("$version"); fi
+  done < <(for file in "$source_dir"/*.md; do
+             [ -e "$file" ] || continue
+             version="$(basename "$file" .md)"
+             echo "$(version_number "$version") $version"
+           done | sort -n | cut -d' ' -f2)
+  total="${#chosen[@]}"
+  [ "$total" -gt 0 ] || return 0
+  mkdir -p "$target"
+  i=$(( total > 3 ? total - 3 : 0 ))
+  # Oldest first, so the newest card is the most recently written and sits on top of Now.
+  while [ "$i" -lt "$total" ]; do
+    version="${chosen[$i]}"
+    [ -e "$target/What's new in Maybee $version.md" ] || cp "$source_dir/$version.md" "$target/What's new in Maybee $version.md"
+    i=$((i + 1))
+  done
+}
+
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -68,31 +102,64 @@ PACKAGE="$TMP/unpacked/maybee"
 
 VERSION="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PACKAGE/manifest.json" | head -n 1)"
 [ -n "$VERSION" ] || { echo 'Invalid Maybee release: version is missing.' >&2; exit 1; }
+PREVIOUS_VERSION=""
+if [ -f "$WORKSPACE/.maybee/installation.json" ]; then
+  PREVIOUS_VERSION="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WORKSPACE/.maybee/installation.json" | head -n 1)"
+fi
 TARGET="$WORKSPACE/.maybee/package"
 mkdir -p "$WORKSPACE/.maybee"
 if [ -e "$TARGET" ]; then
   [ "$UPDATE" = 1 ] || { echo "Maybee is already installed at $TARGET. Re-run with --update." >&2; exit 1; }
   BACKUP="$WORKSPACE/.maybee/package.backup.$(date +%Y%m%d-%H%M%S)"
+  chmod -R u+w "$TARGET"
   mv "$TARGET" "$BACKUP"
+  # Data the app wrote inside the old package moves to the data folder, once.
+  if [ -d "$BACKUP/app/data" ] && [ ! -e "$WORKSPACE/.maybee/data" ]; then
+    cp -a "$BACKUP/app/data" "$WORKSPACE/.maybee/data"
+  fi
   echo "Previous package preserved at $BACKUP"
 fi
 mkdir -p "$TARGET"
 cp -a "$PACKAGE/." "$TARGET/"
+mkdir -p "$WORKSPACE/.maybee/data"
 seed_default_workspace "$PACKAGE/workspaces/default"
+# RELEASES.md belongs to the package, not to the user: it is replaced on every install so the history stays complete.
+if [ -f "$PACKAGE/workspaces/default/RELEASES.md" ]; then
+  cp "$PACKAGE/workspaces/default/RELEASES.md" "$WORKSPACE/workspaces/default/RELEASES.md"
+fi
+seed_release_cards "$PACKAGE"
 printf '{\n  "version": "%s",\n  "installedAt": "%s",\n  "workspace": "%s"\n}\n' "$VERSION" "$(date -Iseconds)" "$WORKSPACE" > "$WORKSPACE/.maybee/installation.json"
 
-# Make the bundled bootstrap discoverable by the two first target clients.
-# Existing user skills are left untouched; this only owns the Maybee skill path.
-for client in .claude .agents; do
-  SKILL_TARGET="$WORKSPACE/$client/skills/maybee"
-  mkdir -p "$WORKSPACE/$client/skills"
-  if [ -e "$SKILL_TARGET" ]; then
-    SKILL_BACKUP="$WORKSPACE/.maybee/$client-maybee-backup.$(date +%Y%m%d-%H%M%S)"
-    mv "$SKILL_TARGET" "$SKILL_BACKUP"
-    echo "Previous $client Maybee skill preserved at $SKILL_BACKUP"
-  fi
-  cp -a "$PACKAGE/skill/maybee" "$SKILL_TARGET"
-done
+# Make Maybee's skills discoverable by the two first target clients: the bootstrap skill and the skills the package ships.
+# Existing user skills are left untouched; this only owns the paths of Maybee's own skills.
+install_skill() {
+  local name="$1" source_dir="$2" client target backup
+  for client in .claude .agents; do
+    target="$WORKSPACE/$client/skills/$name"
+    mkdir -p "$WORKSPACE/$client/skills"
+    if [ -e "$target" ]; then
+      # An identical copy is simply refreshed; one the user changed is kept as a backup first.
+      if ! diff -rq "$source_dir" "$target" >/dev/null 2>&1; then
+        backup="$WORKSPACE/.maybee/$client-$name-backup.$(date +%Y%m%d-%H%M%S)"
+        mv "$target" "$backup"
+        echo "Previous $client $name skill preserved at $backup"
+      else
+        rm -rf "$target"
+      fi
+    fi
+    cp -a "$source_dir" "$target"
+  done
+}
+install_skill maybee "$PACKAGE/skill/maybee"
+if [ -d "$PACKAGE/skills" ]; then
+  for skill_dir in "$PACKAGE"/skills/*/; do
+    [ -f "${skill_dir}SKILL.md" ] && install_skill "$(basename "$skill_dir")" "${skill_dir%/}"
+  done
+fi
+
+# The installed package is the product, not a project file: make it read-only so it is not edited by accident.
+# Updates unlock it first; start.sh unlocks only the app folder while it installs dependencies.
+chmod -R a-w "$TARGET"
 
 printf 'Maybee %s installed at %s\n' "$VERSION" "$TARGET"
 printf 'Next action: execute "%s/start.sh" on this machine with user authorization if requested.\n' "$TARGET"

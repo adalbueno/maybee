@@ -9,7 +9,7 @@ const emit = defineEmits(['changed'])
 
 const TYPES = [['idea', 'Idea'], ['task', 'Task'], ['routine', 'Routine']]
 const STAGES = [['maybe', 'Maybe'], ['next', 'Next'], ['now', 'Now'], ['done', 'Done']]
-const OWNERS = [['agent', 'Claude'], ['owner', 'Adal'], ['both', 'Both']]
+const OWNERS = [['agent', 'Claude'], ['owner', 'You'], ['both', 'Both']]
 const REACT = [['value_members', 'Brings value to members'], ['value_money', 'Brings value to the business'], ['want', 'I want to do it'], ['hard', 'It looks difficult']]
 const SHORT = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 

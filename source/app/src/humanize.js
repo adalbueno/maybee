@@ -12,7 +12,7 @@ function runs(mode, every) {
 export function humanize(raw) {
   let text = String(raw || '').trim()
   let who = 'Claude'
-  const app = /^\(Adal, Maybee app\)\s*/.exec(text)
+  const app = /^\((?:Adal, )?Maybee app\)\s*/.exec(text)
   if (app) { who = 'You'; text = text.slice(app[0].length) }
   text = text.replace(/^\d{4}-\d{2}-\d{2}\s*·\s*/, '').replace(/^Claude Code\s*·\s*/, '')
   if (!app) {
@@ -38,7 +38,7 @@ export function humanize(raw) {
     if (k === 'type') return v[0].toUpperCase() + v.slice(1)
     if (k === 'stage') return STAGE[v] || v
     if (k === 'auto') return runs(v, f.auto_every && f.auto_every.to).replace(/^./, c => c.toUpperCase())
-    if (k === 'owner') return (OWNER[v] || v).replace(/^you$/, 'Adal').replace(/^both of you$/, 'Both')
+    if (k === 'owner') return (OWNER[v] || v).replace(/^you$/, 'You').replace(/^both of you$/, 'Both')
     return v
   }
   const details = Object.keys(LABEL).filter(k => f[k]).map(k => ({ label: LABEL[k], from: show(k, f[k].from), to: show(k, f[k].to) }))

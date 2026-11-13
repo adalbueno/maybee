@@ -11,9 +11,10 @@ import net from 'node:net'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { dataPath } from './paths.js'
 
 const APP_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-export const PROFILE = path.join(APP_DIR, 'data', 'skool-profile')
+export const PROFILE = dataPath('skool-profile')
 
 let current = null   // { proc, port, browser } while our browser is running
 let launching = null

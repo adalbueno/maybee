@@ -3,7 +3,7 @@ id: N1
 title: "What Not means"
 type: idea
 stage: not
-workspaces/how-i/owner: both
+owner: both
 kind: Onboarding
 description: "Learn how the Not column keeps deliberate decisions out of the active board"
 ---

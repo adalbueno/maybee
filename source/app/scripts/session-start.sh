@@ -38,8 +38,8 @@ if [ -n "$url" ]; then
   status="already running, opened at $url"
   open_window "$url"
 elif [ -d "$APP/node_modules" ]; then
-  mkdir -p "$APP/data"
-  (nohup node "$APP/server.js" --project "$ROOT" > "$APP/data/server.log" 2>&1 < /dev/null &) > /dev/null 2>&1 < /dev/null
+  mkdir -p "$ROOT/.maybee/data"
+  (nohup node "$APP/server.js" --project "$ROOT" > "$ROOT/.maybee/data/server.log" 2>&1 < /dev/null &) > /dev/null 2>&1 < /dev/null
   for i in $(seq 1 20); do
     url="$(instance_url 2>/dev/null)"
     [ -n "$url" ] && break
@@ -47,7 +47,7 @@ elif [ -d "$APP/node_modules" ]; then
   done
   status="started and opened at $url"
   [ -n "$url" ] && open_window "$url"
-  [ -n "$url" ] || status="startup not confirmed; inspect $APP/data/server.log"
+  [ -n "$url" ] || status="startup not confirmed; inspect $ROOT/.maybee/data/server.log"
 else
   status="dependencies missing; the agent should run the package launcher"
 fi

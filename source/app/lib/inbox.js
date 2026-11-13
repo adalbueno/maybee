@@ -1,11 +1,12 @@
 // Requests from the app to a Claude Code session (the "Ask Claude" buttons).
 import fs from 'node:fs'
 import path from 'node:path'
+import { dataPath } from './paths.js'
 
 let file = '', beat = ''
 export function initInbox(appDir) {
-  file = path.join(appDir, 'data', 'inbox.json')
-  beat = path.join(appDir, 'data', 'listening')
+  file = dataPath('inbox.json')
+  beat = dataPath('listening')
 }
 export function readInbox() { try { return JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return [] } }
 function writeInbox(list) { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(list.slice(-200), null, 1)) }

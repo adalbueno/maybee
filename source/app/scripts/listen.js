@@ -5,7 +5,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-const data = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data')
+import { DATA_DIR } from '../lib/paths.js'
+const data = DATA_DIR
 const here = path.dirname(fileURLToPath(import.meta.url))
 const inbox = path.join(data, 'inbox.json'), beat = path.join(data, 'listening')
 const until = Date.now() + Number(process.argv[2] || 55) * 60000

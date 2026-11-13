@@ -3,7 +3,7 @@ id: D1
 title: "What Done means"
 type: task
 stage: done
-workspaces/how-i/owner: both
+owner: both
 kind: Onboarding
 description: "Keep the basic Maybee tour as a small piece of project history"
 done: 2026-11-11

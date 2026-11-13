@@ -3,7 +3,7 @@ id: T1
 title: "How Maybee works"
 type: task
 stage: now
-workspaces/how-i/owner: both
+owner: both
 kind: Overview
 description: "Read the short overview of Maybee, then choose the first useful thing to move forward"
 importance: must
@@ -16,13 +16,13 @@ priority: 1
 
 Maybee is a second brain for the project you are working on.
 
-The workspace is the source of truth. Your notes, decisions, workspaces/how-i/ideas, routines and drafts live here as ordinary files. Maybee reads those files and shows them in the app; it does not hide the project inside a database.
+The workspace is the source of truth. Your notes, decisions, ideas, routines and drafts live here as ordinary files. Maybee reads those files and shows them in the app; it does not hide the project inside a database.
 
 The board has six useful columns:
 
 - **Now:** the small number of things worth doing or deciding today.
 - **Next:** the next steps that are ready when Now has room.
-- **Maybe:** workspaces/how-i/ideas worth keeping without committing to them yet.
+- **Maybe:** ideas worth keeping without committing to them yet.
 - **Routine:** recurring work with a schedule, automation and a Run button. A routine comes back when it is due; it is not a one-off task.
 - **Done:** finished work, kept as history.
 - **Not:** deliberately left aside, with the reason recorded.
@@ -32,7 +32,7 @@ Ask the agent to capture an idea, write a draft, explain a note, or decide what 
 When you open a card, the viewer has three useful tabs:
 
 - **Content:** the note itself — what it means, why it exists, what done looks like, and the next step.
-- **Settings:** the note's controls and metadata — its type, stage, workspaces/how-i/owner, priority, schedule, and other fields Maybee uses to place it on the board.
+- **Settings:** the note's controls and metadata — its type, stage, owner, priority, schedule, and other fields Maybee uses to place it on the board.
 - **Changes:** the history of the file — what changed, when it changed, and which part of the project it came from.
 
 **Try it now:** open this card, click **Content**, **Settings**, and **Changes**, then ask Maybee what one of the fields means.
