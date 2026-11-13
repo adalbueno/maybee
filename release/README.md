@@ -8,7 +8,7 @@ This directory is installed under `.maybee/package/` in the user's workspace. Th
 - `workspaces/default/` is the ready-made default playbook: project, state, dashboard, onboarding cards, routines and supporting folders.
 - `knowledge/` contains package-level documentation and defaults.
 - User project files stay at the workspace root and are never replaced by an update.
-- The installed package is read-only. Agents are told, and blocked where the client allows it, not to change it; Maybee's own working data is kept in `.maybee/data/`, outside the package.
+- The installed package is read-only and changes only through updates. Maybee's own working data is kept in `.maybee/data/`, outside the package.
 
 Start the app with the workspace root as its project. The first start prepares native dependencies for the current machine, so a package installed by a Linux agent can safely be started later on macOS:
 

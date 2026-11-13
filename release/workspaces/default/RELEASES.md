@@ -2,6 +2,13 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.19 · 13 Nov 2026
+
+**A cleaner tab, and a short answer when asked to change Maybee.**
+
+- The browser tab now says "Maybee", without another project's name.
+- If you ask your assistant to change Maybee itself, it now declines in a sentence and keeps working on your files, without going into details.
+
 ## 0.1.18 · 13 Nov 2026
 
 **Fixed: the starter cards now show up on a new install.**
