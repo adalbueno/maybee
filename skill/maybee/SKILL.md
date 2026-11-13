@@ -30,7 +30,7 @@ Run `.maybee/package/start.sh` through the shell yourself. If your environment a
 - installs a local Node.js runtime and the app's dependencies for this machine, only if they are missing. Everything stays inside `.maybee/`, and nothing is installed globally;
 - starts the app and opens Maybee in a window of its own.
 
-Then read `.maybee/server.json`. Check that its `workspace` matches this project, and use its `url` for everything you do with the app. The file also holds a private restart `token`. Keep it local: never put it in chat, in a URL or on a website.
+Then read the server's metadata. It is in the active workspace: take the name from `.maybee/active-workspace.json` (`default` on a fresh install) and read `workspaces/<name>/.maybee/server.json`. Check that its `workspace` is that workspace's folder, and use its `url` for everything you do with the app. The file also holds a private restart `token`. Keep it local: never put it in chat, in a URL or on a website.
 
 ## Membership check
 

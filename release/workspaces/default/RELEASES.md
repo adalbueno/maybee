@@ -2,6 +2,12 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.18 · 13 Nov 2026
+
+**Fixed: the starter cards now show up on a new install.**
+
+On a fresh install, Maybee opened your project folder instead of the Default workspace, so the board looked empty even though the starter cards were there. It now opens Default and remembers it.
+
 ## 0.1.17 · 13 Nov 2026
 
 **Maybee's program files are protected, and every update tells you what changed.**

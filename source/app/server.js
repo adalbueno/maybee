@@ -37,6 +37,16 @@ try {
     if (fs.existsSync(candidate)) { activeWorkspace = saved.name; ROOT = candidate }
   }
 } catch {}
+// A fresh install has no saved choice yet: open the default workspace the package seeded, and remember it.
+// (Without this the app would read the project root, which has no board, and the starter cards would never show.)
+if (ROOT === BASE_ROOT && fs.existsSync(workspaceRoot('default'))) {
+  activeWorkspace = 'default'
+  ROOT = workspaceRoot('default')
+  try {
+    fs.mkdirSync(path.join(BASE_ROOT, '.maybee'), { recursive: true })
+    fs.writeFileSync(path.join(BASE_ROOT, '.maybee', 'active-workspace.json'), JSON.stringify({ name: 'default' }, null, 2))
+  } catch {}
+}
 // `skool` (default): Maybee opens its own Chromium-based browser and reads the Skool page (local-skool-verifier.js).
 // `agent-browser`: an agent confirms from its own browser. Any other value runs the real check:
 // there is no mode that skips the membership check.
