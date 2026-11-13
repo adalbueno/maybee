@@ -35,6 +35,8 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             "dist/maybee-package-${GITHUB_REF_NAME#v}.zip" \
             "dist/maybee-${GITHUB_REF_NAME#v}.zip" \
+            dist/maybee-package.zip \
+            dist/maybee.zip \
             --repo "$GITHUB_REPOSITORY" \
             --generate-notes \
             --title "Maybee ${GITHUB_REF_NAME#v}"
