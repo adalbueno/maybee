@@ -2,6 +2,13 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.22 · 13 Nov 2026
+
+**Ask AI and Run reach your assistant without gaps.**
+
+- The bridge between the board and your assistant can now stay alive and hand over each request as it arrives, instead of stopping after every one. Before, a request sent while your assistant was busy waited with "Not listening" until the bridge was started again.
+- Your assistant is now told how to start the bridge so that requests wake it up. A bridge started the wrong way showed "listening" but never delivered anything.
+
 ## 0.1.21 · 13 Nov 2026
 
 **Fixed: updating Maybee no longer gets blocked by its own protection.**
