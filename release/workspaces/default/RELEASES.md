@@ -2,6 +2,16 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.24 · 13 Nov 2026
+
+**Ask AI is now a chat at the bottom of every note, and notes are always ready to edit.**
+
+- **A chat that floats at the bottom of the note.** Write to your assistant about the note you are reading, from anywhere on the page. The conversation about that note, with the answers, opens above it. Enter sends, Esc hides it. The button at the top of the note is gone.
+- **Notes open ready to edit.** No Edit button: click and type. Your changes are saved a moment after you stop typing, and when you switch notes or tabs. Titles keep their yellow underline, and the links at the top of a note (Dashboard, Start here) stay out of the way while you edit.
+- **Changes made elsewhere are taken in quietly.** If your assistant or the Settings tab changes the note while it is open, the change appears without losing what you typed. Only when the text itself changed on both sides, Maybee asks which version to keep.
+- **The changelog stays readable.** Typing saves often, so a note adds one changelog line every 10 minutes at most.
+- **Your assistant gets requests without gaps.** The bridge to your assistant can stay on and hand over each request as it comes, instead of stopping after every one.
+
 ## 0.1.23 · 13 Nov 2026
 
 **Fixed: checking your membership no longer opens a pile of windows.**

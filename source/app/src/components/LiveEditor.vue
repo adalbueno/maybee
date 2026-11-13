@@ -16,9 +16,10 @@ const host = ref(null)
 let view = null
 
 const style = HighlightStyle.define([
-  { tag: t.heading1, fontSize: '1.7em', fontWeight: '700', letterSpacing: '-.02em' },
-  { tag: t.heading2, fontSize: '1.35em', fontWeight: '700', letterSpacing: '-.01em' },
-  { tag: t.heading3, fontSize: '1.15em', fontWeight: '700' },
+  // titles carry the app's yellow underline
+  { tag: t.heading1, fontSize: '1.7em', fontWeight: '700', letterSpacing: '-.02em', textDecoration: 'underline', textDecorationColor: 'var(--accent)', textDecorationThickness: '3px', textUnderlineOffset: '5px' },
+  { tag: t.heading2, fontSize: '1.35em', fontWeight: '700', letterSpacing: '-.01em', textDecoration: 'underline', textDecorationColor: 'var(--accent)', textDecorationThickness: '3px', textUnderlineOffset: '4px' },
+  { tag: t.heading3, fontSize: '1.15em', fontWeight: '700', textDecoration: 'underline', textDecorationColor: 'var(--accent)', textDecorationThickness: '2px', textUnderlineOffset: '4px' },
   { tag: [t.heading4, t.heading5, t.heading6], fontWeight: '700' },
   { tag: t.strong, fontWeight: '700' },
   { tag: t.emphasis, fontStyle: 'italic' },

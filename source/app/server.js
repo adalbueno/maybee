@@ -51,6 +51,7 @@ if (ROOT === BASE_ROOT && fs.existsSync(workspaceRoot('default'))) {
 // `agent-browser`: an agent confirms from its own browser. Any other value runs the real check:
 // there is no mode that skips the membership check.
 const ACCESS_MODE = process.env.MAYBEE_ACCESS_MODE === 'agent-browser' ? 'agent-browser' : 'skool'
+const lastEditLog = new Map() // path -> when its last 'edited in the app' line was written
 let accessVerifying = null // { phase } while the local browser check is running
 let accessChallenge = crypto.randomBytes(24).toString('hex')
 const SKOOL_TARGET = process.env.MAYBEE_SKOOL_URL || 'https://www.skool.com/how-i-9301'
@@ -663,11 +664,20 @@ async function main() {
         await statFile(ROOT, body.path)
         seen.items[body.path] = Date.now() + 2000; saveSeen(); await snapshot(body.path)
         const delta = body.text.split('\n').length - before.split('\n').length
-        await logChange(ROOT, `edited ${body.path} in the app (${delta >= 0 ? '+' : ''}${delta} lines)`)
+        // An autosave can come every few seconds while someone writes: one changelog line per note per 10 minutes.
+        if (!body.auto || Date.now() - (lastEditLog.get(body.path) || 0) > 600000) {
+          lastEditLog.set(body.path, Date.now())
+          await logChange(ROOT, `edited ${body.path} in the app (${delta >= 0 ? '+' : ''}${delta} lines)`)
+        }
         const nst = await fsp.stat(abs)
         return sendJSON(res, { ok: true, mtime: nst.mtimeMs })
       }
-      if (url.pathname === '/api/inbox') return sendJSON(res, { listening: listening(), items: readInbox().slice(-20).reverse() })
+      if (url.pathname === '/api/inbox') {
+        // With ?path=, only the requests about that note (its chat); otherwise the latest ones across the project.
+        const all = readInbox()
+        const items = q.path ? all.filter(r => r.path === String(q.path)).slice(-30) : all.slice(-20)
+        return sendJSON(res, { listening: listening(), items: items.reverse() })
+      }
       if (url.pathname === '/api/ask' && req.method === 'POST') {
         const body = await readBody(req)
         const r = addRequest(body)

@@ -1,5 +1,5 @@
 <script setup>
-import AskClaude from './AskClaude.vue'
+import NoteChat from './NoteChat.vue'
 import NoteProps from './NoteProps.vue'
 import LiveEditor from './LiveEditor.vue'
 import { humanize, when } from '../humanize.js'
@@ -10,7 +10,7 @@ const emit = defineEmits(['close', 'open', 'tab'])
 const note = ref(null)
 // a note always opens on Content (Adal, 8/11), unless the link asks for a tab (D254)
 const tab = ref(props.target.tab || 'content')
-function setTab(t) { tab.value = t; emit('tab', t) }
+async function setTab(t) { if (inline.value) await saveNow(true); tab.value = t; emit('tab', t) }
 const loading = ref(false)
 const bodyEl = ref(null)
 const history = ref([])
@@ -20,16 +20,42 @@ const draftMtime = ref(0)
 const changedUnder = ref(false)
 const saveMsg = ref('')
 
-async function startEdit() {
-  const src = await fetch('/api/source?path=' + encodeURIComponent(props.target.path)).then(r => r.json())
-  if (src.error) { saveMsg.value = src.error; return }
-  // D264: the frontmatter stays out of the editor (Settings edits it) and goes back untouched on save
-  const m = /^---\n[\s\S]*?\n---[^\n]*\n?/.exec(src.text)
-  draftHead.value = m ? m[0] : ''
-  draft.value = src.text.slice(draftHead.value.length); draftMtime.value = src.mtime; changedUnder.value = false; saveMsg.value = ''; editing.value = true
-}
+// A markdown note you can edit (not an "In force" register, which keeps its read view) is always open in the
+// editor: no Edit button, and it saves by itself a moment after you stop typing.
+const always = computed(() => !!note.value && note.value.ext === '.md' && !note.value.error && !parts.value.record)
+const inline = computed(() => always.value && editing.value)
+const FM_RE = /^---\n[\s\S]*?\n---[^\n]*\n?(?:[ \t]*\n)*(?:> \[[^\n]*\n)?(?:[ \t]*\n)*/
+function splitSource(text) { const m = FM_RE.exec(text); const head = m ? m[0] : ''; return { head, body: text.slice(head.length) } }
 const draftHead = ref('')
-async function save() {
+const savedText = ref('') // the text as last read from or written to disk, to know when there is something to save
+const editPath = ref('')
+const syncState = ref('') // '' | dirty | saving | saved | conflict | error
+let saveTimer = null
+
+let starting = false
+async function startEdit() {
+  if (starting) return
+  starting = true
+  try {
+    const path = props.target.path
+    const src = await fetch('/api/source?path=' + encodeURIComponent(path)).then(r => r.json())
+    if (src.error) { saveMsg.value = src.error; return }
+    if (props.target.path !== path) return
+    openEditor(path, src)
+  } finally { starting = false }
+}
+function openEditor(path, src) {
+  // D264: the frontmatter stays out of the editor (Settings edits it) and goes back untouched on save.
+  // So does the line of links under it (Dashboard / Start here): the editor starts at the title.
+  const { head, body } = splitSource(src.text)
+  editPath.value = path; draftHead.value = head; savedText.value = body; draft.value = body
+  draftMtime.value = src.mtime; changedUnder.value = false; saveMsg.value = ''; syncState.value = ''; editing.value = true
+}
+// A note that is always editable cannot be left in the read view: if it ever is (a reload, a failed read, a
+// swapped note), the editor opens again by itself.
+watch([always, editing, loading], () => { if (always.value && !editing.value && !loading.value) startEdit() })
+// classic save, for the notes that keep an Edit button
+async function saveClassic() {
   saveMsg.value = 'Saving…'
   const res = await fetch('/api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: props.target.path, text: draftHead.value + draft.value, mtime: draftMtime.value }) })
   const r = await res.json()
@@ -39,6 +65,67 @@ async function save() {
   editing.value = false
   load(true)
 }
+const save = () => inline.value ? saveNow(true) : saveClassic()
+
+// autosave: one save at a time, only when the text differs from what is on disk
+let inflight = Promise.resolve()
+function saveNow(force = false) {
+  clearTimeout(saveTimer)
+  inflight = inflight.then(async () => {
+    if (!inline.value || changedUnder.value) return
+    if (draft.value === savedText.value) { if (force) syncState.value = 'saved'; return }
+    const path = editPath.value, body = draft.value
+    syncState.value = 'saving'
+    try {
+      const res = await fetch('/api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path, text: draftHead.value + body, mtime: draftMtime.value, auto: true }) })
+      const r = await res.json().catch(() => ({}))
+      if (editPath.value !== path) return
+      if (res.status === 409) { changedUnder.value = true; syncState.value = 'conflict'; return }
+      if (!res.ok) { syncState.value = 'error'; saveMsg.value = 'Not saved: ' + (r.error || res.status); return }
+      draftMtime.value = r.mtime; savedText.value = body
+      if (draft.value === body) { syncState.value = 'saved'; load(true) } else { syncState.value = 'dirty'; saveTimer = setTimeout(saveNow, 1200) }
+    } catch { syncState.value = 'error'; saveMsg.value = 'Not saved: could not reach Maybee.' }
+  })
+  return inflight
+}
+watch(draft, () => {
+  if (!inline.value) return
+  if (draft.value === savedText.value) return
+  syncState.value = 'dirty'
+  clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 1200)
+})
+// The note changed on disk while it is open (the AI, Settings, the board, Sync). Quietly take what changed,
+// and only ask when the text itself changed on both sides.
+async function mergeExternal() {
+  const path = editPath.value
+  const src = await fetch('/api/source?path=' + encodeURIComponent(path)).then(r => r.json()).catch(() => null)
+  if (!src || src.error || editPath.value !== path || src.mtime === draftMtime.value) return
+  const { head, body } = splitSource(src.text)
+  if (body === savedText.value) { draftHead.value = head; draftMtime.value = src.mtime; load(true); return } // only the settings changed
+  if (draft.value === savedText.value) { draftHead.value = head; savedText.value = body; draft.value = body; draftMtime.value = src.mtime; load(true); return }
+  changedUnder.value = true; syncState.value = 'conflict'
+}
+async function keepMine() {
+  const src = await fetch('/api/source?path=' + encodeURIComponent(editPath.value)).then(r => r.json()).catch(() => null)
+  if (!src || src.error) return
+  draftHead.value = splitSource(src.text).head; draftMtime.value = src.mtime; changedUnder.value = false
+  await saveNow(true)
+}
+const takeTheirs = () => startEdit()
+const syncText = computed(() => ({
+  dirty: 'Typing… it saves when you pause', saving: 'Saving…', saved: 'Saved', error: saveMsg.value || 'Not saved',
+  conflict: 'This note changed on disk while you were typing.', '': 'Ctrl+S saves now · it saves by itself when you pause',
+}[syncState.value]))
+function flushOnLeave() {
+  if (document.visibilityState === 'hidden') saveNow(true)
+}
+function flushOnClose() {
+  if (!inline.value || changedUnder.value || draft.value === savedText.value) return
+  fetch('/api/save', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: editPath.value, text: draftHead.value + draft.value, mtime: draftMtime.value, auto: true }) }).catch(() => {})
+}
+document.addEventListener('visibilitychange', flushOnLeave)
+window.addEventListener('pagehide', flushOnClose)
+onBeforeUnmount(() => { document.removeEventListener('visibilitychange', flushOnLeave); window.removeEventListener('pagehide', flushOnClose); clearTimeout(saveTimer); flushOnClose() })
 function cancelEdit() { editing.value = false; saveMsg.value = '' }
 function onEditKey(e) { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); save() } }
 
@@ -116,6 +203,7 @@ async function load(keepScroll = false) {
   if (!keepScroll && props.target.decision && parts.value.record) { tab.value = 'changes'; emit('tab', 'changes') }
   await nextTick()
   sectionizeAll()
+  if (always.value && !editing.value) startEdit()
   if (bodyEl.value) {
     bodyEl.value.scrollTop = keepScroll ? top : 0
     if (!keepScroll && props.target.decision) {
@@ -164,7 +252,8 @@ const _onHashChange = () => { scrollToHash() }
 window.addEventListener('hashchange', _onHashChange)
 onBeforeUnmount(() => window.removeEventListener('hashchange', _onHashChange))
 
-watch(() => props.target, (t, old) => {
+watch(() => props.target, async (t, old) => {
+  if (inline.value) await saveNow(true) // the note being left is saved first
   editing.value = false; saveMsg.value = ''
   if (!old || old.path !== t.path) tab.value = t.tab || 'content'
   if (old && old.path !== t.path && !t.fromHistory) history.value.push(old)
@@ -174,7 +263,8 @@ watch(() => props.target, (t, old) => {
 // live: reload when this file changes
 watch(() => props.freshAt, () => {
   if (!(props.fresh && props.fresh.has(props.target.path))) return
-  if (editing.value) changedUnder.value = true
+  if (inline.value) mergeExternal()
+  else if (editing.value) changedUnder.value = true
   else load(true)
 })
 
@@ -230,7 +320,7 @@ const headTitle = computed(() => note.value && !note.value.error ? (note.value.e
 // D249: notes in ideas/ (idea · task · routine) show their settings by type
 // D252: three tabs for ideas, tasks and routines: Content · Settings · Changes (remembered)
 // every markdown note gets the tabs (Adal, 8/11: the Feed opens notes the same way)
-const tabbed = computed(() => note.value && note.value.ext === '.md' && !editing.value)
+const tabbed = computed(() => note.value && note.value.ext === '.md' && (!editing.value || always.value))
 const tabLabel = t => t[0] === 'settings' && !isIdeaNote.value ? 'Details' : parts.value.record && t[0] === 'content' ? 'Summary' : parts.value.record && t[0] === 'changes' ? 'Everything' : t[1]
 const hasDetails = computed(() => isIdeaNote.value || chips.value.length > 0 || !!liveLink.value)
 const TABS_ALL = [['content', 'Content'], ['settings', 'Settings'], ['changes', 'Changes']]
@@ -272,7 +362,6 @@ const updated = computed(() => note.value && note.value.mtime
       <div id="vh-actions" class="vh-actions"></div>
       <a v-if="liveLink" class="v-link" :href="liveLink" target="_blank" rel="noopener">Open live ↗</a>
       <button v-if="note && note.ext === '.md' && !editing" class="v-link quiet edit-btn" @click="startEdit">Edit</button>
-      <AskClaude v-if="note && !note.error" :path="target.path" :title="note.title" :quick="['Review this', 'Work on this now', 'What should change here?']" small />
       <button class="icon" title="Close (Esc)" @click="emit('close')">✕</button>
     </div>
 
@@ -307,8 +396,8 @@ const updated = computed(() => note.value && note.value.mtime
               <template v-if="liveLink"><span class="np-l">Live</span><div class="np-v"><a :href="liveLink" target="_blank" rel="noopener">{{ liveLink }}</a></div></template>
               <span class="np-l">Saved</span><div class="np-v">{{ updated }}</div>
             </div>
-            <NoteProps v-if="isIdeaNote" :path="note.path" :title="parts.title" :fm="note.frontmatter" :show="curTab === 'settings'" @changed="load(true)" />
-            <div v-show="curTab === 'content'" v-if="isIdeaNote && parts.lead" class="np-lead"><div class="prose" v-html="parts.lead"></div></div>
+            <NoteProps v-if="isIdeaNote" :path="note.path" :title="parts.title" :fm="note.frontmatter" :show="curTab === 'settings'" @changed="inline ? mergeExternal() : load(true)" />
+            <div v-show="curTab === 'content'" v-if="isIdeaNote && parts.lead && !inline" class="np-lead"><div class="prose" v-html="parts.lead"></div></div>
             <section v-if="curTab === 'changes' && !parts.record" class="changes">
               <p v-if="!changes.length" class="ch-empty">No changes recorded yet.</p>
               <div v-for="g in changeDays" :key="g.day" class="ch-day">
@@ -326,7 +415,7 @@ const updated = computed(() => note.value && note.value.mtime
               </div>
             </section>
           </template>
-          <div v-if="editing" class="v-chips">
+          <div v-if="editing && !always" class="v-chips">
             <span v-for="c in chips" :key="c.k" class="fm"><b>{{ c.k }}</b> {{ c.v }}</span>
             <span class="fm quiet">saved {{ updated }}</span>
             <span v-if="sectionCount > 1 && !editing" class="sec-tools">
@@ -334,10 +423,17 @@ const updated = computed(() => note.value && note.value.mtime
               <button class="fm quiet" @click="setAll(false)">Close all</button>
             </span>
           </div>
-          <div v-if="editing" class="editor">
-            <p v-if="changedUnder" class="warn">This note changed on disk while you were editing (Claude or Sync). Saving now would overwrite that change, so the app will refuse. Copy your text first.</p>
+          <div v-if="editing" v-show="!inline || curTab === 'content'" class="editor" :class="{ 'always-on': inline }">
+            <p v-if="changedUnder && !inline" class="warn">This note changed on disk while you were editing (Claude or Sync). Saving now would overwrite that change, so the app will refuse. Copy your text first.</p>
             <LiveEditor v-model="draft" @save="save" />
-            <div class="editor-foot">
+            <div v-if="inline" class="editor-foot" :class="syncState">
+              <span>{{ syncText }}</span>
+              <template v-if="changedUnder">
+                <button class="pill-btn ghost" @click="takeTheirs">Take the disk version</button>
+                <button class="pill-btn yellow" @click="keepMine">Keep mine</button>
+              </template>
+            </div>
+            <div v-else class="editor-foot">
               <span>{{ saveMsg || 'Ctrl+S saves · markup shows only on the line you are on · the changelog gets a line' }}</span>
               <button class="pill-btn ghost" @click="cancelEdit">Cancel</button>
               <button class="pill-btn yellow" @click="save">Save</button>
@@ -352,5 +448,6 @@ const updated = computed(() => note.value && note.value.mtime
         </template>
       </template>
     </div>
+    <NoteChat v-if="note && !note.error && note.ext === '.md' && (!editing || inline)" :key="'chat:' + note.path" :path="note.path" :title="note.title" @settled="load(true)" />
   </aside>
 </template>
