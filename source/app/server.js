@@ -248,6 +248,7 @@ function accessStatus() {
     member: !!accessSession.member,
     community: accessSession.community || 'How I',
     checkedAt: accessSession.checkedAt || null,
+    lastErrorAt: accessSession.lastErrorAt || null,
     lastSkoolCheckAt: accessSession.lastSkoolCheckAt || null,
     lastAppActivityAt: accessSession.lastAppActivityAt || null,
     sessionStartedAt: accessSession.sessionStartedAt,
@@ -299,6 +300,9 @@ async function verifyAccess(body = {}) {
   }
   // `skool` mode: the browser check can take minutes (the person may have to log in),
   // so answer at once and let the access events tell the page when it is done.
+  // A check that has just failed is not started again at once: a retry loop would open a window each time.
+  const failedAt = accessSession.lastErrorAt || 0
+  if (!accessVerifying && Date.now() - failedAt < 15000) return accessStatus()
   if (!accessVerifying) {
     accessVerifying = { phase: 'opening-browser' }
     broadcastAccess()
@@ -322,12 +326,14 @@ async function runSkoolVerification(reason) {
       ...accessSession, valid: ok, member: ok, community: 'How I', checkedAt: now,
       lastSkoolCheckAt: ok ? now : accessSession.lastSkoolCheckAt, lastAppActivityAt: now,
       expiresAt: ok ? now + ACCESS_RECHECK_MS : now, method, details: result.details, url: result.url,
+      lastErrorAt: 0,
       membership: ok ? { userId: m.userId, groupId: m.groupId, role: m.role, approvedAt: m.approvedAt } : null,
     }
     saveAccessSession({ type: ok ? 'access-verified' : 'access-denied', method, reason, result: result.state })
     if (ok) openMaybeeAfterAccess()
   } catch (error) {
     accessSession = { ...accessSession, valid: false, member: false, community: 'How I', checkedAt: Date.now(), expiresAt: Date.now(), method, details: error.message || 'The local Skool verifier could not start.' }
+    accessSession.lastErrorAt = Date.now()
     saveAccessSession({ type: 'access-error', method, reason })
   } finally {
     accessVerifying = null

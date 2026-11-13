@@ -74,10 +74,11 @@ async function onAccessEvent(event) {
 // with the button; after a failed attempt the same button is the retry path.
 onMounted(() => {
   // The window opens at once and the check starts by itself (no click needed): it runs without a
-  // window, and a Skool window only appears when the person has to log in.
+  // window, and a Skool window only appears when the person has to log in. Not after the browser failed to
+  // start: the button is the retry then, so a window that fails to start can never open the next one.
   load().then(() => {
     const s = status.value
-    if (s && !s.valid && !s.verifying && s.mode !== 'agent-browser') verify()
+    if (s && !s.valid && !s.verifying && !s.lastErrorAt && s.mode !== 'agent-browser') verify()
   })
   accessEvents = new EventSource('/api/access/events')
   accessEvents.onmessage = onAccessEvent

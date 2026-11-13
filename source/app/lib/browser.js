@@ -98,8 +98,29 @@ function forgetLastSession() {
 
 const alive = c => !!c && c.proc.exitCode === null && c.browser.isConnected()
 
+// A browser from an earlier run of Maybee may still be open on this profile (the server was restarted or
+// stopped while its window stayed). Launching a second one would only hand the start over to that browser,
+// open one more window and exit, so the app could never connect. The port of the browser Maybee starts is kept
+// in a small file next to the profile: when that browser still answers, use it as it is.
+const MARKER = dataPath('browser.json')
+async function adopt(playwright) {
+  let port
+  try { port = Number(JSON.parse(fs.readFileSync(MARKER, 'utf8')).port) } catch { return null }
+  if (!Number.isInteger(port) || port <= 0) return null
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(1500) })
+    if (!res.ok) return null
+    const browser = await playwright.chromium.connectOverCDP(`http://127.0.0.1:${port}`)
+    const proc = { exitCode: null, kill() {}, once() {} }
+    browser.on('disconnected', () => { proc.exitCode = 0; if (current && current.proc === proc) current = null })
+    return { proc, port, browser }
+  } catch { return null }
+}
+
 async function launch(startUrl) {
   const playwright = await loadPlaywright()
+  const existing = await adopt(playwright)
+  if (existing) return existing
   let bundled = null
   try { bundled = playwright.chromium.executablePath() } catch {}
   const executable = findBrowser(bundled)
@@ -130,6 +151,7 @@ async function launch(startUrl) {
     if (proc.exitCode === null) proc.kill()
     throw new Error('The Maybee browser did not start. If another window is using the Maybee profile, close it and try again.')
   }
+  try { fs.writeFileSync(MARKER, JSON.stringify({ port, pid: proc.pid, startedAt: new Date().toISOString() })) } catch {}
   return { proc, port, browser }
 }
 

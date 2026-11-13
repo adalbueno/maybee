@@ -2,6 +2,12 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.23 · 13 Nov 2026
+
+**Fixed: checking your membership no longer opens a pile of windows.**
+
+If Maybee was restarted while its window stayed open, the next membership check could not connect to that window, opened another one, and every new window started the check again. Maybee now reuses the window that is already open, a check that fails to start is not repeated by itself, and a failed attempt waits a few seconds before it can be retried.
+
 ## 0.1.22 · 13 Nov 2026
 
 **Ask AI and Run reach your assistant without gaps.**
