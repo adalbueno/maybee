@@ -2,6 +2,7 @@
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import YAML from 'yaml'
 import MarkdownIt from 'markdown-it'
 
@@ -308,7 +309,7 @@ function captionFor(rel, dirOnly = false) {
 let decisions = { mtime: -1, rows: [] }
 // When each decision first showed up in the register (ms). The register has dates, not times,
 // so a decision added today would otherwise sit at a made-up time. Kept in data/.
-const decisionTimesFile = () => path.join(root, 'system/app/data/decision-times.json')
+const decisionTimesFile = () => path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'decision-times.json')
 function readDecisionTimes() {
   try { return JSON.parse(fs.readFileSync(decisionTimesFile(), 'utf8')) } catch { return null }
 }

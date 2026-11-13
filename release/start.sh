@@ -71,4 +71,4 @@ ensure_dependencies() {
 mkdir -p "$WORKSPACE/.maybee"
 ensure_node
 ensure_dependencies "$PLATFORM"
-MAYBEE_ACCESS_MODE="${MAYBEE_ACCESS_MODE:-agent-browser}" PORT="$PORT" exec "$NODE_BIN/node" "$APP_DIR/server.js" --project "$WORKSPACE" "$@"
+MAYBEE_ACCESS_MODE="${MAYBEE_ACCESS_MODE:-skool}" PORT="$PORT" exec "$NODE_BIN/node" "$APP_DIR/server.js" --project "$WORKSPACE" "$@"

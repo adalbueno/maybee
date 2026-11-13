@@ -11,7 +11,14 @@ instance_url() {
   node --input-type=module - "$ROOT" <<'JS'
 import fs from 'node:fs';
 try {
-  const root = process.argv[2];
+  // The server writes its metadata inside the active workspace (workspaces/<name>/.maybee),
+  // so look there; fall back to the project folder for a single-workspace project.
+  const base = process.argv[2];
+  let root = base;
+  try {
+    const name = JSON.parse(fs.readFileSync(base + '/.maybee/active-workspace.json')).name;
+    if (name && fs.existsSync(base + '/workspaces/' + name)) root = base + '/workspaces/' + name;
+  } catch {}
   const info = JSON.parse(fs.readFileSync(root + '/.maybee/server.json'));
   if (info.workspace !== root || !Number.isInteger(info.port)) process.exit(1);
   const url = 'http://127.0.0.1:' + info.port;
@@ -21,12 +28,15 @@ try {
 } catch { process.exit(1); }
 JS
 }
+# Maybee shows itself in its own browser window (it is also the browser that checks Skool); ask the
+# server to open it. Without that browser the server falls back to the default one.
+open_window() {
+  (nohup curl -fsS -X POST --max-time 30 "$1/api/window/open" > /dev/null 2>&1 < /dev/null &) > /dev/null 2>&1 < /dev/null
+}
 url="$(instance_url 2>/dev/null)"
 if [ -n "$url" ]; then
   status="already running, opened at $url"
-  opener=xdg-open
-  [ "$(uname -s)" = Darwin ] && opener=open
-  (nohup "$opener" "$url/workspace" > /dev/null 2>&1 < /dev/null &) > /dev/null 2>&1 < /dev/null
+  open_window "$url"
 elif [ -d "$APP/node_modules" ]; then
   mkdir -p "$APP/data"
   (nohup node "$APP/server.js" --project "$ROOT" > "$APP/data/server.log" 2>&1 < /dev/null &) > /dev/null 2>&1 < /dev/null
@@ -36,6 +46,7 @@ elif [ -d "$APP/node_modules" ]; then
     sleep 0.5
   done
   status="started and opened at $url"
+  [ -n "$url" ] && open_window "$url"
   [ -n "$url" ] || status="startup not confirmed; inspect $APP/data/server.log"
 else
   status="dependencies missing; the agent should run the package launcher"

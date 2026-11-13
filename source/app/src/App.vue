@@ -46,6 +46,8 @@ function readUrl() {
   return { place: p, workspace, open: note ? { path: note, tab: q.get('tab') || undefined } : null }
 }
 const start = readUrl()
+// Keep the workspace named in the URL while the app is still locked: syncUrl() would otherwise rewrite it to 'default'.
+if (start.workspace) activeWorkspace.value = start.workspace
 const place = ref(start.place)
 const requestedWorkspace = start.workspace
 open.value = start.open
@@ -255,7 +257,7 @@ async function chooseWorkspace(name) {
   await loadSetup(); await loadFeed(); await loadNumbers()
 }
 function onboardingDone(data) { setup.value = data; showOnboarding.value = false; loadFeed(); loadNumbers() }
-function accessVerified(data) { access.value = data; accessReady.value = true; connect(); startHeartbeat(); loadSetup(); loadFeed(); loadNumbers() }
+async function accessVerified(data) { access.value = data; accessReady.value = true; connect(); startHeartbeat(); await loadWorkspaces(); loadSetup(); loadFeed(); loadNumbers() }
 
 function accessExpired(data) {
   access.value = data

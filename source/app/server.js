@@ -14,6 +14,7 @@ import { desktop, setFields, dayKey, nowCards, routinesOn, overviewState, resolv
 import { initInbox, readInbox, addRequest, listening, promptFor } from './lib/inbox.js'
 import { initSnapshots, snapshot, diffFor } from './lib/snapshots.js'
 import { verifySkool } from './local-skool-verifier.js'
+import { openAppWindow } from './lib/browser.js'
 
 const APP_DIR = path.dirname(fileURLToPath(import.meta.url))
 const DEFAULT_ROOT = path.resolve(APP_DIR, '..', '..')
@@ -36,7 +37,11 @@ try {
     if (fs.existsSync(candidate)) { activeWorkspace = saved.name; ROOT = candidate }
   }
 } catch {}
-const ACCESS_MODE = process.env.MAYBEE_ACCESS_MODE || 'agent-browser'
+// `skool` (default): Maybee opens its own Chromium-based browser and reads the Skool page (local-skool-verifier.js).
+// `agent-browser`: an agent confirms from its own browser. Any other value runs the real check:
+// there is no mode that skips the membership check.
+const ACCESS_MODE = process.env.MAYBEE_ACCESS_MODE === 'agent-browser' ? 'agent-browser' : 'skool'
+let accessVerifying = null // { phase } while the local browser check is running
 let accessChallenge = crypto.randomBytes(24).toString('hex')
 const SKOOL_TARGET = process.env.MAYBEE_SKOOL_URL || 'https://www.skool.com/how-i-9301'
 const ACCESS_RECHECK_MS = Number(process.env.MAYBEE_ACCESS_RECHECK_HOURS || 6) * 3600000
@@ -214,8 +219,26 @@ function accessStatus() {
     method: accessSession.method,
     details: accessSession.details,
     mode: ACCESS_MODE,
+    verifying: !!accessVerifying,
+    phase: accessVerifying ? accessVerifying.phase : null,
     verificationTarget: SKOOL_TARGET,
     verificationChallenge: accessSession.valid ? null : accessChallenge,
+  }
+}
+
+function appUrl() {
+  return `${instance?.url || `http://${HOST}:${PORT}`}/${activeWorkspace}/overview`
+}
+
+// Shows Maybee in its own browser window (lib/browser.js: Chromium-based, --app mode, the same
+// browser that checks Skool). With no such browser installed it falls back to the default one.
+async function openMaybeeWindow() {
+  try {
+    await openAppWindow(appUrl())
+  } catch {
+    const { spawn } = await import('node:child_process')
+    const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
+    spawn(cmd, [appUrl()], { detached: true, stdio: 'ignore' }).unref()
   }
 }
 
@@ -224,21 +247,10 @@ function openMaybeeAfterAccess() {
   // a skill/CLI performs the first check before opening a browser, open one
   // only after membership succeeds.
   if (clients.size || process.env.MAYBEE_OPEN_AFTER_ACCESS === '0') return
-  import('node:child_process').then(({ spawn }) => {
-    const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
-    spawn(cmd, [`http://${HOST}:${PORT}/?place=workspace`], { detached: true, stdio: 'ignore' }).unref()
-  }).catch(() => {})
+  openMaybeeWindow().catch(() => {})
 }
 
 async function verifyAccess(body = {}) {
-  // Development-only escape hatch for testing the gate. Production defaults to
-  // `skool`, where a local browser/Playwright adapter must provide the result.
-  if (ACCESS_MODE === 'demo') {
-    const now = Date.now()
-    accessSession = { ...accessSession, valid: true, member: true, community: 'How I', checkedAt: now, lastSkoolCheckAt: now, lastAppActivityAt: now, expiresAt: now + ACCESS_RECHECK_MS, method: 'demo', details: 'Demo: the local verifier confirmed access to the How I community.' }
-    saveAccessSession({ type: 'access-verified', method: 'demo', reason: body.reason || 'manual' })
-    return accessStatus()
-  }
   if (ACCESS_MODE === 'agent-browser') {
     if (body.reason === 'scheduled-6-hour-renewal') expireAccess('A fresh How I membership check is required for this session.')
     return {
@@ -247,17 +259,48 @@ async function verifyAccess(body = {}) {
       details: `Open ${SKOOL_TARGET} in the browser available to the agent, confirm that the account is a member, then send the local confirmation.`,
     }
   }
-  try {
-    const result = await verifySkool()
-    const now = Date.now()
-    accessSession = { ...accessSession, valid: !!result.member, member: !!result.member, community: 'How I', checkedAt: now, lastSkoolCheckAt: now, lastAppActivityAt: now, expiresAt: result.member ? now + ACCESS_RECHECK_MS : now, method: 'playwright-persistent-profile', details: result.details, url: result.url }
-    saveAccessSession({ type: result.member ? 'access-verified' : 'access-denied', method: 'playwright-persistent-profile', reason: body.reason || 'manual' })
-    if (accessSession.valid) openMaybeeAfterAccess()
-  } catch (error) {
-    accessSession = { ...accessSession, valid: false, member: false, community: 'How I', checkedAt: Date.now(), expiresAt: Date.now(), method: 'playwright-persistent-profile', details: error.message || 'The local Skool verifier could not start.' }
-    saveAccessSession({ type: 'access-error', method: 'playwright-persistent-profile', reason: body.reason || 'manual' })
+  // `skool` mode: the browser check can take minutes (the person may have to log in),
+  // so answer at once and let the access events tell the page when it is done.
+  if (!accessVerifying) {
+    accessVerifying = { phase: 'opening-browser' }
+    broadcastAccess()
+    runSkoolVerification(body.reason || 'manual')
   }
   return accessStatus()
+}
+
+async function runSkoolVerification(reason) {
+  const method = 'local-browser'
+  try {
+    const result = await verifySkool({
+      appUrl: appUrl(),
+      onPhase: phase => { if (accessVerifying) { accessVerifying.phase = phase; broadcastAccess() } },
+    })
+    const now = Date.now()
+    const ok = result.state === 'member'
+    // Keep only what is needed: never the e-mail, the name or the list of groups.
+    const m = result.member || {}
+    accessSession = {
+      ...accessSession, valid: ok, member: ok, community: 'How I', checkedAt: now,
+      lastSkoolCheckAt: ok ? now : accessSession.lastSkoolCheckAt, lastAppActivityAt: now,
+      expiresAt: ok ? now + ACCESS_RECHECK_MS : now, method, details: result.details, url: result.url,
+      membership: ok ? { userId: m.userId, groupId: m.groupId, role: m.role, approvedAt: m.approvedAt } : null,
+    }
+    saveAccessSession({ type: ok ? 'access-verified' : 'access-denied', method, reason, result: result.state })
+    if (ok) openMaybeeAfterAccess()
+  } catch (error) {
+    accessSession = { ...accessSession, valid: false, member: false, community: 'How I', checkedAt: Date.now(), expiresAt: Date.now(), method, details: error.message || 'The local Skool verifier could not start.' }
+    saveAccessSession({ type: 'access-error', method, reason })
+  } finally {
+    accessVerifying = null
+    broadcastAccess()
+  }
+}
+
+function broadcastAccess() {
+  const status = accessStatus()
+  const payload = 'data: ' + JSON.stringify({ valid: status.valid, verifying: status.verifying, phase: status.phase }) + '\n\n'
+  for (const client of accessClients) client.write(payload)
 }
 
 function confirmAgentBrowser(body = {}) {
@@ -428,6 +471,10 @@ async function main() {
         return
       }
       if (url.pathname === '/api/access/verify' && req.method === 'POST') return sendJSON(res, await verifyAccess(await readBody(req)))
+      if (url.pathname === '/api/window/open' && req.method === 'POST') {
+        // Used by the SessionStart hook: show the Maybee window (or bring it to the front).
+        try { await openMaybeeWindow(); return sendJSON(res, { ok: true }) } catch (error) { return sendJSON(res, { ok: false, error: error.message }, 500) }
+      }
       if (url.pathname === '/api/access/confirm' && req.method === 'POST') return sendJSON(res, confirmAgentBrowser(await readBody(req)))
       if (url.pathname === '/api/session/heartbeat' && req.method === 'POST') return sendJSON(res, await heartbeat())
       if (url.pathname.startsWith('/api/') && !accessSession.valid) return sendJSON(res, { error: 'Skool membership must be verified for this session.', access: accessStatus() }, 403)
@@ -650,12 +697,8 @@ async function main() {
   {
     const url = `http://${HOST}:${PORT}`
     console.log(`Maybee is open at ${url}  (Ctrl+C to stop)`)
-    if (!process.argv.includes('--no-open')) {
-      import('node:child_process').then(({ spawn }) => {
-        const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
-        spawn(cmd, [url + '/?place=workspace'], { detached: true, stdio: 'ignore' }).unref() // D241: start on the Workspace (D260)
-      })
-    }
+    // Show Maybee in its own window at once (never in the default browser); --no-open skips it.
+    if (!process.argv.includes('--no-open')) openMaybeeWindow().catch(() => {})
   }
 }
 
