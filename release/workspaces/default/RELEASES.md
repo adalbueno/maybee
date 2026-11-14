@@ -2,6 +2,12 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.27 · 14 Nov 2026
+
+**Maybee opens on the Workspace board.**
+
+- **The window opens on the board.** When Maybee opens its window, including when your assistant opens it at the start of a session, it lands on the Workspace board of the active workspace. About is still in the menu, it is just not the first screen anymore.
+
 ## 0.1.26 · 14 Nov 2026
 
 **A badge for what changed, workspaces that show up on their own, and titles you can edit.**
