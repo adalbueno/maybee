@@ -4,10 +4,12 @@
 //   node .maybee/package/app/scripts/migrate.js apply [id ...]         do it after the owner's yes: moves, fixes links, keeps a backup
 //   node .maybee/package/app/scripts/migrate.js move <from> <to>       move one file or note and fix every link to it and inside it
 //   node .maybee/package/app/scripts/migrate.js links                  list links that point at nothing (exit 1 if any)
+//   node .maybee/package/app/scripts/migrate.js fill                   add the template's knowledge/ and decisions/ files this workspace lacks (never touches one that exists)
 // Add --workspace <folder> to act on a workspace other than the active one. Paths are relative to the workspace.
 import fs from 'node:fs'
 import path from 'node:path'
 import { plan, apply, moveFiles, checkLinks } from '../lib/migrations.js'
+import { addMissing } from '../lib/foundations.js'
 
 const args = process.argv.slice(2)
 const flag = args.indexOf('--workspace')
@@ -53,12 +55,17 @@ try {
     const result = await moveFiles(root, [{ from: rest[0], to: rest[1] }])
     console.log(`Moved ${rest[0]} -> ${rest[1]}; rewrote links in ${result.rewritten.length} file(s); backup in ${result.backup}`)
     printBroken(await checkLinks(root))
+  } else if (cmd === 'fill') {
+    const created = await addMissing(root)
+    if (!created.length) console.log('Nothing missing: this workspace already has the template\'s knowledge/ and decisions/ files.')
+    for (const f of created) console.log(`  added ${f}`)
+    if (created.length) console.log(`Added ${created.length} file(s). Nothing that existed was changed.`)
   } else if (cmd === 'links') {
     const broken = await checkLinks(root)
     printBroken(broken)
     process.exit(broken.length ? 1 : 0)
   } else {
-    console.error('usage: migrate.js plan | apply [id ...] | move <from> <to> | links  [--workspace <folder>]')
+    console.error('usage: migrate.js plan | apply [id ...] | move <from> <to> | links | fill  [--workspace <folder>]')
     process.exit(2)
   }
 } catch (error) {

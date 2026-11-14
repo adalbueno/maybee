@@ -22,8 +22,6 @@ Categories: **visual** (colors, photo style), **formatting** (how a text is laid
 
 ## How to find yours
 
-- Everyday objects that are peculiar to you.
-- Phrases you say all the time.
-- The way you already write, when you are not trying.
+_Everyday objects that are peculiar to you, phrases you say all the time, the way you already write when you are not trying._
 
 -

@@ -25,7 +25,7 @@ Typical shapes for each step (adjust to your project):
 
 ## Daily math
 
-For each step, sales per day × price is the daily revenue. Subtract what you spend on ads and remarketing. Check that the attraction step pays for the ads, then that the steps above it add the profit.
+_For each step, sales per day × price is the daily revenue. Subtract what you spend on ads and remarketing. Check that the attraction step pays for the ads, then that the steps above it add the profit._
 
 -
 

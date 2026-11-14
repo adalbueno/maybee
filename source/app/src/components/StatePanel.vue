@@ -9,6 +9,8 @@ const resolving = ref(false)
 const decisionMessage = ref('')
 const counts = ref(null)
 const files = ref([])
+const foundations = ref({ missing: [], status: {} })
+const filling = ref(false)
 async function load() {
   try { st.value = await (await fetch('/api/state')).json() } catch {}
   try {
@@ -17,10 +19,18 @@ async function load() {
     counts.value = { now: b.now.count, next: b.next.count, maybe: b.maybe.count, week: b.done.cards.filter(c => c.mtime >= weekAgo).length }
   } catch {}
   try { files.value = (await (await fetch('/api/library')).json()).items.filter(i => i.ext === '.md') } catch {}
+  try { foundations.value = await (await fetch('/api/foundations')).json() } catch {}
+}
+// Adds the template's audience, offer, brand and decisions files this workspace lacks. Nothing that exists is touched.
+async function addFoundations() {
+  if (filling.value) return
+  filling.value = true
+  try { await fetch('/api/foundations/fill', { method: 'POST' }); await load() } finally { filling.value = false }
 }
 const fileName = f => f.path.split('/').pop().replace(/\.md$/, '')
 const cleanChange = t => String(t || '').replace(/^\(Maybee app\)\s*/, '').replace(/\s*\((?:[\w .'’-]+\/)*[^()]*\.\w+\)\s*$/, '')
-const sub = f => { const t = f.desc || f.title || ''; return t.toLowerCase() === fileName(f).toLowerCase() ? '' : t }
+const progress = f => { const p = foundations.value.status && foundations.value.status[f.path]; return p ? `${p.filled} of ${p.total} filled` : '' }
+const sub = f => progress(f) || (() => { const t = f.desc || f.title || ''; return t.toLowerCase() === fileName(f).toLowerCase() ? '' : t })()
 const PLACES = [
   { key: 'workspace', name: 'Workspace', text: 'The board: what is in Maybe, Next, Now and Done, and the routines of the day.' },
   { key: 'activity', name: 'Activity', text: 'What changed lately, newest first.' },
@@ -118,6 +128,11 @@ async function resolveItem(item, destination) {
       </div>
     </section>
 
+    <section v-if="foundations.missing.length" class="brief-block foundations-note">
+      <p>This workspace is missing {{ foundations.missing.length }} file{{ foundations.missing.length === 1 ? '' : 's' }} for your audience, offer, brand and decisions.</p>
+      <button class="source-link" :disabled="filling" @click="addFoundations">{{ filling ? 'Adding…' : 'Add them' }}</button>
+    </section>
+
     <section v-if="memory.length" class="brief-block">
       <div class="block-head"><div><span class="eyebrow">Memory</span><h2>The project's own files</h2></div></div>
       <div class="memory-grid">
@@ -209,6 +224,8 @@ async function resolveItem(item, destination) {
 .place-card b i { font-style: normal; color: var(--ink-3); }
 .place-card:hover b i { color: var(--ink); }
 .place-card p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.foundations-note { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.foundations-note p { margin: 0; color: var(--ink-2); }
 .memory-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 26px; }
 .file-group { display: flex; flex-direction: column; gap: 2px; }
 .file-group .eyebrow { margin: 0 0 8px 12px; }

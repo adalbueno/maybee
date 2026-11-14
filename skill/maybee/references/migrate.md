@@ -9,6 +9,7 @@ node .maybee/package/app/scripts/migrate.js plan
 node .maybee/package/app/scripts/migrate.js apply [id ...]
 node .maybee/package/app/scripts/migrate.js move <from> <to>
 node .maybee/package/app/scripts/migrate.js links
+node .maybee/package/app/scripts/migrate.js fill
 ```
 
 ## After an update
@@ -30,3 +31,7 @@ After you start Maybee following an update:
 - **After any change that adds, moves, renames or removes files or links:** run `links`. It prints each link that points at nothing, with its file and line, and exits with an error when there is one. Fix what you broke before you say you are done.
 
 The tool works on Markdown links (`[text](path)`, `[text](<path with spaces>)` and `[text]: path`) and keeps `#section` anchors. It ignores web links and anything inside code. A path written as plain text, in backticks or in a card's frontmatter is not a link and is not rewritten: search for the old path and update those by hand.
+
+## A workspace made before the template had the foundations
+
+Workspaces created by an older version lack `knowledge/audience/`, `knowledge/offer/`, `knowledge/brand/` and `decisions/`. The About page offers to add them. You can do the same with `fill`: it adds only the template files the workspace is missing and never touches one that exists. Offer it when the user wants to describe their audience, offer or brand in a workspace that does not have those files yet.

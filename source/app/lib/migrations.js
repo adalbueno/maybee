@@ -13,6 +13,8 @@ const firstDir = (...candidates) => candidates.find(d => fs.existsSync(d)) || nu
 // (app/): the package folders are found from whichever of the places above or below it holds them.
 const around = (...parts) => [APP_DIR, path.join(APP_DIR, '..'), path.join(APP_DIR, '..', '..')].flatMap(base => [path.join(base, ...parts), path.join(base, 'release', ...parts)])
 const migrationsDir = () => firstDir(...around('migrations'))
+// The blank workspace new workspaces start from (the template playbook).
+export const templateDir = () => firstDir(...around('playbooks', 'template', 'workspace'))
 // Copies the package seeds into workspaces. A file in the destination that is identical to a seed was never edited.
 const seedDirs = () => [...new Set([...around('workspaces', 'default'), ...around('playbooks', 'template', 'workspace'), path.join(APP_DIR, '..', '..', 'source', 'playbooks', 'template', 'workspace')])].filter(d => fs.existsSync(d))
 

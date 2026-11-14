@@ -16,6 +16,7 @@ import { verifySkool } from './local-skool-verifier.js'
 import { openAppWindow, ensureBrowser } from './lib/browser.js'
 import { dataPath, DATA_DIR } from './lib/paths.js'
 import { apply as applyMigrations } from './lib/migrations.js'
+import { missingFromTemplate, addMissing, fillStatus } from './lib/foundations.js'
 
 const APP_DIR = path.dirname(fileURLToPath(import.meta.url))
 const DEFAULT_ROOT = path.resolve(APP_DIR, '..', '..')
@@ -587,6 +588,8 @@ async function main() {
           return sendJSON(res, { ok: true, endpoint: `http://127.0.0.1:${c.port}` })
         } catch (error) { return sendJSON(res, { ok: false, error: error.message }, 500) }
       }
+      if (url.pathname === '/api/foundations' && req.method === 'GET') return sendJSON(res, { missing: await missingFromTemplate(ROOT), status: await fillStatus(ROOT) })
+      if (url.pathname === '/api/foundations/fill' && req.method === 'POST') return sendJSON(res, { created: await addMissing(ROOT) })
       if (url.pathname === '/api/workspaces' && req.method === 'GET') return sendJSON(res, { active: activeWorkspace, items: workspaceList() })
       if (url.pathname === '/api/workspaces/switch' && req.method === 'POST') {
         const body = await readBody(req)
