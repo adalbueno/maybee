@@ -67,7 +67,7 @@ function parseTarget(raw) {
   const pathPart = cut < 0 ? inner : inner.slice(0, cut)
   if (!pathPart) return null
   let decoded = pathPart
-  try { decoded = decodeURI(pathPart) } catch {}
+  try { decoded = decodeURIComponent(pathPart) } catch {}
   return { angled, decoded, suffix: cut < 0 ? '' : inner.slice(cut) }
 }
 

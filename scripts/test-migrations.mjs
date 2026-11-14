@@ -65,5 +65,12 @@ assert.deepEqual(await checkLinks(root), [{ file: 'outputs/plan.md', line: 2, ta
 await assert.rejects(moveFiles(root, [{ from: 'outputs/plan.md', to: '../escape.md' }]), /Outside/)
 await assert.rejects(moveFiles(root, [{ from: 'outputs/plan.md', to: 'archive/old/Start here.md' }]), /Already exists/)
 
+// an encoded comma (%2C) or apostrophe (%27) in a file name is found, and a moved file keeps its link
+root = workspace({ 'a/Note, with comma.md': 'x\n', 'b.md': '[n](a/Note%2C%20with%20comma.md) [o](a/It%27s.md)\n', "a/It's.md": 'y\n' })
+assert.deepEqual(await checkLinks(root), [])
+await moveFiles(root, [{ from: 'a/Note, with comma.md', to: 'c/Note, with comma.md' }])
+assert.equal(read(root, 'b.md'), '[n](c/Note,%20with%20comma.md) [o](a/It%27s.md)\n')
+assert.deepEqual(await checkLinks(root), [])
+
 fs.rmSync(temp, { recursive: true, force: true })
 console.log('migrations: ok')
