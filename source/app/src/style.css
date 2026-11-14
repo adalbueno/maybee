@@ -1070,3 +1070,4 @@ a { color: inherit; }
 .workspace-add-form button { padding: 6px 10px; border-radius: 8px; background: var(--accent-soft); font-size: 12px; font-weight: 700; }
 .workspace-add-form button:disabled { opacity: .5; }
 .workspace-error { width: 100%; color: #c0392b; font-size: 11px; }
+.workspace-switch-error { display: block; padding: 4px 9px 0; }

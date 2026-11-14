@@ -196,7 +196,15 @@ let refreshTimer = null
 let heartbeatTimer = null
 function connect() {
   es = new EventSource('/api/events')
-  es.addEventListener('hello', () => { live.value = true })
+  // The server restarted (an update, a new build): load the new page, so nobody has to notice or refresh by hand.
+  let boot = null
+  es.addEventListener('hello', e => {
+    live.value = true
+    let id = null
+    try { id = JSON.parse(e.data).boot } catch {}
+    if (boot && id && id !== boot) { location.reload(); return }
+    boot = id || boot
+  })
   es.addEventListener('change', e => {
     const data = JSON.parse(e.data)
     const s = new Set(fresh.value)
@@ -250,11 +258,18 @@ async function loadWorkspaces() {
     syncUrl(false)
   } catch {}
 }
+const switchError = ref('')
 async function chooseWorkspace(name) {
+  if (!name || name === activeWorkspace.value) { workspaceMenuOpen.value = false; return }
+  switchError.value = ''
+  const res = await fetch('/api/workspaces/switch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) }).catch(() => null)
+  if (!res || !res.ok) {
+    const failure = res ? await res.json().catch(() => ({})) : {}
+    switchError.value = failure.error || 'Could not open that workspace.'
+    refreshWorkspaces()
+    return
+  }
   workspaceMenuOpen.value = false
-  if (!name || name === activeWorkspace.value) return
-  const res = await fetch('/api/workspaces/switch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
-  if (!res.ok) return
   const data = await res.json()
   activeWorkspace.value = data.workspace
   workspaces.value = data.workspaces || workspaces.value
@@ -329,6 +344,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
               <span><b>{{ w.label }}</b><small>{{ w.name === 'default' ? 'Default workspace' : 'Playbook workspace' }}</small></span>
               <span v-if="w.name === activeWorkspace" class="workspace-check">✓</span>
             </button>
+            <small v-if="switchError" class="workspace-error workspace-switch-error">{{ switchError }}</small>
             <button v-if="!addingWorkspace" class="workspace-option workspace-add" @click="addingWorkspace = true; workspaceError = ''">
               <span class="workspace-option-icon">+</span>
               <span><b>Add workspace</b></span>

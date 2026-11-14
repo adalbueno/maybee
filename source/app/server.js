@@ -18,6 +18,8 @@ import { dataPath, DATA_DIR } from './lib/paths.js'
 
 const APP_DIR = path.dirname(fileURLToPath(import.meta.url))
 const DEFAULT_ROOT = path.resolve(APP_DIR, '..', '..')
+// Changes on every start. The page compares it on reconnect: a different one means the server restarted, so the page reloads itself.
+const BOOT_ID = crypto.randomUUID()
 let PORT = Number(process.env.PORT || argValue('--port') || 8780)
 let instance
 const HOST = '127.0.0.1'
@@ -158,9 +160,10 @@ function workspaceName(name) {
 }
 
 function workspaceList() {
-  const out = [
-    { name: 'default', label: 'Default', root: workspaceRoot('default'), active: activeWorkspace === 'default' },
-  ]
+  // the default workspace is listed only when its folder exists (a project that never had one would show a dead entry)
+  const out = fs.existsSync(workspaceRoot('default')) || activeWorkspace === 'default'
+    ? [{ name: 'default', label: 'Default', root: workspaceRoot('default'), active: activeWorkspace === 'default' }]
+    : []
   let entries = []
   try { entries = fs.readdirSync(path.join(BASE_ROOT, 'workspaces'), { withFileTypes: true }) } catch {}
   for (const e of entries) {
@@ -761,7 +764,7 @@ async function main() {
       if (url.pathname === '/raw') return sendRaw(req, res, q.path)
       if (url.pathname === '/api/events') {
         res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' })
-        res.write(`event: hello\ndata: {}\n\n`)
+        res.write(`event: hello\ndata: ${JSON.stringify({ boot: BOOT_ID })}\n\n`)
         clients.add(res)
         const ping = setInterval(() => res.write(': ping\n\n'), 25000)
         req.on('close', () => { clearInterval(ping); clients.delete(res) })
