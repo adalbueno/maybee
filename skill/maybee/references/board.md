@@ -6,7 +6,7 @@ A Maybee board is a folder of Markdown files. The app reads them, shows them as 
 
 - Each card is one file directly inside `ideas/` of the active workspace: `workspaces/default/ideas/` for the default workspace, `workspaces/<name>/ideas/` for any other. Files in subfolders are ignored.
 - The file name is the card's title, with spaces: `Choose the next step.md`. No number prefix.
-- A card starts with YAML frontmatter between `---` lines, then ordinary Markdown. The app needs the frontmatter, so never remove it, and keep it valid YAML (quote values that contain a colon).
+- A card starts with YAML frontmatter between `---` lines, then ordinary Markdown. The app needs the frontmatter, so never remove it, and keep it valid YAML (quote values that contain a colon). A note in `ideas/` that has no frontmatter still works: the app adds one (the title from the file name) the first time the card is moved or its settings change.
 
 ## Fields
 

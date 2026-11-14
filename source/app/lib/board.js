@@ -31,6 +31,14 @@ function splitFm(text) {
   return { head: text.slice(4, end), end }
 }
 
+// A note that has no frontmatter (or none that closes) gets one, with its title from the file name, so it can be moved
+// and ranked like any card. A note that already has frontmatter is returned as it is.
+export function withFrontmatter(text, rel) {
+  if (splitFm(text)) return text
+  const title = path.basename(rel, '.md')
+  return `---\n${YAML.stringify({ title }).trimEnd()}\n---\n${text.startsWith('\n') ? '' : '\n'}${text}`
+}
+
 async function readCard(root, rel) {
   const abs = path.join(root, rel)
   const [text, st] = await Promise.all([fsp.readFile(abs, 'utf8'), fsp.stat(abs)])
@@ -114,9 +122,8 @@ export async function setStage(root, rel, stage, expectedMtime) {
   if (expectedMtime && Math.abs(st.mtimeMs - expectedMtime) > 1) {
     const err = new Error('changed since you opened it'); err.code = 409; throw err
   }
-  const text = await fsp.readFile(abs, 'utf8')
+  const text = withFrontmatter(await fsp.readFile(abs, 'utf8'), rel)
   const fm = splitFm(text)
-  if (!fm) throw new Error('file has no frontmatter')
   const lines = fm.head.split('\n')
   let from = null
   const i = lines.findIndex(l => /^stage:(\s|$)/.test(l))
@@ -162,9 +169,8 @@ export async function createCard(root, index, title) {
 
 async function writeRank(root, rel, rank) {
   const abs = path.join(root, rel)
-  const text = await fsp.readFile(abs, 'utf8')
+  const text = withFrontmatter(await fsp.readFile(abs, 'utf8'), rel)
   const fm = splitFm(text)
-  if (!fm) return false
   const lines = fm.head.split('\n')
   const i = lines.findIndex(l => /^rank:(\s|$)/.test(l))
   if (i >= 0) lines[i] = `rank: ${rank}`; else lines.push(`rank: ${rank}`)

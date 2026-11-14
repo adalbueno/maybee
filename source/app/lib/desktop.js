@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import YAML from 'yaml'
-import { loadCards } from './board.js'
+import { loadCards, withFrontmatter } from './board.js'
 import { dataPath } from './paths.js'
 
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
@@ -320,8 +320,7 @@ export async function routinesOn(root, index, day, seen) {
 export async function setFields(root, rel, fields) {
   if (!/^ideas\/[^/]+\.md$/.test(rel)) throw new Error('only notes in ideas/')
   const abs = path.join(root, rel)
-  const text = await fsp.readFile(abs, 'utf8')
-  if (!text.startsWith('---')) throw new Error('file has no frontmatter')
+  const text = withFrontmatter(await fsp.readFile(abs, 'utf8'), rel)
   const end = text.indexOf('\n---', 3)
   const lines = text.slice(4, end).split('\n')
   const before = {}
