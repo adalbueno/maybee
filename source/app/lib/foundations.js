@@ -39,6 +39,15 @@ export async function addMissing(root) {
   return created
 }
 
+// Guidance that version 0.1.29 of the template wrote as plain text. It is a prompt, not an answer, so a note made then does not
+// look filled in. (Newer templates write their guidance in italics.)
+const OLD_GUIDANCE = new Set([
+  'For each step, sales per day × price is the daily revenue. Subtract what you spend on ads and remarketing. Check that the attraction step pays for the ads, then that the steps above it add the profit.',
+  '- Everyday objects that are peculiar to you.',
+  '- Phrases you say all the time.',
+  '- The way you already write, when you are not trying.',
+])
+
 // Sections of a note and whether each has an answer: anything that is not the italic prompt or an empty bullet.
 export function sections(text) {
   const out = []
@@ -48,7 +57,7 @@ export function sections(text) {
     if (heading) { current = { title: heading[1].trim(), filled: false }; out.push(current); continue }
     if (!current) continue
     const t = line.trim()
-    if (!t || /^_.*_$/.test(t) || /^[-*]$/.test(t) || /^\|[\s|:-]*\|$/.test(t)) continue
+    if (!t || /^_.*_$/.test(t) || /^[-*]$/.test(t) || /^\|[\s|:-]*\|$/.test(t) || OLD_GUIDANCE.has(t)) continue
     current.filled = true
   }
   return out

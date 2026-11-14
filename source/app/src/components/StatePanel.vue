@@ -19,7 +19,10 @@ async function load() {
     counts.value = { now: b.now.count, next: b.next.count, maybe: b.maybe.count, week: b.done.cards.filter(c => c.mtime >= weekAgo).length }
   } catch {}
   try { files.value = (await (await fetch('/api/library')).json()).items.filter(i => i.ext === '.md') } catch {}
-  try { foundations.value = await (await fetch('/api/foundations')).json() } catch {}
+  try {
+    const d = await (await fetch('/api/foundations')).json()
+    if (Array.isArray(d.missing)) foundations.value = d // an error answer (the access check, say) must not replace the defaults
+  } catch {}
 }
 // Adds the template's audience, offer, brand and decisions files this workspace lacks. Nothing that exists is touched.
 async function addFoundations() {
@@ -37,7 +40,7 @@ const PLACES = [
   { key: 'vault', name: 'Vault', text: 'Every file of the project, with search.' },
 ]
 // the files that hold the project's memory: its brief and state, who it is for, what it offers, how it sounds,
-// the decisions made, and the owner and knowledge notes that sit directly in their folders
+// the decisions made, and the knowledge notes that sit directly in their folder
 const KEY_FILES = ['PROJECT.md', 'STATE.md', 'README.md']
 const memory = computed(() => {
   const by = path => files.value.find(f => f.path === path)
@@ -53,7 +56,6 @@ const memory = computed(() => {
     group('Offer', inFolder('knowledge/offer/')),
     group('Brand', inFolder('knowledge/brand/')),
     group('Decisions', inFolder('decisions/', true)),
-    group('Owner', inFolder('owner/')),
     group('Knowledge', inFolder('knowledge/')),
   ].filter(Boolean)
 })

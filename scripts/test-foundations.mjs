@@ -9,6 +9,10 @@ const { sections, fillStatus, missingFromTemplate, addMissing } = await import(n
 const list = sections('---\ntitle: x\n---\n# T\n\nintro\n\n## A\n\n_prompt_\n\n-\n\n## B\n\n_prompt_\n\n- real answer\n\n## C\n\n|  |  |\n|---|---|\n')
 assert.deepEqual(list, [{ title: 'A', filled: false }, { title: 'B', filled: true }, { title: 'C', filled: false }])
 
+// guidance written as plain text by the 0.1.29 template is still not an answer
+assert.equal(sections('## Daily math\n\nFor each step, sales per day × price is the daily revenue. Subtract what you spend on ads and remarketing. Check that the attraction step pays for the ads, then that the steps above it add the profit.\n\n-\n')[0].filled, false)
+assert.equal(sections('## How to find yours\n\n- Everyday objects that are peculiar to you.\n- Phrases you say all the time.\n- The way you already write, when you are not trying.\n\n-\n')[0].filled, false)
+
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'maybee-foundations-'))
 const root = path.join(temp, 'my-project')
 fs.mkdirSync(path.join(root, 'knowledge'), { recursive: true })

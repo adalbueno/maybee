@@ -8,6 +8,7 @@ The newest version is at the top. Maybee keeps this file up to date when you upd
 
 - **A note with no frontmatter can be moved.** Maybee adds the frontmatter itself (the title from the file name) the first time the card is moved, ranked or its settings change. It used to refuse. A `---` at the top that never closes counts as part of the text, not as frontmatter.
 - **About lists your foundations.** Audience, Offer, Brand and Decisions each have their own group, and each file shows how much of it is filled in. A section counts as filled when it has an answer: the prompt and the empty bullet do not count.
+- **The Owner group is gone from About.** Your owner notes are still in `owner/`; About now lists the project, audience, offer, brand, decisions and the loose knowledge notes.
 - **Older workspaces can get the new files.** When a workspace lacks the template's `knowledge/` and `decisions/` files, About offers to add them. `migrate.js fill` does the same. It only adds what is missing and never changes a file that exists.
 - **Updates move your files by themselves.** The app applies pending migrations to every workspace when it starts after an update: files are moved, links to them and inside them are fixed, and a copy of what changed stays in the workspace's `.maybee/backup/`. If an old and a new copy of a file both exist and differ, both are left alone and `migrate.js plan` still lists the migration. This corrects 0.1.29, whose notes said a migration waited for your OK.
 
