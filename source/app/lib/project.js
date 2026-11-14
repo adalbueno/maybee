@@ -79,8 +79,9 @@ async function loadNote(rel) {
   let text = ''
   try { text = await fsp.readFile(path.join(root, rel), 'utf8') } catch { return null }
   const { fm, body } = splitFrontmatter(text)
-  const h1 = /^#\s+(.+)$/m.exec(body)
-  const title = String(fm.title || (h1 ? h1[1] : path.basename(rel, '.md'))).replace(/^How I( 🌴)?\s*[:—–-]\s*/, '')
+  // The first heading is the title: it is what you see and edit in the note. The `title` line is the fallback.
+  const h1 = /^#\s+(.+?)\s*#*\s*$/m.exec(body.replace(/^(```|~~~)[\s\S]*?^\1.*$/gm, ''))
+  const title = String((h1 && h1[1]) || fm.title || path.basename(rel, '.md')).replace(/^How I( 🌴)?\s*[:—–-]\s*/, '')
   const data = { fm, body, title }
   noteCache.set(rel, { mtime: meta ? meta.mtime : 0, data })
   return data

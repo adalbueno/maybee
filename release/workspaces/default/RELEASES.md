@@ -2,6 +2,14 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.26 · 14 Nov 2026
+
+**A badge for what changed, workspaces that show up on their own, and titles you can edit.**
+
+- **A badge on Activity.** When something changes in the project, a small yellow number appears next to Activity. It goes away when you read the changes. What you edit yourself in Maybee does not count.
+- **New workspaces appear without a reload.** A workspace created from outside the page, by your assistant for example, shows in the menu at the top within seconds, and right away when you open the menu or come back to the window.
+- **The card title is the note's first heading.** Edit the `# title` inside the note and the card on the board follows. Before, a card without a `title` line showed the file name. The `title` line and then the file name are still the fallback.
+
 ## 0.1.25 · 13 Nov 2026
 
 **Write an idea straight into Maybe, and arrange your cards by hand.**

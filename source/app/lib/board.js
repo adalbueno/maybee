@@ -39,6 +39,7 @@ async function readCard(root, rel) {
   try { fm = fm0 ? YAML.parse(fm0.head) || {} : {} } catch { fm = {} }
   if (fm.type === 'routine') return null
   const body = fm0 ? text.slice(text.indexOf('\n', fm0.end + 1) + 1) : text
+  const h1 = /^#\s+(.+?)\s*#*\s*$/m.exec(body.replace(/^(```|~~~)[\s\S]*?^\1.*$/gm, ''))
   let desc = typeof fm.description === 'string' && !/·.*·/.test(fm.description) ? fm.description : ''
   if (!desc) {
     const para = body.split('\n').map(l => l.trim()).find(l => l && !/^(>|#|\||---|```|!\[)/.test(l))
@@ -49,7 +50,7 @@ async function readCard(root, rel) {
   return {
     path: rel,
     id: fm.id || null,
-    title: String(fm.title || path.basename(rel, '.md')),
+    title: String((h1 && h1[1]) || fm.title || path.basename(rel, '.md')),
     type: fm.type === 'task' ? 'task' : 'idea',
     stage,
     area: fm.area || null,

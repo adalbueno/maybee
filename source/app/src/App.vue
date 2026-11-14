@@ -228,6 +228,12 @@ async function loadSetup() {
     showOnboarding.value = (!setup.value.initialized && !setup.value.skipped) || new URLSearchParams(location.search).get('setup') === '1'
   } catch {}
 }
+// A workspace made from outside the page (by your assistant, say) shows up without a reload
+async function refreshWorkspaces() {
+  try { const d = await fetch('/api/workspaces').then(r => r.json()); if (d.items) workspaces.value = d.items } catch {}
+}
+let wsTimer = null
+const onFocusWs = () => { if (accessReady.value) refreshWorkspaces() }
 async function loadWorkspaces() {
   try {
     const data = await fetch('/api/workspaces').then(r => r.json())
@@ -284,6 +290,8 @@ function startHeartbeat() {
 }
 
 onMounted(() => { fetch('/api/access').then(r => r.json()).then(data => { access.value = data; accessReady.value = !!data.valid; if (data.valid) { loadWorkspaces(); loadFeed(); loadNumbers(); loadSetup(); connect(); startHeartbeat() } }); window.addEventListener('keydown', onKey) })
+onMounted(() => { wsTimer = setInterval(() => { if (accessReady.value && !document.hidden) refreshWorkspaces() }, 10000); window.addEventListener('focus', onFocusWs) })
+onBeforeUnmount(() => { clearInterval(wsTimer); window.removeEventListener('focus', onFocusWs) })
 onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.removeEventListener('keydown', onKey) })
 </script>
 
@@ -296,7 +304,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
         <span class="mark">M</span>
         <span class="name">Maybee</span>
         <div v-if="workspaces.length" class="workspace-picker" @click.stop>
-          <button class="workspace-select" :aria-expanded="workspaceMenuOpen" aria-haspopup="listbox" @click="workspaceMenuOpen = !workspaceMenuOpen">
+          <button class="workspace-select" :aria-expanded="workspaceMenuOpen" aria-haspopup="listbox" @click="workspaceMenuOpen = !workspaceMenuOpen; if (workspaceMenuOpen) refreshWorkspaces()">
             <span class="workspace-dot"></span>{{ (workspaces.find(w => w.name === activeWorkspace) || {}).label || activeWorkspace }}<span class="workspace-chevron">⌄</span>
           </button>
           <div v-if="workspaceMenuOpen" class="workspace-menu" role="listbox">
@@ -311,7 +319,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
       </div>
       <nav class="places">
         <a class="place" :class="{ active: place === 'workspace' }" @click="go('workspace')">Workspace</a>
-        <a class="place" :class="{ active: place === 'activity' }" @click="go('activity')">Activity</a>
+        <a class="place" :class="{ active: place === 'activity' }" @click="go('activity')">Activity<small v-if="unread" class="place-badge" :title="unread + ' unread change' + (unread === 1 ? '' : 's')">{{ unread > 99 ? '99+' : unread }}</small></a>
         <a class="place" :class="{ active: place === 'vault' }" @click="go('vault')">Vault</a>
         <a class="place" :class="{ active: place === 'overview' }" @click="go('overview')">About</a>
       </nav>
