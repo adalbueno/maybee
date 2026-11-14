@@ -37,7 +37,7 @@ When an idea only has a title or a fact-like description, rewrite `description` 
 
 - **Becomes a task:** `type: task`, `owner` (owner · agent · both), `needed_by`, stage `next` or `now`; first step in the body.
 - **Done:** `stage: done`, `done: YYYY-MM-DD`, one line on what was done (and links).
-- **Not:** `stage: not` + a "Why not" section with the owner's reason.
+- **Not:** `stage: not` + `why_not` (one or two sentences, shown on the card) with the owner's reason; a longer one goes in a "Why not" section.
 - **Routine:** `type: routine`, `recurring`, `last_done`.
 
 Log each change in `logs/CHANGELOG.md`.

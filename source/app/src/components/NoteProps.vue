@@ -123,6 +123,11 @@ const ownerKey = computed(() => ({ Adal: 'owner', owner: 'owner', agent: 'agent'
         </div>
       </template>
 
+      <template v-if="stage === 'not'">
+        <span class="np-l">Why not</span>
+        <div class="np-v"><input class="np-input" :value="local.why_not || ''" placeholder="Why is this not being done?" @change="setFields({ why_not: $event.target.value })"></div>
+      </template>
+
       <template v-if="type !== 'routine'">
         <span class="np-l">Next step</span>
         <div class="np-v"><input class="np-input" :value="local.next_step || ''" placeholder="What happens next?" @change="setFields({ next_step: $event.target.value })"></div>

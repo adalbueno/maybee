@@ -20,6 +20,7 @@ A Maybee board is a folder of Markdown files. The app reads them, shows them as 
 | `description` | one line | Starts with a verb and says what to do and why. Shown under the title. |
 | `kind` | free label | A small tag on the card, such as `Do`, `Decide` or `Routine`. |
 | `next_step` | text | The first concrete action. |
+| `why_not` | one or two sentences | Only for `stage: not`: the user's reason, shown on the card. When you move a card to Not, write what the user said; if they gave no reason, ask. A "Why not" section in the body is read when this line is missing. |
 | `needed_by` | date | When it matters. |
 | `rank` | a number | Order inside Maybe, Next and Now by hand (lower is higher up). The app writes it when the user drags a card; leave it alone. Cards without one come after, in the usual order. |
 | `captured`, `done` | `YYYY-MM-DD` | When the idea was written down, and when it was finished. |
@@ -29,11 +30,11 @@ Anything else in the frontmatter is kept and ignored. If a card has no descripti
 
 ## The stages
 
-- **Maybe:** ideas worth keeping that nobody has committed to. Sorted by priority.
+- **Maybe:** ideas worth keeping that nobody has committed to. Sorted by hand; the Sort menu on the column puts it once in the order of priority, easy first, value for members, value for business, most recent or unrated first, and it can be undone.
 - **Next:** the short queue of tasks the user chose to do. Ready, but not started.
 - **Now:** what is being worked on today.
 - **Done:** finished work, kept visible as history. Set `done: YYYY-MM-DD`.
-- **Not:** set aside on purpose. Hidden from the board by default. Add a short "Why not" section with the user's reason, so it is not forgotten for the wrong reason.
+- **Not:** set aside on purpose. Hidden from the board by default. Write the user's reason in `why_not` (and a "Why not" section if it needs more), so it is not forgotten for the wrong reason.
 
 Routines have their own Routines column on the board. What puts a card there is `type: routine`, not `stage`: a routine's `stage` is ignored, except `stage: not`, which hides it.
 
