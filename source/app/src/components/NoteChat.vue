@@ -5,6 +5,12 @@
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { ask, claude } from '../ask.js'
 import { quickFor } from '../stages.js'
+import MarkdownIt from 'markdown-it'
+// Replies are Markdown (lists, bold, short paragraphs). Raw HTML is never rendered, and links open outside the app.
+const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
+const defaultLink = md.renderer.rules.link_open || ((t, i, o, e, self) => self.renderToken(t, i, o))
+md.renderer.rules.link_open = (t, i, o, e, self) => { t[i].attrSet('target', '_blank'); t[i].attrSet('rel', 'noopener noreferrer'); return defaultLink(t, i, o, e, self) }
+const html = text => md.render(text || '')
 const props = defineProps({ path: String, title: String, stage: { type: String, default: '' } })
 const emit = defineEmits(['settled'])
 
@@ -88,7 +94,7 @@ function onDockKey(e) {
           <p v-if="!items.length" class="empty">Nothing asked about this note yet.</p>
           <template v-for="i in items" :key="i.id">
             <div class="you"><p>{{ label(i) }}</p><small>{{ clock(i.at) }}</small></div>
-            <div v-if="i.reply" class="ai"><p>{{ i.reply }}</p><small>AI</small></div>
+            <div v-if="i.reply" class="ai"><div class="md" v-html="html(i.reply)"></div><small>AI</small></div>
             <div v-else-if="state(i)" class="ai pending"><p>{{ state(i) }}</p></div>
           </template>
         </div>
@@ -125,6 +131,19 @@ header b { flex: 1; }
 .you { align-self: flex-end; background: var(--ink); color: #fff; border-bottom-right-radius: 5px; }
 .you small { color: color-mix(in srgb, #fff 60%, transparent); text-align: right; }
 .ai { align-self: flex-start; background: var(--card); border-bottom-left-radius: 5px; }
+.md { font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
+.md :deep(> :first-child) { margin-top: 0; }
+.md :deep(> :last-child) { margin-bottom: 0; }
+.md :deep(p) { margin: 0 0 .7em; white-space: normal; }
+.md :deep(ul), .md :deep(ol) { margin: 0 0 .7em; padding-left: 1.3em; }
+.md :deep(li) { margin: .25em 0; }
+.md :deep(li > p) { margin: 0; }
+.md :deep(h1), .md :deep(h2), .md :deep(h3), .md :deep(h4) { margin: .9em 0 .4em; font-size: 14px; font-weight: 700; }
+.md :deep(code) { padding: 1px 5px; border-radius: 5px; background: color-mix(in srgb, var(--ink) 8%, transparent); font-size: 12.5px; }
+.md :deep(pre) { margin: 0 0 .7em; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 8%, transparent); overflow-x: auto; }
+.md :deep(pre code) { padding: 0; background: none; }
+.md :deep(blockquote) { margin: 0 0 .7em; padding-left: 10px; border-left: 3px solid var(--line); color: var(--ink-2); }
+.md :deep(a) { color: inherit; text-decoration: underline; }
 .ai.pending p { color: var(--ink-3); font-style: italic; }
 .quick { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 8px; }
 .quick button { padding: 5px 11px; border-radius: 99px; background: var(--card); font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
