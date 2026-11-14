@@ -3,7 +3,7 @@
 This directory is installed under `.maybee/package/` in the user's workspace. The distributable archive is named `maybee-package-<version>.zip`; the separate `maybee-<version>.zip` archive is only the bootstrap skill for Claude/Codex.
 
 - `app/` is the local visualization and bridge, delivered built and minified (`web/` is the pre-compiled interface; the server and the agent scripts are single bundled files). Only `playwright-core` is installed on the user's machine.
-- `skill/maybee/` is the one skill the package ships. Its `SKILL.md` routes to references: `install.md` (install, update, start), `board.md` (the card format and rules) and `write.md` (writing for the project). The installer makes it available to the agent clients in the workspace.
+- `skill/maybee/` is the one skill the package ships. Its `SKILL.md` routes to references: `install.md` (install, update, start), `board.md` (the card format and rules) and `write.md` (writing for the project) and `migrate.md` (moving files, migrations and link checks). The installer makes it available to the agent clients in the workspace.
 - `skill/maybee/` is the bootstrap skill that can install or update this package.
 - `workspaces/default/` is the ready-made default playbook: project, state, dashboard, onboarding cards, routines and supporting folders.
 - `knowledge/` contains package-level documentation and defaults.
@@ -26,3 +26,4 @@ On a fresh install, the installer seeds `workspaces/default/` from the package. 
 
 Workspace routes are addressable directly: `http://127.0.0.1:<port>/<workspace>/overview` (for example `/playbook-demo/overview`). Opening a workspace URL selects that workspace automatically.
 
+- `migrations/` holds the moves of workspace files an update can ask for, one JSON file each (`id`, `version`, `title`, `moves`). Nothing runs on install: the agent shows `migrate.js plan`, and the user says yes before `apply`. The engine lives in `app/lib/migrations.js` and also repairs Markdown links.

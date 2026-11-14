@@ -247,7 +247,8 @@ function kindOf(rel, fm) {
   if (rel.startsWith('logs/metrics/')) return 'Numbers'
   if (rel.startsWith('logs/conversations/')) return 'Your words'
   if (rel.startsWith('people/')) return 'Member'
-  if (rel.startsWith('decisions/') && !rel.endsWith('/README.md')) return 'Decision'
+  if (rel.startsWith('decisions/') && !rel.endsWith('/README.md') && rel !== 'decisions/register.md') return 'Decision'
+  if (rel === 'decisions/register.md') return 'Knowledge'
   if (rel.startsWith('knowledge/')) return 'Knowledge'
   if (rel.startsWith('system/')) return 'System'
   return 'Note'
@@ -314,6 +315,10 @@ function captionFor(rel, dirOnly = false) {
 // ---------- decisions as feed items ----------
 
 let decisions = { mtime: -1, rows: [] }
+// The decision register: decisions/register.md, or knowledge/decisions.md in a workspace not migrated yet.
+// The old path wins while it exists, so an update never hides the owner's real register behind an empty seed.
+const DECISIONS_FILES = ['knowledge/decisions.md', 'decisions/register.md']
+const decisionsFile = () => DECISIONS_FILES.find(f => index.get(f)) || null
 // When each decision first showed up in the register (ms). The register has dates, not times,
 // so a decision added today would otherwise sit at a made-up time. Kept in data/.
 const decisionTimesFile = () => dataPath('decision-times.json')
@@ -327,10 +332,11 @@ function changelogDate(id) {
   return best
 }
 function loadDecisions() {
-  const meta = index.get('knowledge/decisions.md')
+  const file = decisionsFile()
+  const meta = file && index.get(file)
   if (!meta) return []
-  if (meta.mtime === decisions.mtime) return decisions.rows
-  const text = fs.readFileSync(path.join(root, 'knowledge/decisions.md'), 'utf8')
+  if (file === decisions.file && meta.mtime === decisions.mtime) return decisions.rows
+  const text = fs.readFileSync(path.join(root, file), 'utf8')
   const rows = []
   const ids = new Map()
   for (const line of text.split('\n')) {
@@ -376,7 +382,7 @@ function loadDecisions() {
     r.time = times[r.id]
   }
   if (changed) try { fs.writeFileSync(decisionTimesFile(), JSON.stringify(times, null, 1)) } catch {}
-  decisions = { mtime: meta.mtime, rows }
+  decisions = { file, mtime: meta.mtime, rows }
   return rows
 }
 
@@ -442,7 +448,7 @@ export async function feed(dir, { all = false, before = null, limit = 80, enrich
   }
   {
     for (const r of loadDecisions()) {
-      items.push({ type: 'decision', id: r.id, time: r.time, title: `${r.id} · ${r.title}`, text: r.text, path: 'knowledge/decisions.md' })
+      items.push({ type: 'decision', id: r.id, time: r.time, title: `${r.id} · ${r.title}`, text: r.text, path: decisionsFile() })
     }
   }
   items.sort((a, b) => b.time - a.time)

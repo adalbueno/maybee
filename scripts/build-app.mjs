@@ -28,7 +28,7 @@ await viteBuild({
 })
 
 // 2. The server and the scripts agents run. Playwright stays outside the bundle: it is installed on the machine.
-const entries = ['server.js', 'scripts/listen.js', 'scripts/status.js', 'scripts/reply.js', 'scripts/deliverable.js', 'scripts/browser.js', 'scripts/browser-lib.js']
+const entries = ['server.js', 'scripts/listen.js', 'scripts/status.js', 'scripts/reply.js', 'scripts/deliverable.js', 'scripts/browser.js', 'scripts/browser-lib.js', 'scripts/migrate.js']
 await esbuild.build({
   entryPoints: entries.map(e => path.join(APP, e)),
   outdir: out,

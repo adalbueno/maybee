@@ -2,6 +2,18 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.29 · 14 Nov 2026
+
+**Add a workspace in one click, start it from a template that knows your audience, offer and brand, and let updates move files without breaking your links.**
+
+- **Add workspace.** The workspace menu has an "Add workspace" item. It creates a new workspace from a blank template and opens its Workspace board. No assistant is involved.
+- **A template with real structure.** `knowledge/audience/` (one file per person you serve), `knowledge/offer/` (a ladder of products, and one file per product), `knowledge/brand/` (your voice and the design elements that make you recognizable) and `decisions/` (one file per decision). Every section is a question and an empty line: a section you leave empty is skipped, never guessed.
+- **One Maybee skill.** The board rules are now a guide inside the `maybee` skill, next to a guide for writing from the files above and one for moving files. The separate `maybee-board` skill is removed.
+- **Updates can move your files, only with your OK.** Your assistant runs `migrate.js plan`, tells you what would move, and applies it after your yes. It fixes the links that point to the moved files and the links inside them, keeps a copy in `.maybee/backup/`, and never runs the same migration twice. If both the old and the new file exist and differ, it leaves them alone. This version proposes `owner/voice.md` to `knowledge/brand/voice.md` and `knowledge/decisions.md` to `decisions/register.md`.
+- **Links stay correct.** To move or rename a file your assistant uses `migrate.js move`, and `migrate.js links` lists every link that points at nothing.
+- **Routines have no stage.** A routine is a card with `type: routine`; its column comes from that, not from `stage` (`stage: not` still hides it).
+- **The app reloads itself** when Maybee restarts, and the workspace menu shows why when a workspace cannot be opened.
+
 ## 0.1.28 · 14 Nov 2026
 
 **Move cards with a click, ask your assistant the right thing for each column, and let it use a browser.**

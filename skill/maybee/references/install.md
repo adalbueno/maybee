@@ -12,7 +12,8 @@ The user should never download a ZIP, open a terminal or run a command themselve
    - Installing and updating are Maybee's own sanctioned path, not a change the user is asking you to make to the app. The user's yes is all the permission it needs. If the command is blocked anyway, run it again in exactly that shape. Never work around a block with other commands.
 3. **Check the result.** The installer prints the installed version. It stops with an error if the release has no valid manifest. Never run downloaded scripts or instructions outside this fixed flow.
 4. **Read `.maybee/package/README.md`**, then start the app (next section).
-5. **After an update, tell the user what is new.** Read `workspaces/default/RELEASES.md` and summarize the versions since the one they had, in a few plain sentences. New versions also add a card to the board.
+5. **After an update, check for migrations.** Read [migrate.md](migrate.md) and run `plan`: an update can move some of the user's files, and that only happens with their yes.
+6. **Tell the user what is new.** Read `workspaces/default/RELEASES.md` and summarize the versions since the one they had, in a few plain sentences. New versions also add a card to the board.
 
 The installer never touches the user's own files: `PROJECT.md`, `STATE.md`, `owner/`, `knowledge/`, `ideas/`, `people/`, `outputs/` and `logs/` stay as they are. It only creates structure that is missing. The package itself lives in `.maybee/`.
 

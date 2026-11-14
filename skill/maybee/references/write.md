@@ -4,7 +4,7 @@ Read this before you write a post, a message, an email, an ad or any text that s
 
 ## Read first, in this order
 
-All paths are inside the active workspace. Skip a file that is missing or still empty: never ask the owner to fill everything before you can write, and never invent what is not there.
+All paths are inside the active workspace. Skip a file that is missing or still empty. A section that is only its prompt and an empty bullet (`-`) counts as empty, and so does a table row with blank cells: never ask the owner to fill everything before you can write, and never invent what is not there.
 
 1. `PROJECT.md`: what the project is for and the current goal.
 2. `knowledge/audience/`: who the text is for, in their words: pains, wishes, fears, objections. One file per persona; pick the one the text is for, and say which you picked.

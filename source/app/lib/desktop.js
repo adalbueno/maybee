@@ -214,15 +214,19 @@ async function projectSummary(root) {
 }
 
 async function recentDecisions(root, limit = 4) {
-  let text = ''
-  try { text = await fsp.readFile(path.join(root, 'knowledge', 'decisions.md'), 'utf8') } catch { return [] }
+  let text = '', file = null
+  // the register is decisions/register.md, or knowledge/decisions.md in a workspace not migrated yet (the old one wins while it exists)
+  for (const candidate of ['knowledge/decisions.md', 'decisions/register.md']) {
+    try { text = await fsp.readFile(path.join(root, candidate), 'utf8'); file = candidate; break } catch {}
+  }
+  if (!file) return []
   const rows = text.split('\n').filter(line => /^\|\s*D\d+(?:\s*\([^)]*\))?\s*\|/.test(line))
   return rows.slice(-limit).reverse().map(line => {
     const cells = line.split('|').slice(1, -1).map(x => x.trim())
     const id = plainMarkdown(cells[0]).split(' ')[0]
     const decision = plainMarkdown(cells[1])
     const first = decision.match(/^(.+?[.!?])(?:\s|$)/)
-    return { id, title: first ? first[1] : decision, text: first ? decision.slice(first[1].length).trim() : '', path: 'knowledge/decisions.md' }
+    return { id, title: first ? first[1] : decision, text: first ? decision.slice(first[1].length).trim() : '', path: file }
   })
 }
 

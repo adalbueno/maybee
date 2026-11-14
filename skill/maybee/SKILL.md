@@ -12,8 +12,9 @@ Maybee is a local app that shows a project's notes as a board. A project is a se
 | Install, update, start or repair Maybee; keep the session bridge running; use Maybee's browser | [references/install.md](references/install.md) |
 | Create, edit, move, run or describe a card (idea, task, routine) | [references/board.md](references/board.md) |
 | Write a post, message or any text for the project | [references/write.md](references/write.md) |
+| Move, rename or delete a file; apply the migrations an update brings; check links | [references/migrate.md](references/migrate.md) |
 
-If a request touches more than one, read each reference. Do not copy a reference's rules into your own notes: the references are updated with Maybee.
+After any change that moves, renames or deletes a file, run the link check in `migrate.md` before you call the work done. If a request touches more than one reference, read each. Do not copy a reference's rules into your own notes: the references are updated with Maybee.
 
 ## Maybee itself is off limits
 

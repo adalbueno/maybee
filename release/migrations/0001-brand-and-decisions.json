@@ -1,0 +1,10 @@
+{
+  "id": "0001-brand-and-decisions",
+  "version": "0.1.29",
+  "title": "Voice moves to knowledge/brand, and the decision register to decisions/",
+  "description": "Your voice note now lives with the rest of your brand, and decisions have their own folder. Links to these files are updated.",
+  "moves": [
+    { "from": "owner/voice.md", "to": "knowledge/brand/voice.md" },
+    { "from": "knowledge/decisions.md", "to": "decisions/register.md" }
+  ]
+}
