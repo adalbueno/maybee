@@ -26,4 +26,4 @@ On a fresh install, the installer seeds `workspaces/default/` from the package. 
 
 Workspace routes are addressable directly: `http://127.0.0.1:<port>/<workspace>/overview` (for example `/playbook-demo/overview`). Opening a workspace URL selects that workspace automatically.
 
-- `migrations/` holds the moves of workspace files an update can ask for, one JSON file each (`id`, `version`, `title`, `moves`). Nothing runs on install: the agent shows `migrate.js plan`, and the user says yes before `apply`. The engine lives in `app/lib/migrations.js` and also repairs Markdown links.
+- `migrations/` holds the moves of workspace files an update can ask for, one JSON file each (`id`, `version`, `title`, `moves`). The app applies the pending ones to every workspace when it starts after an update: files are moved, links are fixed, a backup is kept in the workspace's `.maybee/backup/`, and a file that cannot be moved safely is left alone. `migrate.js plan` shows what is left. The engine lives in `app/lib/migrations.js`.

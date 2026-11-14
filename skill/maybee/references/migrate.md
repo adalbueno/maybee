@@ -13,12 +13,15 @@ node .maybee/package/app/scripts/migrate.js links
 
 ## After an update
 
-An update can ship migrations: small, named moves of the user's files (for example a note that now lives in another folder). They never run on their own, because they touch the user's files.
+An update can ship migrations: small, named moves of the user's files (for example a note that now lives in another folder). **The app applies them by itself** the next time it starts after the update, in every workspace. It moves the files, rewrites the links that pointed to them and the links inside them, keeps a copy of everything it touched in the workspace's `.maybee/backup/`, and records each migration as done, so it never runs twice. You do not need to ask the user first.
 
-1. Run `plan`. It changes nothing. If it says "Nothing to migrate", you are done.
-2. Tell the user, in plain words, what would move and where, and how many notes have links to fix. Mention any `conflict`: both the old and the new file exist and differ, so that move is left alone and they can merge it by hand.
-3. Wait for a yes. Then run `apply`. It moves the files, rewrites the links that pointed to them (and the links inside them), keeps a copy of everything it touched in `.maybee/backup/`, and records the migration as done, so it never runs twice.
-4. Read what `apply` printed. If it lists links that still point at nothing, fix them or tell the user which ones; do not leave them.
+After you start Maybee following an update:
+
+1. Run `plan`. It changes nothing. "Nothing to migrate" means everything was applied, and you are done.
+2. If it still lists a migration, the app could not finish it. A `conflict` means both the old and the new file exist and differ, so that move was left alone for safety. Tell the user which two files, say what each holds if you can tell, and offer to merge them by hand; do not pick one for them.
+3. Run `links` and fix or report any link that still points at nothing.
+
+`apply [id ...]` runs the pending migrations by hand (for example after the user merged a conflict). It does what the app does.
 
 ## Whenever something moves
 

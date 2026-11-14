@@ -15,6 +15,7 @@ import { initSnapshots, snapshot, diffFor } from './lib/snapshots.js'
 import { verifySkool } from './local-skool-verifier.js'
 import { openAppWindow, ensureBrowser } from './lib/browser.js'
 import { dataPath, DATA_DIR } from './lib/paths.js'
+import { apply as applyMigrations } from './lib/migrations.js'
 
 const APP_DIR = path.dirname(fileURLToPath(import.meta.url))
 const DEFAULT_ROOT = path.resolve(APP_DIR, '..', '..')
@@ -509,9 +510,30 @@ function watch() {
   return handle
 }
 
+// An update can move files inside a workspace (see lib/migrations.js). They are applied here, once, when the app
+// starts after the update: files are moved, links to them are fixed, a backup stays in the workspace's .maybee/backup,
+// and a file that cannot be moved safely (both old and new exist and differ) is left alone and reported.
+async function migrateWorkspaces() {
+  const roots = new Set([ROOT])
+  for (const e of await fsp.readdir(WORKSPACES_ROOT, { withFileTypes: true }).catch(() => [])) {
+    if (e.isDirectory() && !e.name.startsWith('.')) roots.add(path.join(WORKSPACES_ROOT, e.name))
+  }
+  for (const root of roots) {
+    try {
+      const { done, brokenLinks } = await applyMigrations(root)
+      for (const d of done) {
+        console.log(`Migration ${d.id} in ${path.basename(root)}: moved ${d.moved.length} file(s), fixed links in ${d.rewritten.length}${d.backup ? `, backup in ${d.backup}` : ''}`)
+        for (const s of d.skipped) console.log(`  left alone: ${s.from} -> ${s.to} (${s.why})`)
+      }
+      if (done.length && brokenLinks.length) console.log(`  ${brokenLinks.length} link(s) in ${path.basename(root)} point at nothing; run migrate.js links`)
+    } catch (error) { console.error(`Migration failed in ${root}: ${error.message}`) }
+  }
+}
+
 async function main() {
   const rootStat = await fsp.stat(ROOT).catch(() => null)
   if (!rootStat?.isDirectory()) throw new Error(`Project folder does not exist: ${ROOT}`)
+  await migrateWorkspaces()
   await buildIndex(ROOT)
   loadSeen()
   initInbox(APP_DIR)

@@ -9,12 +9,12 @@ import { fileURLToPath } from 'node:url'
 
 const APP_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const firstDir = (...candidates) => candidates.find(d => fs.existsSync(d)) || null
-const migrationsDir = () => firstDir(path.join(APP_DIR, '..', 'migrations'), path.join(APP_DIR, '..', '..', 'release', 'migrations'))
+// This file runs from the source tree (app/lib), from the packaged script (app/scripts) and from the packaged server
+// (app/): the package folders are found from whichever of the places above or below it holds them.
+const around = (...parts) => [APP_DIR, path.join(APP_DIR, '..'), path.join(APP_DIR, '..', '..')].flatMap(base => [path.join(base, ...parts), path.join(base, 'release', ...parts)])
+const migrationsDir = () => firstDir(...around('migrations'))
 // Copies the package seeds into workspaces. A file in the destination that is identical to a seed was never edited.
-const seedDirs = () => [
-  path.join(APP_DIR, '..', 'workspaces', 'default'), path.join(APP_DIR, '..', '..', 'release', 'workspaces', 'default'),
-  path.join(APP_DIR, '..', 'playbooks', 'template', 'workspace'),
-].filter(d => fs.existsSync(d))
+const seedDirs = () => [...new Set([...around('workspaces', 'default'), ...around('playbooks', 'template', 'workspace'), path.join(APP_DIR, '..', '..', 'source', 'playbooks', 'template', 'workspace')])].filter(d => fs.existsSync(d))
 
 const rel = (root, abs) => path.relative(root, abs).split(path.sep).join('/')
 
