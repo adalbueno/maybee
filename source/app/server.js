@@ -8,7 +8,7 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildIndex, feed, numbers, library, search, readNote, resolveName, statFile, isHidden, allPaths, getIndex } from './lib/project.js'
-import { board, backlog, setStage, logChange, createCard, placeCard, topOfColumn } from './lib/board.js'
+import { board, backlog, setStage, logChange, createCard, placeCard, topOfColumn, restoreRanks, ranksOf, ORDER_NAMES } from './lib/board.js'
 import { desktop, setFields, dayKey, nowCards, routinesOn, overviewState, resolveWaiting } from './lib/desktop.js'
 import { initInbox, readInbox, addRequest, listening, lastHeard, promptFor } from './lib/inbox.js'
 import { initSnapshots, snapshot, diffFor } from './lib/snapshots.js'
@@ -676,13 +676,24 @@ async function main() {
       if (url.pathname === '/api/rank' && req.method === 'POST') {
         const body = await readBody(req)
         const ok = p => typeof p === 'string' && /^ideas\/[^/]+\.md$/.test(p)
-        if (!body.byScore && !ok(body.path)) return sendJSON(res, { error: 'unknown card' }, 400)
+        if (Array.isArray(body.restore)) {
+          try {
+            const written = await restoreRanks(ROOT, body.restore.slice(0, 500))
+            for (const p of written) { await statFile(ROOT, p); seen.items[p] = Date.now() + 2000 }
+            saveSeen()
+            await logChange(ROOT, 'Sort undone, the column is back in its earlier order')
+            return sendJSON(res, { ok: true, written: written.length })
+          } catch (err) { return sendJSON(res, { error: err.message }, 400) }
+        }
+        const order = body.byScore ? (typeof body.order === 'string' ? body.order : 'priority') : null
+        if (!order && !ok(body.path)) return sendJSON(res, { error: 'unknown card' }, 400)
         try {
-          const written = await placeCard(ROOT, getIndex(), { path: body.path, before: ok(body.before) ? body.before : null, after: ok(body.after) ? body.after : null, stage: body.stage, byScore: !!body.byScore })
+          const previous = order ? await ranksOf(ROOT, getIndex(), body.stage) : null
+          const written = await placeCard(ROOT, getIndex(), { path: body.path, before: ok(body.before) ? body.before : null, after: ok(body.after) ? body.after : null, stage: body.stage, order })
           for (const p of written) { await statFile(ROOT, p); seen.items[p] = Date.now() + 2000 }
           saveSeen()
-          if (body.byScore) await logChange(ROOT, `${body.stage} sorted by priority`)
-          return sendJSON(res, { ok: true, written: written.length })
+          if (order) await logChange(ROOT, `${body.stage} sorted by ${ORDER_NAMES[order] || order}`)
+          return sendJSON(res, { ok: true, written: written.length, previous })
         } catch (err) { return sendJSON(res, { error: err.message }, 400) }
       }
       if (url.pathname === '/api/routines') {
@@ -693,7 +704,7 @@ async function main() {
       if (url.pathname === '/api/desktop') return sendJSON(res, await desktop(ROOT, getIndex(), APP_DIR, seen))
       if (url.pathname === '/api/fields' && req.method === 'POST') {
         const body = await readBody(req)
-        const allowed = ['value_members', 'value_money', 'want', 'hard', 'last_done', 'auto_run', 'importance', 'not_today', 'auto', 'auto_every', 'priority', 'auto_days', 'auto_since', 'auto_mday', 'type', 'kind', 'recurring', 'owner', 'needed_by', 'area', 'next_step', 'done', 'at', 'needs', 'deliverable', 'deliverable_on']
+        const allowed = ['value_members', 'value_money', 'want', 'hard', 'last_done', 'auto_run', 'importance', 'not_today', 'auto', 'auto_every', 'priority', 'auto_days', 'auto_since', 'auto_mday', 'type', 'kind', 'recurring', 'owner', 'needed_by', 'area', 'next_step', 'why_not', 'done', 'at', 'needs', 'deliverable', 'deliverable_on']
         // D249: values may have spaces (needed_by: "This week"); one line, short
         const fields = Object.fromEntries(Object.entries(body.fields || {}).filter(([k, v]) => allowed.includes(k) && String(v).length <= 200 && !/[\r\n]/.test(String(v))))
         if (fields.type && !['idea', 'task', 'routine'].includes(fields.type)) delete fields.type

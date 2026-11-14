@@ -39,6 +39,26 @@ export function withFrontmatter(text, rel) {
   return `---\n${YAML.stringify({ title }).trimEnd()}\n---\n${text.startsWith('\n') ? '' : '\n'}${text}`
 }
 
+// Why a card is in Not: the `why_not` line, or else the first paragraph under a "Why not" heading in the note.
+function whyNot(fm, body) {
+  let t = typeof fm.why_not === 'string' ? fm.why_not : ''
+  if (!t) {
+    const m = /^#{1,6}\s+why not\s*$/im.exec(body)
+    if (m) {
+      const rest = body.slice(m.index + m[0].length).split('\n')
+      const out = []
+      for (const l of rest) {
+        if (/^#{1,6}\s/.test(l)) break
+        if (!l.trim()) { if (out.length) break; continue }
+        out.push(l.trim())
+      }
+      t = out.join(' ')
+    }
+  }
+  t = t.replace(/\*\*|`/g, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/\s+/g, ' ').trim()
+  return t.length > 260 ? t.slice(0, 260).replace(/\s+\S*$/, '') + '…' : t
+}
+
 async function readCard(root, rel) {
   const abs = path.join(root, rel)
   const [text, st] = await Promise.all([fsp.readFile(abs, 'utf8'), fsp.stat(abs)])
@@ -65,6 +85,8 @@ async function readCard(root, rel) {
     owner: fm.owner || null,
     description: desc,
     captured: fm.captured ? String(fm.captured).slice(0, 10) : null,
+    whyNot: stage === 'not' ? whyNot(fm, body) : '',
+    react: { hard: Number(fm.hard) || null, members: Number(fm.value_members) || null, money: Number(fm.value_money) || null },
     nextStep: fm.next_step ? String(fm.next_step) : null,
     rank: Number.isFinite(Number(fm.rank)) && fm.rank !== null && fm.rank !== '' ? Number(fm.rank) : null,
     mtime: st.mtimeMs,
@@ -85,6 +107,17 @@ export async function loadCards(root, index) {
 
 const byPriority = (a, b) => (b.priority || 0) - (a.priority || 0) || (b.score || 0) - (a.score || 0) || b.mtime - a.mtime
 const byRecent = (a, b) => b.mtime - a.mtime
+// The ways the Maybe column can be sorted on request. Cards without the four reactions go last, except in `unrated`.
+const rated = c => c.priority != null
+const ORDERS = {
+  priority: byPriority,
+  easy: (a, b) => (rated(b) - rated(a)) || ((a.react.hard || 9) - (b.react.hard || 9)) || byPriority(a, b),
+  members: (a, b) => (rated(b) - rated(a)) || ((b.react.members || 0) - (a.react.members || 0)) || byPriority(a, b),
+  business: (a, b) => (rated(b) - rated(a)) || ((b.react.money || 0) - (a.react.money || 0)) || byPriority(a, b),
+  recent: byRecent,
+  unrated: (a, b) => (rated(a) - rated(b)) || byPriority(a, b),
+}
+export const ORDER_NAMES = { priority: 'priority', easy: 'easy first', members: 'value for members', business: 'value for business', recent: 'most recent', unrated: 'unrated first' }
 
 // Columns you can arrange by hand keep their order in a `rank` line of each card (lower = higher up).
 // Cards without a rank come after the ranked ones, in the old order (priority in Maybe, newest first elsewhere).
@@ -178,16 +211,18 @@ async function writeRank(root, rel, rank) {
   return true
 }
 
-// Put a card at a new place in its column, or sort the column by priority (`byScore`).
+// Put a card at a new place in its column, or sort the column once by one of ORDERS (`order`).
 // One file changes when there is room between neighbours; otherwise the column is numbered again, once.
 // Returns the paths that were written.
-export async function placeCard(root, index, { path: rel, before = null, after = null, stage = null, byScore = false }) {
+export async function placeCard(root, index, { path: rel, before = null, after = null, stage = null, byScore = false, order = null }) {
+  if (byScore && !order) order = 'priority'
+  byScore = !!order
   const cards = await loadCards(root, index)
   const moved = rel ? cards.find(c => c.path === rel) : null
   const st = byScore ? stage : moved && moved.stage
   if (!RANKED.includes(st)) throw new Error('that column keeps its own order')
   let list = cards.filter(c => c.stage === st).sort(orderOf(st))
-  if (byScore) list = list.slice().sort(byPriority)
+  if (byScore) { if (!ORDERS[order]) throw new Error('unknown order'); list = list.slice().sort(ORDERS[order]) }
   else {
     list = list.filter(c => c.path !== rel)
     let at = list.length
@@ -217,4 +252,28 @@ export async function topOfColumn(root, index, rel, stage) {
   const cards = await loadCards(root, index)
   const ranks = cards.filter(c => c.stage === stage && c.path !== rel && c.rank != null).map(c => c.rank)
   return writeRank(root, rel, (ranks.length ? Math.min(...ranks) : 10) - 10)
+}
+
+// Puts ranks back as they were (the Undo of a sort). `ranks` is [{ path, rank }]; a null rank removes the line.
+export async function restoreRanks(root, ranks) {
+  const written = []
+  for (const { path: rel, rank } of ranks) {
+    if (!/^ideas\/[^/]+\.md$/.test(rel)) continue
+    const abs = path.join(root, rel)
+    const text = withFrontmatter(await fsp.readFile(abs, 'utf8'), rel)
+    const fm = splitFm(text)
+    const lines = fm.head.split('\n')
+    const i = lines.findIndex(l => /^rank:(\s|$)/.test(l))
+    if (rank == null) { if (i < 0) continue; lines.splice(i, 1) }
+    else if (i >= 0) { if (lines[i] === `rank: ${rank}`) continue; lines[i] = `rank: ${rank}` }
+    else lines.push(`rank: ${rank}`)
+    await fsp.writeFile(abs, '---\n' + lines.join('\n') + text.slice(fm.end))
+    written.push(rel)
+  }
+  return written
+}
+
+// The ranks of a column as they are now, so a sort can be undone.
+export async function ranksOf(root, index, stage) {
+  return (await loadCards(root, index)).filter(c => c.stage === stage).map(c => ({ path: c.path, rank: c.rank }))
 }

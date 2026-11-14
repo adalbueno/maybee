@@ -166,11 +166,32 @@ async function cardDrop(c, e) {
   if (!res.ok) say('Could not reorder: ' + ((await res.json().catch(() => ({}))).error || res.status))
   load()
 }
-async function sortByPriority(stage) {
-  const res = await fetch('/api/rank', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ byScore: true, stage }) })
-  say(res.ok ? 'Sorted by priority' : 'Could not sort it')
+// A sort is a one-time action: it rewrites the column's order (which beats a hand-made one), so it can be undone.
+const SORTS = [
+  ['priority', 'Priority'], ['easy', 'Easy first'], ['members', 'Value for members'],
+  ['business', 'Value for business'], ['recent', 'Most recent'], ['unrated', 'Unrated first'],
+]
+const sortOpen = ref(false)
+const sortUndo = ref(null)
+let sortTimer = null
+async function sortBy(stage, order) {
+  sortOpen.value = false
+  const res = await fetch('/api/rank', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ byScore: true, order, stage }) })
+  if (!res.ok) { say('Could not sort it'); return }
+  const { previous } = await res.json()
+  const label = SORTS.find(x => x[0] === order)[1].toLowerCase()
+  sortUndo.value = { label, previous: previous || [] }
+  clearTimeout(sortTimer); sortTimer = setTimeout(() => { sortUndo.value = null }, 10000)
   load()
 }
+async function undoSort() {
+  const u = sortUndo.value; sortUndo.value = null
+  if (!u) return
+  const res = await fetch('/api/rank', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ restore: u.previous }) })
+  say(res.ok ? 'Back to the earlier order' : 'Could not undo the sort')
+  load()
+}
+if (typeof window !== 'undefined') window.addEventListener('click', () => { sortOpen.value = false })
 
 // Quick capture at the bottom of Maybe: the title is the whole idea, Enter adds it at the top
 const newTitle = ref('')
@@ -222,7 +243,11 @@ async function pull(card, stage) {
         <header class="col-head">
           <h2><span class="dot" :class="col.key"></span>{{ col.label }}<small>{{ cols[col.key].count }}</small></h2>
           <p>{{ col.hint }}</p>
-          <button v-if="col.key === 'maybe' && cols.maybe.count > 1" class="sort-btn" @click.stop="sortByPriority('maybe')" title="Put the column in priority order once. You can still drag cards after">Sort by priority</button>
+          <div v-if="col.key === 'maybe' && cols.maybe.count > 1" class="sort-wrap" @click.stop>
+            <button class="sort-btn" :class="{ open: sortOpen }" @click="sortOpen = !sortOpen" title="Put the column in this order once. It replaces the order you set by hand, and you can still drag cards after">Sort ▾</button>
+            <div v-if="sortOpen" class="sort-menu"><button v-for="o in SORTS" :key="o[0]" @click="sortBy('maybe', o[0])">{{ o[1] }}</button></div>
+            <span v-if="sortUndo" class="sort-undo">Sorted by {{ sortUndo.label }} <button class="link-btn" @click="undoSort">Undo</button></span>
+          </div>
         </header>
         <div class="col-body">
           <div v-if="col.key === 'routine' && routines.length" class="r-today">
@@ -302,6 +327,7 @@ async function pull(card, stage) {
             </div>
             <h3>{{ c.title }}</h3>
             <p v-if="c.description">{{ c.description }}</p>
+            <p v-if="col.key === 'not' && c.whyNot" class="why-not"><span>Why not</span>{{ c.whyNot }}</p>
             <div v-if="col.key === 'now' && c.nextStep" class="next-step">
               <span>Next step</span>{{ c.nextStep }}
             </div>

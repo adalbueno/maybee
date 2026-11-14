@@ -1082,3 +1082,12 @@ a { color: inherit; }
 .workspace-switch-error { display: block; padding: 4px 9px 0; }
 .vh-title:has(+ .vh-stage) { flex: 0 1 auto; }
 .vh-stage { flex: none; margin: 0 auto 0 10px; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 99px; background: var(--card); font-size: 12px; font-weight: 700; color: var(--ink-2); }
+
+.sort-wrap { position: relative; display: flex; align-items: center; gap: 10px; margin: 6px 0 0 16px; }
+.sort-wrap .sort-btn { margin: 0; }
+.sort-menu { position: absolute; top: 100%; left: 0; z-index: 30; margin-top: 4px; min-width: 190px; padding: 6px; border-radius: 14px; background: var(--card-hi); box-shadow: 0 10px 30px rgba(20, 15, 5, .16), 0 0 0 1px var(--line); display: flex; flex-direction: column; }
+.sort-menu button { text-align: left; padding: 7px 10px; border-radius: 9px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.sort-menu button:hover { background: var(--accent); color: var(--ink); }
+.sort-undo { font-size: 12px; color: var(--ink-2); }
+.why-not { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.why-not span { display: block; margin-bottom: 2px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
