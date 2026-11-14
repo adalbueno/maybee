@@ -1,3 +1,7 @@
+---
+description: Who you serve, one file per person
+---
+
 # Audience
 
 Who this project is for. Keep **one file per person you serve**: copy [persona.md](persona.md), rename the copy after the person (`busy-founders.md`), and fill it in.

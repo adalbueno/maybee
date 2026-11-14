@@ -1,5 +1,6 @@
 ---
 title: Product
+description: One product: promise, delivery and price
 ---
 
 # Product

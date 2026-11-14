@@ -1,5 +1,6 @@
 ---
 title: Design elements
+description: The repeated elements that make you recognizable
 ---
 
 # Design elements

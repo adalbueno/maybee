@@ -1,5 +1,6 @@
 ---
 title: Offer ladder
+description: Your products in steps, with prices and numbers
 ---
 
 # Offer ladder

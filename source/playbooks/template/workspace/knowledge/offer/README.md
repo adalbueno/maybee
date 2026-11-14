@@ -1,3 +1,7 @@
+---
+description: What you give people, as a ladder of products
+---
+
 # Offer
 
 What you give people, laid out as a **ladder**: a few products in steps, from an easy first purchase to a deeper one.

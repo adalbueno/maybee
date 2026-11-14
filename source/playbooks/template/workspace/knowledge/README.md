@@ -1,3 +1,7 @@
+---
+description: What this project knows about its world
+---
+
 # Knowledge
 
 What this project knows about its world. Each folder is one subject, and the agent reads them before it writes anything for you.

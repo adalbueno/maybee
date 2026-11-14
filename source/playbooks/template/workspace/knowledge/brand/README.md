@@ -1,3 +1,7 @@
+---
+description: How you sound and what makes you recognizable
+---
+
 # Brand
 
 How you sound and what makes you recognizable. The goal is not to be confused with anyone else.

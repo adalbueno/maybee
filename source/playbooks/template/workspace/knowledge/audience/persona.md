@@ -1,5 +1,6 @@
 ---
 title: Persona
+description: One person you serve, in their own words
 ---
 
 # Persona
