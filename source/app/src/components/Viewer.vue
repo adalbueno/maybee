@@ -316,6 +316,13 @@ const parts = computed(() => {
   for (const a of r.querySelectorAll('a[data-base]')) a.replaceWith(doc.createTextNode(a.textContent))
   return { title: m ? m[2] : title, id: m ? m[1] : '', crumbs, body: r.innerHTML, lead: lead.innerHTML.trim(), rest: rest.innerHTML, summary, record }
 })
+const STAGE_LABELS = { maybe: 'Maybe', next: 'Next', now: 'Now', done: 'Done', not: 'Not' }
+const stageBadge = computed(() => {
+  const n = note.value
+  if (!n || n.error || n.ext !== '.md' || !isIdeaNote.value) return null
+  const key = n.frontmatter.type === 'routine' ? 'routine' : String(n.frontmatter.stage || 'maybe')
+  return { key, label: key === 'routine' ? 'Routine' : STAGE_LABELS[key] || key }
+})
 const headTitle = computed(() => note.value && !note.value.error ? (note.value.ext === '.md' ? parts.value.title : note.value.title) : '')
 // D249: notes in ideas/ (idea · task · routine) show their settings by type
 // D252: three tabs for ideas, tasks and routines: Content · Settings · Changes (remembered)
@@ -359,6 +366,7 @@ const updated = computed(() => note.value && note.value.mtime
     <div class="v-head">
       <button v-if="history.length" class="icon" title="Back" @click="back">←</button>
       <div class="vh-title" :title="target.path">{{ headTitle }}</div>
+      <span v-if="stageBadge" class="vh-stage" :title="'This card is in ' + stageBadge.label"><i class="dot" :class="stageBadge.key"></i>{{ stageBadge.label }}</span>
       <div id="vh-actions" class="vh-actions"></div>
       <a v-if="liveLink" class="v-link" :href="liveLink" target="_blank" rel="noopener">Open live ↗</a>
       <button v-if="note && note.ext === '.md' && !editing" class="v-link quiet edit-btn" @click="startEdit">Edit</button>

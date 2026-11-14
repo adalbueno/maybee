@@ -1080,3 +1080,5 @@ a { color: inherit; }
 .workspace-add-form button:disabled { opacity: .5; }
 .workspace-error { width: 100%; color: #c0392b; font-size: 11px; }
 .workspace-switch-error { display: block; padding: 4px 9px 0; }
+.vh-title:has(+ .vh-stage) { flex: 0 1 auto; }
+.vh-stage { flex: none; margin: 0 auto 0 10px; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 99px; background: var(--card); font-size: 12px; font-weight: 700; color: var(--ink-2); }
