@@ -425,7 +425,7 @@ const updated = computed(() => note.value && note.value.mtime
           </div>
           <div v-if="editing" v-show="!inline || curTab === 'content'" class="editor" :class="{ 'always-on': inline }">
             <p v-if="changedUnder && !inline" class="warn">This note changed on disk while you were editing (Claude or Sync). Saving now would overwrite that change, so the app will refuse. Copy your text first.</p>
-            <LiveEditor v-model="draft" @save="save" />
+            <LiveEditor v-model="draft" :path="editPath" @save="save" @open-link="p => emit('open', { path: p })" />
             <div v-if="inline" class="editor-foot" :class="syncState">
               <span>{{ syncText }}</span>
               <template v-if="changedUnder">
