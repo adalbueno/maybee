@@ -31,9 +31,26 @@ async function addFoundations() {
   try { await fetch('/api/foundations/fill', { method: 'POST' }); await load() } finally { filling.value = false }
 }
 const fileName = f => f.path.split('/').pop().replace(/\.md$/, '')
+const DATED = /^(\d{4}-\d{2}-\d{2})-/
+// What a file is called in the lists: the title in its frontmatter, else its file name read as words
+// ("design-elements" is "Design elements", "PROJECT" is "Project", a README is the "Overview" of its folder, a dated decision loses its date).
+function displayName(f) {
+  if (f.fmTitle) return f.fmTitle
+  const base = fileName(f)
+  if (base.toLowerCase() === 'readme') return 'Overview'
+  let name = base.replace(DATED, '').replace(/[-_]+/g, ' ')
+  if (name === name.toUpperCase()) name = name.toLowerCase()
+  return name.charAt(0).toUpperCase() + name.slice(1)
+}
+const dateOf = f => { const m = DATED.exec(fileName(f)); return m ? dayLabel(m[1]) : '' }
 const cleanChange = t => String(t || '').replace(/^\(Maybee app\)\s*/, '').replace(/\s*\((?:[\w .'’-]+\/)*[^()]*\.\w+\)\s*$/, '')
-const progress = f => { const p = foundations.value.status && foundations.value.status[f.path]; return p ? `${p.filled} of ${p.total} filled` : '' }
-const sub = f => progress(f) || (() => { const t = f.desc || f.title || ''; return t.toLowerCase() === fileName(f).toLowerCase() ? '' : t })()
+const progress = f => foundations.value.status && foundations.value.status[f.path]
+const progressTitle = p => `${p.filled} of ${p.total} filled`
+// the ring beside a name: dashed when nothing is filled in, an arc while it is partly filled, solid with a tick when it is complete
+const RING = 2 * Math.PI * 5.5
+const arc = p => `${(RING * p.filled) / p.total} ${RING}`
+// under the name: the description written in the frontmatter, else the date of a decision. Never the text of the note.
+const sub = f => f.desc || dateOf(f)
 const PLACES = [
   { key: 'workspace', name: 'Workspace', text: 'The board: what is in Maybe, Next, Now and Done, and the routines of the day.' },
   { key: 'activity', name: 'Activity', text: 'What changed lately, newest first.' },
@@ -41,14 +58,16 @@ const PLACES = [
 ]
 // the files that hold the project's memory: its brief and state, who it is for, what it offers, how it sounds,
 // the decisions made, and the knowledge notes that sit directly in their folder
-const KEY_FILES = ['PROJECT.md', 'STATE.md', 'README.md']
+const KEY_FILES = ['README.md', 'PROJECT.md', 'STATE.md']
 const memory = computed(() => {
   const by = path => files.value.find(f => f.path === path)
   const group = (label, items) => items.length ? { label, items } : null
   const inFolder = (dir, newestFirst = false) => {
     const list = files.value.filter(f => f.path.startsWith(dir) && f.path.split('/').length === dir.split('/').length)
     const byName = (x, y) => x.path.localeCompare(y.path)
-    return list.sort(newestFirst ? (x, y) => byName(y, x) : byName).slice(0, 8)
+    const readme = f => (f.path.split('/').pop().toLowerCase() === 'readme.md' ? 0 : 1)
+    // the README of a folder always comes first: it says what the folder is for
+    return list.sort((x, y) => readme(x) - readme(y) || (newestFirst ? byName(y, x) : byName(x, y))).slice(0, 8)
   }
   return [
     group('The project', KEY_FILES.map(by).filter(Boolean)),
@@ -140,7 +159,11 @@ async function resolveItem(item, destination) {
       <div class="memory-grid">
         <div v-for="g in memory" :key="g.label" class="file-group">
           <span class="eyebrow">{{ g.label }}</span>
-          <button v-for="f in g.items" :key="f.path" class="mem-row" @click="open(f.path)" :title="f.path"><b>{{ fileName(f) }}</b><span v-if="sub(f)">{{ sub(f) }}</span></button>
+          <button v-for="f in g.items" :key="f.path" class="mem-row" @click="open(f.path)" :title="f.path"><b>{{ displayName(f) }}<svg v-if="progress(f)" class="fill-ring" viewBox="0 0 14 14" role="img" :aria-label="progressTitle(progress(f))"><title>{{ progressTitle(progress(f)) }}</title>
+            <template v-if="progress(f).filled === 0"><circle cx="7" cy="7" r="5.5" class="ring-missing" /></template>
+            <template v-else-if="progress(f).filled < progress(f).total"><circle cx="7" cy="7" r="5.5" class="ring-track" /><circle cx="7" cy="7" r="5.5" class="ring-arc" :stroke-dasharray="arc(progress(f))" transform="rotate(-90 7 7)" /></template>
+            <template v-else><circle cx="7" cy="7" r="6.5" class="ring-done" /><path d="M4.2 7.2l1.9 1.9 3.7-3.9" class="ring-tick" /></template>
+          </svg></b><span v-if="sub(f)">{{ sub(f) }}</span></button>
         </div>
       </div>
     </section>
@@ -226,6 +249,13 @@ async function resolveItem(item, destination) {
 .place-card b i { font-style: normal; color: var(--ink-3); }
 .place-card:hover b i { color: var(--ink); }
 .place-card p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.fill-ring { display: inline-block; width: 14px; height: 14px; margin-left: 8px; vertical-align: -2px; flex: none; }
+.fill-ring circle, .fill-ring path { fill: none; stroke-width: 1.6; }
+.ring-missing { stroke: var(--ink-3); stroke-dasharray: 2 2.6; }
+.ring-track { stroke: var(--line); }
+.ring-arc { stroke: var(--ink); stroke-linecap: round; }
+.ring-done { fill: var(--ink) !important; stroke: none !important; }
+.ring-tick { stroke: var(--card-hi); stroke-linecap: round; stroke-linejoin: round; }
 .foundations-note { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .foundations-note p { margin: 0; color: var(--ink-2); }
 .memory-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 26px; }
