@@ -2,6 +2,16 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.31 · 14 Nov 2026
+
+**Follow the links in your notes, edit tables right where they are, and find your files faster in About.**
+
+- **Notes open for reading.** A click on a link (a `[text](file.md)`, a web address or a `[[wiki link]]`) follows it. A double click turns editing on, with a yellow border; Esc, or leaving the note, turns it off. Ctrl or Cmd plus click follows a link while you edit. Saving stays automatic, and a note you have not typed in is never rewritten.
+- **Tables are drawn as tables.** While you edit, the cells are typed in directly: Tab, Shift+Tab and Enter move between them, Tab in the last cell adds a row, "+ Row" and "+ Column" sit under the table, and "Edit as text" shows the Markdown to remove a row or column or set an alignment. The first edit rewrites the table as `| a | b |` with `| --- |` under the header; the content and the alignment stay.
+- **About lists your files in a clearer way.** Each group starts with its README, shown as Overview. A file is called by the `title` in its frontmatter, else by its file name read as words ("design-elements" is "Design elements", "PROJECT" is "Project"); a dated decision loses its date from the name. Under the name you see only the `description` from the frontmatter (or the date of a decision), never the text of the note.
+- **A ring shows what is still empty.** Beside the name of an audience, offer or brand file: dashed when nothing is filled in, an arc while it is partly filled, solid with a tick when complete. Hover it for "3 of 16 filled".
+- **New workspaces start with descriptions.** The template's knowledge files carry a `description`, and `decisions/README.md` describes a decision with `title`, `description`, `date` and `status` in its frontmatter. Files you already have are not changed: add `description:` to their frontmatter to see it in About.
+
 ## 0.1.30 · 14 Nov 2026
 
 **Move any note, find your audience, offer and brand in About, and let updates tidy your files on their own.**
