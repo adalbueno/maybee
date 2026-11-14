@@ -381,7 +381,7 @@ async function heartbeat() {
   return accessStatus()
 }
 
-const ONBOARDING_DIRS = ['owner', 'knowledge', 'ideas', 'people', 'outputs', 'logs']
+const ONBOARDING_DIRS = ['owner', 'knowledge', 'decisions', 'ideas', 'people', 'outputs', 'logs']
 function setupStatus() {
   const has = rel => fs.existsSync(path.join(ROOT, rel))
   const skipped = has('.maybee/onboarding-skipped.json')
@@ -399,6 +399,26 @@ function cleanAnswer(value, fallback = '') {
   return String(value ?? fallback).trim().replace(/\r/g, '').slice(0, 2000)
 }
 
+function slugify(text) {
+  return String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48)
+}
+
+// A new workspace starts as a copy of the workspace/ folder of the "template" playbook
+// (package/playbooks/template; source/playbooks/template in this repository).
+async function copyTemplate(target, title) {
+  const template = path.join(APP_DIR, '..', 'playbooks', 'template', 'workspace')
+  if (!fs.existsSync(template)) return
+  const now = new Date().toISOString().slice(0, 10)
+  const walk = async (from, to) => {
+    await fsp.mkdir(to, { recursive: true })
+    for (const e of await fsp.readdir(from, { withFileTypes: true })) {
+      if (e.isDirectory()) await walk(path.join(from, e.name), path.join(to, e.name))
+      else if (e.isFile()) await fsp.writeFile(path.join(to, e.name), (await fsp.readFile(path.join(from, e.name), 'utf8')).replaceAll('{{TITLE}}', title).replaceAll('{{DATE}}', now))
+    }
+  }
+  await walk(template, target)
+}
+
 async function initializeProject(body) {
   const projectName = cleanAnswer(body.projectName, 'My Maybee project')
   const purpose = cleanAnswer(body.purpose, 'A project I want to move forward.')
@@ -412,11 +432,11 @@ async function initializeProject(body) {
   const files = {
     'PROJECT.md': `---\ntitle: ${projectName}\nlanguage: ${language}\ncreated: ${now}\n---\n\n# ${projectName}\n\n## Purpose\n${purpose}\n\n## Who this is for\n${audience}\n\n## Current goal\n${goal}\n\nThis project is operated through Maybee. Project facts belong here and in the linked folders; the app reads this workspace locally.\n`,
     'STATE.md': `---\ntitle: ${projectName} — state\nupdated: ${now}\nby: Maybee onboarding\n---\n\n# State\n\n## Focus\n- ${goal}\n\n## Next\n- Decide the smallest useful next action.\n`,
-    'DASHBOARD.md': `# ${projectName}\n\n- [Project](PROJECT.md)\n- [State](STATE.md)\n- [Decisions](knowledge/decisions.md)\n- [Ideas](ideas/README.md)\n- [Changelog](logs/CHANGELOG.md)\n`,
+    'DASHBOARD.md': `# ${projectName}\n\n- [Project](PROJECT.md)\n- [State](STATE.md)\n- [Decisions](decisions/README.md)\n- [Ideas](ideas/README.md)\n- [Changelog](logs/CHANGELOG.md)\n`,
     'owner/preferences.md': `---\ntitle: Preferences\nsource: Maybee onboarding\n---\n\n# Preferences\n\n${preferences}\n`,
-    'owner/voice.md': `---\ntitle: Voice\nsource: Maybee onboarding\n---\n\n# Voice\n\n${voice}\n`,
+    'knowledge/brand/voice.md': `---\ntitle: Voice\nsource: Maybee onboarding\n---\n\n# Voice\n\n${voice}\n`,
     'knowledge/README.md': '# Knowledge\n\nFacts, references and lessons that belong to this project.\n',
-    'knowledge/decisions.md': '# Decisions\n\n## In force\n\nNo project decisions have been recorded yet.\n',
+    'decisions/README.md': '# Decisions\n\nOne file per decision, named YYYY-MM-DD-short-title.md. No decisions have been recorded yet.\n',
     'ideas/README.md': '# Ideas\n\nIdeas and tasks begin here.\n',
     'people/README.md': '# People\n\nPeople connected to this project.\n',
     'outputs/README.md': '# Outputs\n\nThings this project produces.\n',
@@ -426,6 +446,7 @@ async function initializeProject(body) {
   for (const [rel, text] of Object.entries(files)) {
     const abs = path.join(ROOT, rel)
     if (fs.existsSync(abs)) continue
+    await fsp.mkdir(path.dirname(abs), { recursive: true })
     await fsp.writeFile(abs, text)
     created.push(rel)
   }
@@ -548,11 +569,12 @@ async function main() {
       }
       if (url.pathname === '/api/workspaces' && req.method === 'POST') {
         const body = await readBody(req)
-        const name = workspaceName(body.name)
-        if (!name || name === 'default') return sendJSON(res, { error: 'Choose a lowercase workspace name.' }, 400)
+        const name = workspaceName(body.projectName ? body.name : slugify(body.name))
+        if (!name || name === 'default') return sendJSON(res, { error: 'Choose a workspace name.' }, 400)
         const target = workspaceRoot(name)
         if (fs.existsSync(target)) return sendJSON(res, { error: 'That workspace already exists.' }, 409)
         await fsp.mkdir(target, { recursive: true })
+        if (!body.projectName) await copyTemplate(target, cleanAnswer(body.name, name).slice(0, 80))
         await switchWorkspace(name)
         const initialized = body.projectName ? await initializeProject(body) : setupStatus()
         return sendJSON(res, { ...initialized, workspace: activeWorkspace, workspaces: workspaceList() })

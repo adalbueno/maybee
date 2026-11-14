@@ -262,6 +262,21 @@ async function chooseWorkspace(name) {
   syncUrl()
   await loadSetup(); await loadFeed(); await loadNumbers()
 }
+const addingWorkspace = ref(false), newWorkspaceName = ref(''), workspaceError = ref('')
+async function addWorkspace() {
+  const name = newWorkspaceName.value.trim()
+  if (!name) return
+  workspaceError.value = ''
+  const res = await fetch('/api/workspaces', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) { workspaceError.value = data.error || 'Could not create the workspace.'; return }
+  addingWorkspace.value = false; newWorkspaceName.value = ''; workspaceMenuOpen.value = false
+  activeWorkspace.value = data.workspace
+  workspaces.value = data.workspaces || workspaces.value
+  open.value = null
+  go('workspace')
+  await loadSetup(); await loadFeed(); await loadNumbers()
+}
 function onboardingDone(data) { setup.value = data; showOnboarding.value = false; loadFeed(); loadNumbers() }
 async function accessVerified(data) { access.value = data; accessReady.value = true; connect(); startHeartbeat(); await loadWorkspaces(); loadSetup(); loadFeed(); loadNumbers() }
 
@@ -314,6 +329,15 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
               <span><b>{{ w.label }}</b><small>{{ w.name === 'default' ? 'Default workspace' : 'Playbook workspace' }}</small></span>
               <span v-if="w.name === activeWorkspace" class="workspace-check">✓</span>
             </button>
+            <button v-if="!addingWorkspace" class="workspace-option workspace-add" @click="addingWorkspace = true; workspaceError = ''">
+              <span class="workspace-option-icon">+</span>
+              <span><b>Add workspace</b></span>
+            </button>
+            <form v-else class="workspace-add-form" @submit.prevent="addWorkspace">
+              <input v-model="newWorkspaceName" placeholder="Workspace name" maxlength="80" autofocus @keydown.esc="addingWorkspace = false" />
+              <button type="submit" :disabled="!newWorkspaceName.trim()">Create</button>
+              <small v-if="workspaceError" class="workspace-error">{{ workspaceError }}</small>
+            </form>
           </div>
         </div>
       </div>

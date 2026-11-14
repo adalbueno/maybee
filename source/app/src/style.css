@@ -1063,3 +1063,10 @@ a { color: inherit; }
 .k-moves button.start { background: var(--ink); color: #fff; }
 .k-moves button.start:hover:not(:disabled) { background: var(--accent); color: var(--ink); }
 .k-moves button.start:disabled { opacity: .6; cursor: default; }
+
+.workspace-add { border-top: 1px solid var(--line, rgba(128,128,128,.2)); border-radius: 0 0 11px 11px; margin-top: 4px; }
+.workspace-add-form { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 9px 4px; }
+.workspace-add-form input { flex: 1; min-width: 0; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line, rgba(128,128,128,.3)); background: var(--card); color: inherit; font: inherit; font-size: 12.5px; }
+.workspace-add-form button { padding: 6px 10px; border-radius: 8px; background: var(--accent-soft); font-size: 12px; font-weight: 700; }
+.workspace-add-form button:disabled { opacity: .5; }
+.workspace-error { width: 100%; color: #c0392b; font-size: 11px; }

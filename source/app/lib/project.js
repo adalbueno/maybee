@@ -247,6 +247,7 @@ function kindOf(rel, fm) {
   if (rel.startsWith('logs/metrics/')) return 'Numbers'
   if (rel.startsWith('logs/conversations/')) return 'Your words'
   if (rel.startsWith('people/')) return 'Member'
+  if (rel.startsWith('decisions/') && !rel.endsWith('/README.md')) return 'Decision'
   if (rel.startsWith('knowledge/')) return 'Knowledge'
   if (rel.startsWith('system/')) return 'System'
   return 'Note'

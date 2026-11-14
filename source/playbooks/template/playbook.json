@@ -1,0 +1,6 @@
+{
+  "name": "template",
+  "title": "Template",
+  "description": "A blank workspace: project brief, state, dashboard and the standard folders. New workspaces created in the app start as a copy of the workspace/ folder.",
+  "workspace": "workspace"
+}
