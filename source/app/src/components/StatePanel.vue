@@ -26,14 +26,23 @@ const PLACES = [
   { key: 'activity', name: 'Activity', text: 'What changed lately, newest first.' },
   { key: 'vault', name: 'Vault', text: 'Every file of the project, with search.' },
 ]
-// the files that hold the project's memory: its brief and state, and the owner and knowledge folders
+// the files that hold the project's memory: its brief and state, who it is for, what it offers, how it sounds,
+// the decisions made, and the owner and knowledge notes that sit directly in their folders
 const KEY_FILES = ['PROJECT.md', 'STATE.md', 'README.md']
 const memory = computed(() => {
   const by = path => files.value.find(f => f.path === path)
   const group = (label, items) => items.length ? { label, items } : null
-  const inFolder = dir => files.value.filter(f => f.path.startsWith(dir) && f.path.split('/').length === 2).sort((a, b) => a.title.localeCompare(b.title)).slice(0, 8)
+  const inFolder = (dir, newestFirst = false) => {
+    const list = files.value.filter(f => f.path.startsWith(dir) && f.path.split('/').length === dir.split('/').length)
+    const byName = (x, y) => x.path.localeCompare(y.path)
+    return list.sort(newestFirst ? (x, y) => byName(y, x) : byName).slice(0, 8)
+  }
   return [
     group('The project', KEY_FILES.map(by).filter(Boolean)),
+    group('Audience', inFolder('knowledge/audience/')),
+    group('Offer', inFolder('knowledge/offer/')),
+    group('Brand', inFolder('knowledge/brand/')),
+    group('Decisions', inFolder('decisions/', true)),
     group('Owner', inFolder('owner/')),
     group('Knowledge', inFolder('knowledge/')),
   ].filter(Boolean)
