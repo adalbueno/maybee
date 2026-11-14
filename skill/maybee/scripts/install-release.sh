@@ -150,6 +150,10 @@ install_skill() {
     cp -a "$source_dir" "$target"
   done
 }
+# Older versions shipped a separate maybee-board skill; its content now lives in the maybee skill. Remove the old copy.
+for client in .claude .agents; do
+  rm -rf "$WORKSPACE/$client/skills/maybee-board"
+done
 install_skill maybee "$PACKAGE/skill/maybee"
 if [ -d "$PACKAGE/skills" ]; then
   for skill_dir in "$PACKAGE"/skills/*/; do

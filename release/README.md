@@ -3,7 +3,7 @@
 This directory is installed under `.maybee/package/` in the user's workspace. The distributable archive is named `maybee-package-<version>.zip`; the separate `maybee-<version>.zip` archive is only the bootstrap skill for Claude/Codex.
 
 - `app/` is the local visualization and bridge, delivered built and minified (`web/` is the pre-compiled interface; the server and the agent scripts are single bundled files). Only `playwright-core` is installed on the user's machine.
-- `skills/` contains the skills the package ships (today `maybee-board`, the card format and rules). The installer makes them available to the agent clients in the workspace.
+- `skill/maybee/` is the one skill the package ships. Its `SKILL.md` routes to references: `install.md` (install, update, start), `board.md` (the card format and rules) and `write.md` (writing for the project). The installer makes it available to the agent clients in the workspace.
 - `skill/maybee/` is the bootstrap skill that can install or update this package.
 - `workspaces/default/` is the ready-made default playbook: project, state, dashboard, onboarding cards, routines and supporting folders.
 - `knowledge/` contains package-level documentation and defaults.
@@ -25,3 +25,4 @@ Maybee can contain multiple workspaces in one installation. The original project
 On a fresh install, the installer seeds `workspaces/default/` from the package. Existing files are preserved, so updating Maybee never replaces a user's playbook or notes.
 
 Workspace routes are addressable directly: `http://127.0.0.1:<port>/<workspace>/overview` (for example `/playbook-demo/overview`). Opening a workspace URL selects that workspace automatically.
+

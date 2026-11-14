@@ -1,8 +1,3 @@
----
-name: maybee-board
-description: "How Maybee cards work: the file format, stages, priority and routine settings. Use whenever you create, edit, move, run or describe an idea, task or routine in a Maybee workspace, so the card shows up on the board the way the app expects."
----
-
 # Maybee board rules
 
 A Maybee board is a folder of Markdown files. The app reads them, shows them as cards and writes back the small changes the user makes (moving a card, changing a setting). You and the app edit the same files, so keep to this format and the board stays correct.
@@ -40,7 +35,7 @@ Anything else in the frontmatter is kept and ignored. If a card has no descripti
 - **Done:** finished work, kept visible as history. Set `done: YYYY-MM-DD`.
 - **Not:** set aside on purpose. Hidden from the board by default. Add a short "Why not" section with the user's reason, so it is not forgotten for the wrong reason.
 
-Routines have their own column and do not use these stages (only `not` takes one out of use).
+Routines have their own Routines column on the board. What puts a card there is `type: routine`, not `stage`: a routine's `stage` is ignored, except `stage: not`, which hides it.
 
 **Moving cards is the user's call.** Offer, don't decide: never move a card to `next` or `now` on your own. Moving to `done` after you finished something the user asked for is fine, with the date.
 
@@ -59,7 +54,7 @@ Score = (`value_members` + `want` + `value_money`) points ÷ `hard` points. The 
 
 ## Routines
 
-A routine is a card with `type: routine`. It stays out of the stages and shows on the routine list.
+A routine is a card with `type: routine`. It shows in the Routines column, not in Maybe, Next, Now or Done, and it does not need a `stage` (leave it out; `stage: not` hides the routine).
 
 | Field | Values | Meaning |
 |---|---|---|

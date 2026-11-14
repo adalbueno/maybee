@@ -2,7 +2,6 @@
 id: R1
 title: "How routines and settings work"
 type: routine
-stage: now
 owner: both
 kind: Routine
 recurring: daily
