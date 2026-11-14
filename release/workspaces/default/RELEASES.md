@@ -2,6 +2,16 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.32 · 14 Nov 2026
+
+**Sort the Maybe column the way you want, see why a card was set aside, and always know which column a note is in.**
+
+- **Maybe sorts six ways.** The Sort menu on the column orders it by priority, easy first, value for members, value for business, most recent, or unrated first. A sort writes the new order into each card's `rank`, so it replaces an order set by hand; Undo puts the earlier order back for ten seconds. Cards without all four reactions go last, except in "Unrated first".
+- **A card in Not shows why.** The reason is the `why_not` line of the note, set in Settings, or else the first paragraph under a "Why not" heading.
+- **A stage badge beside the title** of every card you open, with the color of its column.
+- **Replies in the note chat are Markdown**: lists, bold and code are drawn. Raw HTML is never shown.
+- **Fixes.** `knowledge/offer/product.md` in the template had a description with an unquoted colon, which is not valid YAML (existing workspaces: quote the `description` line). Links with `%2C` are no longer reported as broken.
+
 ## 0.1.31 · 14 Nov 2026
 
 **Follow the links in your notes, edit tables right where they are, and find your files faster in About.**
