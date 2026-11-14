@@ -205,7 +205,10 @@ async function projectSummary(root) {
     const title = plainMarkdown((/^#\s+(.+)$/m.exec(body) || [])[1] || path.basename(root))
     const blocks = body.split(/\n\s*\n/).map(x => x.trim())
     const summary = blocks.find(x => x && !/^(#|>|-|\*|\||```|!\[)/.test(x) && !/^\[.*\]\(.*\)$/.test(x))
-    return { title: title || path.basename(root), summary: plainMarkdown(summary), path: rel }
+    // The "Current goal" section of the brief, when it has one: what the project is trying to do right now.
+    const gm = /^##\s+(?:Current goal|Goal)\s*$([\s\S]*?)(?=^##\s|(?![\s\S]))/mi.exec(body)
+    const goal = gm ? plainMarkdown(gm[1].split(/\n\s*\n/).map(x => x.trim()).find(x => x && !/^(#|>|\|```)/.test(x))) : ''
+    return { title: title || path.basename(root), summary: plainMarkdown(summary), goal, path: rel }
   }
   return { title: path.basename(root), summary: '', path: null }
 }

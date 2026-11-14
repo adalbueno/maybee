@@ -1,7 +1,7 @@
 <script setup>
-import AskClaude from './AskClaude.vue'
 import RoutineSchedule from './RoutineSchedule.vue'
 import { ask, claude } from '../ask.js'
+import { movesFor } from '../stages.js'
 import { ref, computed, onMounted, watch } from 'vue'
 const props = defineProps({ changedAt: Number, activePath: String })
 const emit = defineEmits(['open'])
@@ -36,6 +36,9 @@ async function notToday(r) {
   const res = await fetch('/api/fields', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: r.path, title: r.full || r.title, fields: { not_today: new Date().toLocaleDateString('sv-SE') } }) })
   if (res.ok) routines.value = routines.value.filter(x => x.path !== r.path)
 }
+// Start: the assistant works on a Now card. With a next step it does that; without one it picks the first step itself.
+const working = c => [...claude.items].some(i => i.path === c.path && ['Work on this now', 'Do the next step'].includes(i.action) && ['pending', 'queued', 'working'].includes(i.status))
+const start = c => ask({ action: c.nextStep ? 'Do the next step' : 'Work on this now', path: c.path, title: c.title })
 const runRoutine = r => ask({ action: 'Run routine', path: r.path, title: r.full || r.title })
 // D246: drag to reorder (order = priority = run order), gear to set how it runs by itself, Run all in order
 const rDrag = ref(null)
@@ -199,7 +202,6 @@ async function pull(card, stage) {
   backlog.value = backlog.value.filter(c => c.path !== card.path)
 }
 
-const ownerMark = o => ({ agent: 'Agent', Adal: 'You', owner: 'You', both: 'You + agent' }[o] || null)
 </script>
 
 <template>
@@ -232,31 +234,33 @@ const ownerMark = o => ({ agent: 'Agent', Adal: 'You', owner: 'You', both: 'You 
             <p v-else-if="!rTodo.length" class="r-empty ok">✓ All of today's routines are done.</p>
             <template v-for="({ r, part }, i) in rShown" :key="r.path">
             <div v-if="i === NEXT" class="r-sub">The rest for today</div>
-            <div class="r-card" :class="{ 'r-next': part === 'next', 'r-dragging': rDrag === r.path, 'r-over': rOver === r.path && rDrag !== r.path, 'r-running': runState(r) === 'working', 'r-queued': runState(r) === 'queued' || runState(r) === 'pending' }"
+            <article class="kcard routine" :class="{ 'r-next': part === 'next', dragging: rDrag === r.path, 'r-over': rOver === r.path && rDrag !== r.path, 'r-running': runState(r) === 'working', 'r-queued': runState(r) === 'queued' || runState(r) === 'pending' }"
                  draggable="true" @dragstart="rStart(r, $event)" @dragover="rEnter(r, $event)" @drop="rDrop(r, $event)" @dragend="rEnd"
                  @click="emit('open', { path: r.path, key: r.path })">
-              <span v-if="runState(r) === 'working'" class="r-num r-spin" title="Claude is doing this now"></span>
-              <span v-else class="r-num" title="Drag to reorder">{{ i + 1 }}</span>
-              <div class="r-main">
-                <b>{{ r.full || r.title }}</b>
-                <span v-if="runState(r) === 'working'" class="r-state run">Claude is doing this now…</span>
-                <span v-else-if="runState(r) === 'queued'" class="r-state">In line, Claude does it after the one running</span>
-                <span v-else>{{ r.recurring }}<template v-if="r.at"> · at {{ r.at }}</template><template v-if="r.stale"> · <em>{{ r.last ? `${r.idle} days without` : 'Never run' }}</em></template><template v-if="r.auto"> · {{ autoLabel(r) }}</template></span>
-                <a v-if="r.deliverable" class="r-deliv" @click.stop="emit('open', { path: r.deliverable, key: r.deliverable })" :title="r.deliverable">📄 {{ delivName(r) }}</a>
+              <div class="k-meta">
+                <span class="tag">Routine</span>
+                <span class="prio" title="Run order: drag to change">{{ i + 1 }}</span>
               </div>
-              <button class="r-gear" :class="{ on: r.auto, open: gearFor === r.path }" @click.stop="openGear(r)" title="Run by itself: every session, or every N hours, days, weeks or months">⚙</button>
-              <div class="r-split" @click.stop>
-                <button class="pill-btn yellow" :disabled="runState(r) === 'pending' || runState(r) === 'queued' || runState(r) === 'working'" @click="runRoutine(r)">
-                  {{ runState(r) === 'working' ? 'Running…' : runState(r) === 'queued' ? 'In line' : runState(r) === 'pending' ? 'Sent' : 'Run' }}
-                </button>
-                <button class="r-caret" :class="{ open: menuFor === r.path }" @click="menuFor = menuFor === r.path ? null : r.path" title="More">▾</button>
-                <div v-if="menuFor === r.path" class="r-menu">
-                  <button @click="menuFor = null; notToday(r)">Not today <small>comes back tomorrow</small></button>
-                  <button v-if="removeAsk !== r.path" class="danger" @click="removeAsk = r.path">Remove routine <small>stops it for good (stage: not)</small></button>
-                  <button v-else class="danger sure" @click="removeRoutine(r)">Sure? Remove it <small>the note stays, you can bring it back</small></button>
+              <h3>{{ r.full || r.title }}</h3>
+              <p v-if="runState(r) === 'working'" class="r-state run">Claude is doing this now…</p>
+              <p v-else-if="runState(r) === 'queued'" class="r-state">In line, Claude does it after the one running</p>
+              <p v-else>{{ r.recurring }}<template v-if="r.at"> · at {{ r.at }}</template><template v-if="r.stale"> · <em>{{ r.last ? `${r.idle} days without` : 'Never run' }}</em></template><template v-if="r.auto"> · {{ autoLabel(r) }}</template></p>
+              <a v-if="r.deliverable" class="r-deliv" @click.stop="emit('open', { path: r.deliverable, key: r.deliverable })" :title="r.deliverable">📄 {{ delivName(r) }}</a>
+              <div class="k-moves r-actions" @click.stop>
+                <div class="r-split">
+                  <button class="pill-btn yellow" :disabled="runState(r) === 'pending' || runState(r) === 'queued' || runState(r) === 'working'" @click="runRoutine(r)">
+                    {{ runState(r) === 'working' ? 'Running…' : runState(r) === 'queued' ? 'In line' : runState(r) === 'pending' ? 'Sent' : 'Run' }}
+                  </button>
+                  <button class="r-caret" :class="{ open: menuFor === r.path }" @click="menuFor = menuFor === r.path ? null : r.path" title="More">▾</button>
+                  <div v-if="menuFor === r.path" class="r-menu">
+                    <button @click="menuFor = null; notToday(r)">Not today <small>comes back tomorrow</small></button>
+                    <button v-if="removeAsk !== r.path" class="danger" @click="removeAsk = r.path">Remove routine <small>stops it for good (stage: not)</small></button>
+                    <button v-else class="danger sure" @click="removeRoutine(r)">Sure? Remove it <small>the note stays, you can bring it back</small></button>
+                  </div>
                 </div>
+                <button class="r-gear" :class="{ on: r.auto, open: gearFor === r.path }" @click.stop="openGear(r)" title="Run by itself: every session, or every N hours, days, weeks or months">⚙</button>
               </div>
-            </div>
+            </article>
             <RoutineSchedule v-if="gearFor === r.path" :r="r" cancelable @cancel="gearFor = null" @saved="v => { Object.assign(r, v); gearFor = null; say('Saved') }" />
             </template>
             <button v-if="rTodo.length > NEXT" class="r-fold" @click.stop="fold.more = !fold.more">
@@ -266,22 +270,26 @@ const ownerMark = o => ({ agent: 'Agent', Adal: 'You', owner: 'You', both: 'You 
               <span class="caret" :class="{ open: fold.later }">▸</span>Later today <small>{{ rLater.length }}</small>
             </button>
             <template v-if="fold.later">
-              <div v-for="r in rLater" :key="r.path" class="r-card r-later" @click="emit('open', { path: r.path, key: r.path })">
-                <span class="r-num r-clock" title="Waits">◷</span>
-                <div class="r-main"><b>{{ r.full || r.title }}</b><span>{{ laterLabel(r) }}</span><a v-if="r.deliverable" class="r-deliv" @click.stop="emit('open', { path: r.deliverable, key: r.deliverable })" :title="r.deliverable">📄 {{ delivName(r) }}</a></div>
-                <div class="r-split" @click.stop>
+              <article v-for="r in rLater" :key="r.path" class="kcard routine r-later" @click="emit('open', { path: r.path, key: r.path })">
+                <div class="k-meta"><span class="tag">Routine</span><span class="prio" title="Waits">◷</span></div>
+                <h3>{{ r.full || r.title }}</h3>
+                <p>{{ laterLabel(r) }}</p>
+                <a v-if="r.deliverable" class="r-deliv" @click.stop="emit('open', { path: r.deliverable, key: r.deliverable })" :title="r.deliverable">📄 {{ delivName(r) }}</a>
+                <div class="k-moves r-actions" @click.stop>
                   <button class="pill-btn ghost" :disabled="runState(r) === 'pending' || runState(r) === 'queued' || runState(r) === 'working'" @click="runRoutine(r)" title="Run it now anyway">Run now</button>
                 </div>
-              </div>
+              </article>
             </template>
             <button v-if="rFinished.length" class="r-fold" @click.stop="fold.done = !fold.done">
               <span class="caret" :class="{ open: fold.done }">▸</span>Done today <small>{{ rFinished.length }}</small>
             </button>
             <template v-if="fold.done">
-              <div v-for="r in rFinished" :key="r.path" class="r-card r-done" @click="emit('open', { path: r.path, key: r.path })">
-                <span class="r-num r-check" title="Done today">✓</span>
-                <div class="r-main"><b>{{ r.full || r.title }}</b><span class="r-state ok">Done today · back {{ r.recurring === 'daily' ? 'tomorrow' : 'when due' }}</span><a v-if="r.deliverable" class="r-deliv" @click.stop="emit('open', { path: r.deliverable, key: r.deliverable })" :title="r.deliverable">📄 {{ delivName(r) }}</a></div>
-              </div>
+              <article v-for="r in rFinished" :key="r.path" class="kcard routine r-done" @click="emit('open', { path: r.path, key: r.path })">
+                <div class="k-meta"><span class="tag">Routine</span><span class="prio" title="Done today">✓</span></div>
+                <h3>{{ r.full || r.title }}</h3>
+                <p class="r-state ok">Done today · back {{ r.recurring === 'daily' ? 'tomorrow' : 'when due' }}</p>
+                <a v-if="r.deliverable" class="r-deliv" @click.stop="emit('open', { path: r.deliverable, key: r.deliverable })" :title="r.deliverable">📄 {{ delivName(r) }}</a>
+              </article>
             </template>
           </div>
           <article
@@ -290,13 +298,12 @@ const ownerMark = o => ({ agent: 'Agent', Adal: 'You', owner: 'You', both: 'You 
           >
             <div class="k-meta">
               <span class="tag">{{ c.type === 'task' ? 'Task' : 'Idea' }}</span>
-              <span v-if="c.id" class="k-id">{{ c.id }}</span>
               <span v-if="c.priority" class="prio" :title="'Priority ' + c.priority + ' (score ' + c.score + ', D170)'">{{ c.priority }}</span>
             </div>
             <h3>{{ c.title }}</h3>
             <p v-if="c.description">{{ c.description }}</p>
-            <div v-if="col.key === 'now'" class="next-step" :class="{ missing: !c.nextStep }">
-              <span>Next step</span>{{ c.nextStep || 'Not written yet. Ask Claude what it should be.' }}
+            <div v-if="col.key === 'now' && c.nextStep" class="next-step">
+              <span>Next step</span>{{ c.nextStep }}
             </div>
             <div v-if="col.key === 'now' && c.files && c.files.length" class="files" @click.stop>
               <button v-for="f in c.files" :key="f.path" class="file" :class="{ media: f.media }" @click="emit('open', { path: f.path })" :title="f.path">
@@ -308,14 +315,16 @@ const ownerMark = o => ({ agent: 'Agent', Adal: 'You', owner: 'You', both: 'You 
               </button>
               <span v-if="c.moreFiles" class="more-files">+{{ c.moreFiles }}</span>
             </div>
+            <div v-if="col.key !== 'routine'" class="k-moves" @click.stop>
+              <button v-if="col.key === 'now'" class="start" :disabled="working(c)" :title="c.nextStep ? 'Ask your assistant to do the next step' : 'Ask your assistant to start working on this'" @click="start(c)">{{ working(c) ? 'Working…' : c.nextStep ? 'Do the next step' : 'Start' }}</button>
+              <button v-for="m in movesFor(c.stage)" :key="m.to" :class="m.primary ? 'primary' : 'sec'" :title="'Move to ' + m.to" @click="move(c, m.to)">{{ m.label }}</button>
+            </div>
             <div class="k-foot">
               <span v-if="c.area">{{ c.area }}</span>
-              <span v-if="ownerMark(c.owner)">{{ ownerMark(c.owner) }}</span>
-              <AskClaude v-if="col.key === 'now'" class="k-ask" :path="c.path" :title="c.title" :quick="c.nextStep ? ['Do the next step', 'What is blocking this?'] : ['What should the next step be?', 'What is blocking this?']" small />
             </div>
           </article>
           <div v-if="col.key === 'routine' && !routines.length" class="empty">No routines yet. Ask Maybee to create one.</div>
-          <div v-else-if="!cols[col.key].cards.length" class="empty">Nothing here. Drag a card onto this column.</div>
+          <div v-else-if="col.key !== 'routine' && !cols[col.key].cards.length" class="empty">Nothing here. Drag a card onto this column.</div>
         </div>
         <button v-if="col.key === 'maybe' && cols.maybe.count > cols.maybe.cards.length" class="more-ideas" @click="openBacklog">
           +{{ cols.maybe.count - cols.maybe.cards.length }} more ideas

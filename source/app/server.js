@@ -13,7 +13,7 @@ import { desktop, setFields, dayKey, nowCards, routinesOn, overviewState, resolv
 import { initInbox, readInbox, addRequest, listening, lastHeard, promptFor } from './lib/inbox.js'
 import { initSnapshots, snapshot, diffFor } from './lib/snapshots.js'
 import { verifySkool } from './local-skool-verifier.js'
-import { openAppWindow } from './lib/browser.js'
+import { openAppWindow, ensureBrowser } from './lib/browser.js'
 import { dataPath, DATA_DIR } from './lib/paths.js'
 
 const APP_DIR = path.dirname(fileURLToPath(import.meta.url))
@@ -533,6 +533,14 @@ async function main() {
       if (url.pathname === '/api/session/heartbeat' && req.method === 'POST') return sendJSON(res, await heartbeat())
       if (url.pathname.startsWith('/api/') && !accessSession.valid) return sendJSON(res, { error: 'Skool membership must be verified for this session.', access: accessStatus() }, 403)
       if (url.pathname.startsWith('/api/')) touchAppActivity(url.pathname)
+      // The control address of Maybee's own browser, for an agent that needs a browser for a task (scripts/browser.js).
+      // Behind the membership check like every /api/ call.
+      if (url.pathname === '/api/browser' && req.method === 'GET') {
+        try {
+          const c = await ensureBrowser(appUrl())
+          return sendJSON(res, { ok: true, endpoint: `http://127.0.0.1:${c.port}` })
+        } catch (error) { return sendJSON(res, { ok: false, error: error.message }, 500) }
+      }
       if (url.pathname === '/api/workspaces' && req.method === 'GET') return sendJSON(res, { active: activeWorkspace, items: workspaceList() })
       if (url.pathname === '/api/workspaces/switch' && req.method === 'POST') {
         const body = await readBody(req)
@@ -594,6 +602,7 @@ async function main() {
         try {
           const r = await setStage(ROOT, body.path, body.stage, body.mtime)
           if (r.from !== r.to) await topOfColumn(ROOT, getIndex(), body.path, body.stage).catch(() => {})
+          if (r.to === 'done' && r.from !== 'done') await setFields(ROOT, body.path, { done: new Date().toLocaleDateString('sv-SE') }).catch(() => {})
           await statFile(ROOT, body.path)
           seen.items[body.path] = Date.now() + 2000; saveSeen(); await snapshot(body.path)
           if (r.from !== r.to) await logChange(ROOT, `${body.title || body.path}: stage ${r.from || '—'} → ${r.to} (${body.path})`)

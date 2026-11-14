@@ -73,6 +73,14 @@ async function resolveItem(item, destination) {
       <button v-if="st.project.path" class="source-link" @click="open(st.project.path)">Open project brief</button>
     </header>
 
+    <section v-if="st.project.goal || st.focus.length" class="brief-block now-state">
+      <div class="block-head"><div><span class="eyebrow">Where we are</span><h2>Goal and focus</h2></div><button v-if="st.updated" class="source-link" @click="open('STATE.md')" :title="'STATE.md, updated ' + dayLabel(st.updated)">STATE · {{ dayLabel(st.updated) }}</button></div>
+      <article v-if="st.project.goal" class="brief-card clickable goal-card" @click="open(st.project.path)"><span class="eyebrow">Current goal</span><b>{{ st.project.goal }}</b></article>
+      <article v-for="(item, i) in st.focus" :key="'focus-' + i" class="brief-card clickable" :class="{ clickable: true }" @click="open(item.link || 'STATE.md')">
+        <span class="eyebrow">Focus</span><b>{{ item.title }}</b><p v-if="item.text">{{ item.text }}</p>
+      </article>
+    </section>
+
     <div v-if="counts" class="about-nums">
       <button v-for="(n, i) in [['Now', counts.now], ['Next', counts.next], ['Maybe', counts.maybe], ['Done this week', counts.week]]" :key="n[0]" :class="{ hot: i === 0 && n[1] }" @click="emit('go', 'workspace')"><span>{{ n[0] }}</span><b>{{ n[1] }}</b></button>
     </div>
@@ -173,6 +181,11 @@ async function resolveItem(item, destination) {
 .empty { margin: 0; min-height: 92px; display: grid; place-items: center; padding: 18px; border: 1px dashed var(--line); border-radius: 20px; background: rgba(255,255,255,.2); color: var(--ink-3); font-size: 13px; line-height: 1.5; text-align: center; }
 @media (max-width: 900px) { .brief-grid, .lower-grid { grid-template-columns: 1fr; } .compact-grid { grid-template-columns: 1fr; } }
 @media (max-width: 620px) { .brief-hero { align-items: flex-start; flex-direction: column; } .brief-hero h1 { font-size: 31px; } .brief-meta span:last-child { display: none; } }
+.now-state { margin-top: 30px; display: grid; gap: 10px; }
+.now-state .block-head { margin-bottom: 4px; }
+.now-state .brief-card .eyebrow { margin-bottom: 7px; }
+.goal-card { background: var(--accent-soft, #fff6c2); }
+.goal-card b { font-size: 16.5px; line-height: 1.4; }
 .about-nums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 26px 0 0; }
 .about-nums button { background: var(--card); border-radius: 18px; padding: 15px 17px 14px; text-align: left; display: flex; flex-direction: column; gap: 10px; }
 .about-nums button:hover { background: var(--card-hi); box-shadow: 0 0 0 2px var(--accent); }

@@ -1027,3 +1027,39 @@ a { color: inherit; }
 .kcard.drop-after { box-shadow: 0 3px 0 0 var(--accent); }
 .filters .files-toggle { margin-left: auto; }
 .place-badge { display: inline-block; margin-left: 7px; min-width: 18px; padding: 2px 6px; border-radius: 99px; background: var(--accent); color: var(--ink); font: 700 11px/1.2 var(--sans); text-align: center; vertical-align: 1px; }
+
+/* Board: move a card without dragging */
+.k-moves { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.k-moves button { padding: 5px 11px; border-radius: 99px; font-size: 12px; font-weight: 650; background: var(--card); color: var(--ink-2); }
+.k-moves button.primary { background: var(--accent); color: var(--ink); }
+.k-moves button:hover { background: var(--ink); color: #fff; }
+.k-moves button.sec { opacity: 0; pointer-events: none; transition: opacity .12s; }
+.kcard:hover .k-moves button.sec, .kcard:focus-within .k-moves button.sec { opacity: 1; pointer-events: auto; }
+@media (hover: none) { .k-moves button.sec { opacity: 1; pointer-events: auto; } }
+
+/* Routines look like every other card; only the Run button is theirs */
+.r-today { display: flex; flex-direction: column; gap: 10px; }
+.r-today > .r-head { display: flex; }
+.kcard.routine .k-moves.r-actions { align-items: center; margin-top: 12px; }
+.kcard.routine .k-moves button.pill-btn { padding: 6px 14px; font-size: 12.5px; }
+.kcard.routine .r-split .pill-btn.yellow { background: var(--accent); color: var(--ink); }
+.kcard.routine .pill-btn:disabled { background: var(--ink); color: #fff; opacity: .7; cursor: default; }
+.kcard.routine .r-gear { margin-left: auto; }
+.kcard.routine .r-state.ok { color: var(--good); }
+.kcard.routine.r-over { box-shadow: 0 -3px 0 0 var(--accent); }
+.kcard.routine.r-running { background: var(--ink); color: #fff; box-shadow: none; }
+.kcard.routine.r-running h3, .kcard.routine.r-running p { color: #fff; }
+.kcard.routine.r-later { opacity: .75; }
+.kcard.routine.r-done { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+.kcard.routine.r-done h3 { color: var(--ink-3); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--ink-3) 60%, transparent); font-weight: 600; }
+.kcard.routine p em { font-style: normal; color: var(--bad); font-weight: 600; }
+.kcard.routine .r-deliv { display: inline-block; margin-top: 8px; }
+
+.k-moves .r-split .pill-btn { border-radius: 99px 0 0 99px; }
+.k-moves .r-caret { padding: 0 10px; border-radius: 0 99px 99px 0; background: var(--accent); color: var(--ink); font-size: 11px; opacity: 1; pointer-events: auto; }
+.k-moves .r-caret:hover, .k-moves .r-caret.open { background: var(--accent); filter: brightness(.95); color: var(--ink); }
+.k-moves .r-gear { padding: 0; width: 28px; height: 28px; border-radius: 50%; background: transparent; color: var(--ink-3); font-size: 15px; }
+.k-moves .r-gear:hover, .k-moves .r-gear.open { background: var(--accent-soft); color: var(--ink); }
+.k-moves button.start { background: var(--ink); color: #fff; }
+.k-moves button.start:hover:not(:disabled) { background: var(--accent); color: var(--ink); }
+.k-moves button.start:disabled { opacity: .6; cursor: default; }

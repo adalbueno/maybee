@@ -448,6 +448,6 @@ const updated = computed(() => note.value && note.value.mtime
         </template>
       </template>
     </div>
-    <NoteChat v-if="note && !note.error && note.ext === '.md' && (!editing || inline)" :key="'chat:' + note.path" :path="note.path" :title="note.title" @settled="load(true)" />
+    <NoteChat v-if="note && !note.error && note.ext === '.md' && (!editing || inline)" :key="'chat:' + note.path" :path="note.path" :title="note.title" :stage="isIdeaNote && note.frontmatter.type !== 'routine' ? String(note.frontmatter.stage || 'maybe') : ''" @settled="load(true)" />
   </aside>
 </template>

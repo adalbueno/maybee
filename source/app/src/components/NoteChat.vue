@@ -4,7 +4,8 @@
 // (ask.js), so both end up in the same place.
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { ask, claude } from '../ask.js'
-const props = defineProps({ path: String, title: String })
+import { quickFor } from '../stages.js'
+const props = defineProps({ path: String, title: String, stage: { type: String, default: '' } })
 const emit = defineEmits(['settled'])
 
 const items = ref([])
@@ -92,7 +93,7 @@ function onDockKey(e) {
           </template>
         </div>
         <div class="quick">
-          <button v-for="q in ['Review this', 'Work on this now', 'What should change here?']" :key="q" :disabled="sending" @click="send(q)">{{ q }}</button>
+          <button v-for="q in quickFor(stage)" :key="q" :disabled="sending" @click="send(q)">{{ q }}</button>
         </div>
       </div>
       <div class="compose">

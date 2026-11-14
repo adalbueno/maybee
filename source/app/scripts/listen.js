@@ -28,14 +28,14 @@ function tick() {
     fs.writeFileSync(inbox, JSON.stringify(list, null, 1))
     for (const r of pending) {
       // One line per request: each line is a wake-up. Everything needed to handle it is on that line.
-      console.log('MAYBEE REQUEST ' + JSON.stringify(r) + ' | Do: "Do the next step"/"Work on this now" = the note\'s next_step (ask Adal if empty), then write the following next_step; "Run routine" = the routine the note describes, set last_done to today, anything external is drafted and waits for Adal\'s OK. First: node "' + path.join(here, 'status.js') + '" start ' + r.id + ' . When done: node "' + path.join(here, 'reply.js') + '" ' + r.id + ' "short reply"')
+      console.log('MAYBEE REQUEST ' + JSON.stringify(r) + ' | Do: "Do the next step" = the note\'s next_step, then write the following next_step. "Work on this now" (the Start button) = the same, and when next_step is empty, read the note, pick the first concrete step yourself, do it, then write the following next_step; "Run routine" = the routine the note describes, set last_done to today, anything external is drafted and waits for Adal\'s OK; any other action (Help me explore this idea, Look for gaps in this, ...) is a request about that note: read the note and answer it. First: node "' + path.join(here, 'status.js') + '" start ' + r.id + ' . When done: node "' + path.join(here, 'reply.js') + '" ' + r.id + ' "short reply"')
     }
   } else if (pending.length) {
     for (const r of pending) r.status = 'queued' // with Claude, in line; status.js start <id> marks the one running now
     fs.writeFileSync(inbox, JSON.stringify(list, null, 1))
     console.log('MAYBEE REQUESTS (from Adal, via the app):')
     for (const r of pending) console.log(JSON.stringify(r))
-    console.log('"Do the next step" / "Work on this now" = do what the note\'s next_step field says (ask Adal if it is empty), then write the following next_step in the note.')
+    console.log('"Do the next step" / "Work on this now" = do what the note\'s next_step field says, then write the following next_step in the note. "Work on this now" (the Start button) is the same, and when next_step is empty you read the note, pick the first concrete step yourself, do it, and write the following next_step. Either way, anything external is drafted and waits for Adal\'s OK.')
     console.log('"Run routine" = do the routine that note describes (its skill, if it names one) for today, set last_done to today in the note when done; anything that goes outside (DMs, posts, comments) is drafted and waits for Adal\'s OK in the chat (D241).')
     console.log('Before each one: node "' + path.join(here, 'status.js') + '" start <id> (the app shows it as running). When done: node "' + path.join(here, 'reply.js') + '" <id> "short reply"')
     console.log('Running a routine on your own (from the chat)? node "' + path.join(here, 'status.js') + '" start --path "<note path>" first, then reply.js <id> when done.')

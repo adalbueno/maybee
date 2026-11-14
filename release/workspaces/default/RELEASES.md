@@ -2,6 +2,18 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.28 · 14 Nov 2026
+
+**Move cards with a click, ask your assistant the right thing for each column, and let it use a browser.**
+
+- **Buttons to move a card.** Maybe has "Do it next", Next has "Start now", Now has "Mark done". Going back a column or to Not is one hover away ("Back to Next", "Not now"), on the board and at the top of the note. Done has "Reopen". Marking a card done from the board also records the date.
+- **The assistant's quick asks follow the column.** In Maybe it helps you explore the idea, in Next it looks for gaps, refines and checks if the card is ready, and in Now it works on it.
+- **Start on cards in Now.** A card with a next step shows "Do the next step". A card without one shows just "Start", and your assistant picks the first step itself and does it. The "next step not written" warning is gone.
+- **Routines look like every other card.** The same card, with the Run button, the Not today and Remove menu, the auto-run gear and the run order. The empty box under the routines is gone.
+- **Cleaner cards.** The Ask AI button and the "You + agent" label are gone from the cards, and so is the ticket number (T1, I3). It is still in the note's file. Ask your assistant through the chat inside the note.
+- **About shows the goal and the focus.** The goal from the project brief and the focus from STATE sit right under the title.
+- **Your assistant can use Maybee's browser, in a window of its own.** For a task that needs a web page, it opens a new window in Maybee's browser (the one with your Skool login), never the app window. It only works after the membership check, it never reads your passwords or cookies, and anything that goes out, like posting or messaging, waits for your OK.
+
 ## 0.1.27 · 14 Nov 2026
 
 **Maybee opens on the Workspace board.**

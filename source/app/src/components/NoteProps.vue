@@ -1,4 +1,5 @@
 <script setup>
+import { movesFor } from '../stages.js'
 // D250: the header of an idea, task or routine note: title with its main action, then a properties area
 // (label on the left, control on the right, all visible). No id, breadcrumb, path or saved time.
 import { ref, computed, watch } from 'vue'
@@ -74,13 +75,9 @@ const ownerKey = computed(() => ({ Adal: 'owner', owner: 'owner', agent: 'agent'
         <template v-if="type === 'routine'">
           <button class="pill-btn yellow" :disabled="runState === 'pending' || runState === 'queued' || runState === 'working'" @click="run">{{ runState === 'working' ? 'Running…' : runState === 'queued' ? 'In line' : runState === 'pending' ? 'Sent' : 'Run' }}</button>
         </template>
-        <template v-else-if="type === 'task'">
-          <button v-if="stage !== 'done'" class="pill-btn yellow" @click="markDone">Mark done</button>
-          <span v-else class="np-done">✓ Done</span>
-        </template>
         <template v-else>
-          <button v-if="stage === 'maybe'" class="pill-btn yellow" @click="setStage('next', 'In Next')">Do it next</button>
-          <button v-if="stage !== 'done'" class="pill-btn ghost" @click="setStage('not', 'Not now')">Not now</button>
+          <span v-if="stage === 'done'" class="np-done">✓ Done</span>
+          <button v-for="m in movesFor(stage)" :key="m.to" class="pill-btn" :class="m.primary ? 'yellow' : 'ghost'" @click="m.to === 'done' ? markDone() : setStage(m.to, m.to === 'not' ? 'Not now' : 'Moved to ' + m.to)">{{ m.label }}</button>
         </template>
       </div>
     </Teleport>
