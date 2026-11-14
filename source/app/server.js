@@ -267,7 +267,7 @@ function accessStatus() {
 }
 
 function appUrl() {
-  return `${instance?.url || `http://${HOST}:${PORT}`}/${activeWorkspace}/overview`
+  return `${instance?.url || `http://${HOST}:${PORT}`}/${activeWorkspace}/workspace`
 }
 
 // Shows Maybee in its own browser window (lib/browser.js: Chromium-based, --app mode, the same
