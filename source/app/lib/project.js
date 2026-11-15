@@ -100,8 +100,12 @@ export async function readNote(dir, rel) {
 const md = new MarkdownIt({ html: true, linkify: true, typographer: false })
 const IMG_EXT = /\.(png|jpe?g|webp|gif|svg)$/i
 const VID_EXT = /\.(mp4|webm|mov)$/i
+const DOC_EXT = /\.(html?|pdf)$/i
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const raw = rel => '/raw?path=' + encodeURIComponent(rel)
+// A page or PDF embedded with ![](file.html) shows inline. Without allow-same-origin the page
+// runs in its own origin, so a script in it cannot call the app's API.
+const frame = (src, title) => `<iframe class="embed" src="${esc(src)}" title="${esc(title)}" loading="lazy" sandbox="allow-scripts allow-popups"></iframe>`
 
 function resolveHref(href, from) {
   if (!href || /^(https?:|mailto:|obsidian:|#)/i.test(href)) return null
@@ -151,6 +155,7 @@ function render(body, from) {
     const rel = resolveName(name, from)
     if (rel && IMG_EXT.test(rel)) return `<img src="${raw(rel)}" alt="${esc(name)}">`
     if (rel && VID_EXT.test(rel)) return `<video src="${raw(rel)}" controls preload="metadata"></video>`
+    if (rel && DOC_EXT.test(rel)) return frame(raw(rel), name)
     if (name.endsWith('.base') || target.includes('.base')) return '' // Obsidian board views: the app has its own board (Adal, 8/11)
     return rel ? `<a href="#" data-path="${esc(rel)}">${esc(name)}</a>` : esc(target)
   })
@@ -187,10 +192,12 @@ md.renderer.rules.image = (tokens, i, opts, env) => {
   const t = tokens[i]
   const src = t.attrGet('src') || ''
   const alt = t.content || ''
+  if (/^https?:/i.test(src) && DOC_EXT.test(src.split(/[?#]/)[0])) return frame(src, alt || src)
   if (/^https?:/i.test(src)) return `<img src="${esc(src)}" alt="${esc(alt)}">`
   const rel = resolveHref(src, env.from)
   if (!rel) return `<span class="missing">[image not found: ${esc(src)}]</span>`
   if (VID_EXT.test(rel)) return `<video src="${raw(rel)}" controls preload="metadata"></video>`
+  if (DOC_EXT.test(rel)) return frame(raw(rel), alt || rel)
   return `<img src="${raw(rel)}" alt="${esc(alt)}">`
 }
 

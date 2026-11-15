@@ -276,6 +276,7 @@ a { color: inherit; }
 .prose th { color: var(--ink-3); font-weight: 600; }
 .prose tr.hl td { background: var(--accent-soft); }
 .prose img, .prose video { max-width: 100%; border-radius: 18px; }
+.prose iframe.embed { display: block; width: 100%; height: 520px; border: 1px solid rgba(128,128,128,.25); border-radius: 18px; background: #fff; }
 .prose ul, .prose ol { padding-left: 22px; margin: 0 0 16px; }
 .prose li { margin: 4px 0; }
 .prose li::marker { color: var(--ink-3); }
@@ -1024,6 +1025,10 @@ a { color: inherit; }
 .live-editor .cm-fence { font-family: ui-monospace, monospace; font-size: 13.5px; background: var(--card); }
 .live-editor .cm-wiki { color: var(--ink); text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
 .live-editor .cm-embed { background: var(--accent-soft); border-radius: 4px; }
+.live-editor .cm-embed-block { margin: 6px 0 14px 6px; }
+.live-editor .cm-embed-block img, .live-editor .cm-embed-block video { max-width: 100%; border-radius: 18px; }
+.live-editor .cm-embed-block iframe.embed { display: block; width: 100%; height: 520px; border: 1px solid rgba(128,128,128,.25); border-radius: 18px; background: #fff; }
+.live-editor .cm-embed-block.missing { opacity: .6; font-size: .9em; }
 
 /* Board: quick capture and hand ordering */
 .capture { flex: none; padding: 10px 14px 14px; }

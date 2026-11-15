@@ -261,6 +261,62 @@ const tables = StateField.define({
   provide: field => EditorView.decorations.from(field),
 })
 
+// ![alt](file) and ![[file]] alone on a line are drawn: an image, a video, or a page/PDF in a frame.
+// While editing (double click) the text shows as typed, so it can be edited.
+const IMG_LINE = /^\s*!\[([^\]]*)\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)\s*$/
+const WIKI_LINE = /^\s*!\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]\s*$/
+const FRAME_SANDBOX = 'allow-scripts allow-popups' // no allow-same-origin: an embedded page cannot call the app's API
+class EmbedWidget extends WidgetType {
+  constructor(target, alt, from) { super(); this.target = target; this.alt = alt; this.from = from }
+  eq(o) { return o.target === this.target && o.alt === this.alt && o.from === this.from }
+  toDOM() {
+    const wrap = document.createElement('div')
+    wrap.className = 'cm-embed-block'
+    const draw = (src, name) => {
+      let el
+      if (/\.(mp4|webm|mov)$/i.test(name)) { el = document.createElement('video'); el.controls = true; el.preload = 'metadata' }
+      else if (/\.(html?|pdf)$/i.test(name)) { el = document.createElement('iframe'); el.className = 'embed'; el.loading = 'lazy'; el.setAttribute('sandbox', FRAME_SANDBOX); el.title = this.alt || this.target }
+      else { el = document.createElement('img'); el.alt = this.alt || this.target }
+      el.src = src
+      wrap.replaceChildren(el)
+    }
+    const missing = () => { wrap.textContent = '[not found: ' + this.target + ']'; wrap.classList.add('missing') }
+    if (/^https?:\/\//i.test(this.target)) draw(this.target, this.target.split(/[?#]/)[0])
+    else {
+      let name = this.target
+      try { name = decodeURIComponent(name) } catch {}
+      fetch('/api/resolve?name=' + encodeURIComponent(name) + '&from=' + encodeURIComponent(this.from || ''))
+        .then(r => r.json()).then(r => r && r.path ? draw('/raw?path=' + encodeURIComponent(r.path), r.path) : missing()).catch(missing)
+    }
+    return wrap
+  }
+  ignoreEvent() { return false }
+}
+function buildEmbeds(state) {
+  const decos = []
+  const editingNow = state.facet(editingFacet)
+  if (editingNow) return Decoration.none // while editing, the Markdown text shows as typed
+  const tree = syntaxTree(state)
+  for (let i = 1; i <= state.doc.lines; i++) {
+    const line = state.doc.line(i)
+    if (!line.text.includes('![')) continue
+    const m = IMG_LINE.exec(line.text) || WIKI_LINE.exec(line.text)
+    if (!m) continue
+    if (/Code/.test(tree.resolveInner(line.from, 1).name)) continue
+    const wiki = m.length === 2
+    decos.push(Decoration.replace({ widget: new EmbedWidget((wiki ? m[1] : m[2]).trim(), wiki ? '' : m[1], props.path || ''), block: true }).range(line.from, line.to))
+  }
+  return Decoration.set(decos, true)
+}
+const embeds = StateField.define({
+  create: buildEmbeds,
+  update(deco, tr) {
+    if (tr.docChanged || tr.selection || tr.startState.facet(editingFacet) !== tr.state.facet(editingFacet) || syntaxTree(tr.startState) !== syntaxTree(tr.state)) return buildEmbeds(tr.state)
+    return deco
+  },
+  provide: field => EditorView.decorations.from(field),
+})
+
 // [[links]] and ![[embeds]] (Obsidian syntax): styled as links, text untouched
 const wikiMatcher = new MatchDecorator({ regexp: /!?\[\[[^\]\n]+\]\]/g, decoration: m => Decoration.mark({ class: m[0].startsWith('!') ? 'cm-wiki cm-embed' : 'cm-wiki' }) })
 const wikiLinks = ViewPlugin.fromClass(class {
@@ -345,7 +401,7 @@ onMounted(() => {
         }),
         history(), drawSelection(), EditorView.lineWrapping,
         markdown({ base: markdownLanguage }),
-        syntaxHighlighting(style), livePreview, tables, wikiLinks,
+        syntaxHighlighting(style), livePreview, tables, embeds, wikiLinks,
         EditorView.contentAttributes.of({ spellcheck: 'true' }),
         keymap.of([
           { key: 'Mod-s', preventDefault: true, run: () => { emit('save'); return true } },
