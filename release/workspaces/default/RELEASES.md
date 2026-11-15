@@ -2,6 +2,15 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.33 · 15 Nov 2026
+
+**Put an image, a video, a page or a PDF inside a note, and see it right there.**
+
+- **`![](file)` shows the file.** A line with only `![alt](path)` or `![[file]]` is drawn in the note: an image or a video, or a `.html` or `.pdf` page in a frame (also an `https` address ending in `.html` or `.pdf`). It works in the reading view and in the editor.
+- **Editing shows the text.** A double click turns editing on and the Markdown is shown as typed; Esc or leaving the note draws the files again.
+- **A framed page is sandboxed.** Its scripts run, but without access to Maybee's own address, so it cannot call the app or read your notes.
+- **Only alone on a line.** In the editor, an image inside a sentence stays as text.
+
 ## 0.1.32 · 14 Nov 2026
 
 **Sort the Maybe column the way you want, see why a card was set aside, and always know which column a note is in.**
