@@ -24,11 +24,25 @@ const agentFlag = at < 0 ? null : args.splice(at, 2)[1]
 const watch = args.includes('--watch')
 // --resume: instead of printing requests for a session to pick up, resume the registered agent's session for each one
 const resume = args.includes('--resume')
-const until = Date.now() + Number(args.find(a => !a.startsWith('--')) || (watch ? 29 : 55)) * 60000
+// The minutes it listens. In resume mode nothing wakes the session, so there is no tool time limit to stay under: it runs until stopped.
+const given = args.find(a => !a.startsWith('--'))
+const until = given ? Date.now() + Number(given) * 60000 : resume ? Infinity : Date.now() + (watch ? 29 : 55) * 60000
 fs.mkdirSync(data, { recursive: true })
+// `listener.pid` says that a listener is running, for maybee.sh status and stop. Two resume listeners would answer a request twice.
+const pidFile = path.join(data, 'listener.pid')
+const alive = pid => { try { process.kill(pid, 0); return true } catch { return false } }
+if (resume) {
+  try {
+    const old = JSON.parse(fs.readFileSync(pidFile, 'utf8'))
+    if (old.pid !== process.pid && old.mode === 'resume' && alive(old.pid)) { console.error(`A resume listener is already running (pid ${old.pid}, ${old.agent}). Stop it first: maybee.sh stop`); process.exit(1) }
+  } catch {}
+}
 // Record which agent and session this is. Asked for with --agent, a failure stops the listener; otherwise it is best effort.
 let bridge = null
 try { bridge = registerBridge({ agent: agentFlag }) } catch (e) { if (agentFlag || resume) { console.error(e.message); process.exit(1) } }
+function writePid() { fs.writeFileSync(pidFile, JSON.stringify({ pid: process.pid, mode: resume ? 'resume' : watch ? 'watch' : 'once', agent: bridge && bridge.agent, startedAt: new Date().toISOString() })) }
+process.on('exit', () => { try { if (JSON.parse(fs.readFileSync(pidFile, 'utf8')).pid === process.pid) fs.unlinkSync(pidFile) } catch {} })
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => process.exit(0))
 function tick() {
   fs.writeFileSync(beat, String(Date.now()))
   let list = []
@@ -53,6 +67,7 @@ function tick() {
   setTimeout(tick, 2000)
 }
 let busy = false
+writePid()
 async function resumeTick() {
   if (!busy) {
     busy = true

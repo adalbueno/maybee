@@ -92,5 +92,18 @@ assert.match(out, /resume mode: codex, session s-42/)
 assert.equal(get('e1').status, 'done'); assert.equal(get('e1').reply, 'fake answer for true')
 assert.throws(() => execFileSync('node', [path.join(scripts, 'listen.js'), '--resume', '0.1'], { env: { ...env, CODEX_THREAD_ID: '' }, stdio: 'pipe' }), /No agent session/)
 
+// maybee.sh stop and status rely on the pid file; a second resume listener must be refused; no time limit without minutes
+const { spawn } = await import('node:child_process')
+const pidFile = path.join(data, 'listener.pid')
+const longLived = spawn('node', [path.join(scripts, 'listen.js'), '--resume', '--agent', 'codex'], { env, stdio: 'ignore' })
+for (let i = 0; i < 50 && !fs.existsSync(pidFile); i++) await new Promise(r => setTimeout(r, 100))
+const rec = JSON.parse(fs.readFileSync(pidFile, 'utf8'))
+assert.equal(rec.pid, longLived.pid); assert.equal(rec.mode, 'resume'); assert.equal(rec.agent, 'codex')
+assert.throws(() => execFileSync('node', [path.join(scripts, 'listen.js'), '--resume', '--agent', 'codex', '0.01'], { env, stdio: 'pipe' }), /already running/)
+await new Promise(r => setTimeout(r, 2500)); assert.equal(longLived.exitCode, null, 'with no minutes it keeps running')
+longLived.kill('SIGTERM')
+await new Promise(r => longLived.on('exit', r))
+assert.ok(!fs.existsSync(pidFile), 'the pid file goes with the listener')
+
 fs.rmSync(temp, { recursive: true, force: true })
 console.log('resume ok')
