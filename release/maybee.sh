@@ -39,6 +39,10 @@ agent_of_session() {
   else echo ""; fi
 }
 
+# Background processes get their own session, so they are not stopped when the command that started them ends. Codex stops
+# everything a command left behind (tried: with only nohup, the app and the listener were gone as soon as the command returned).
+if command -v setsid >/dev/null 2>&1; then DETACH=(setsid nohup); else DETACH=(nohup); fi
+
 # One line of JSON in, one field out.
 json_field() { "$NODE" -e 'try{const o=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));const v=o[process.argv[2]];if(v!==undefined)console.log(v)}catch{}' "$1" "$2"; }
 
@@ -64,7 +68,7 @@ start_app() {
   local url
   if url="$(app_url)"; then echo "app: already running at $url"; return 0; fi
   mkdir -p "$DATA"
-  nohup "$PACKAGE_DIR/start.sh" > "$DATA/app.log" 2>&1 &
+  "${DETACH[@]}" "$PACKAGE_DIR/start.sh" > "$DATA/app.log" 2>&1 < /dev/null &
   # the first start prepares the runtime and the dependencies, which takes a while
   for _ in $(seq 1 120); do
     sleep 1.5
@@ -83,7 +87,7 @@ start_listener() {
   fi
   if pid="$(listener_pid)" && [ "$(json_field "$DATA/listener.pid" mode)" = resume ]; then echo "listener: already running (codex, pid $pid)"; return 0; fi
   mkdir -p "$DATA"
-  nohup "$NODE" "$APP_DIR/scripts/listen.js" --resume --agent codex > "$DATA/listener.log" 2>&1 &
+  "${DETACH[@]}" "$NODE" "$APP_DIR/scripts/listen.js" --resume --agent codex > "$DATA/listener.log" 2>&1 < /dev/null &
   sleep 2
   if pid="$(listener_pid)"; then echo "listener: running (codex, pid $pid), resuming this session for each request"; return 0; fi
   echo "listener: did not start:" >&2; cat "$DATA/listener.log" >&2; return 1
