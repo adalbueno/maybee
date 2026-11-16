@@ -2,6 +2,16 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.38 · 16 Nov 2026
+
+**Playbooks: a ready-made set of cards you can start from or add to a workspace you already have.**
+
+- **Import a .zip.** In the workspace menu, **Import playbook** adds a playbook's files to the workspace you have open. Files you already have are left as they are, and routines come in with auto-run off.
+- **Start a workspace from one.** **Add workspace** lists the playbooks, with a blank workspace first.
+- **The first playbook: 7-day challenge.** One card in Now explains it; Next has every step in order.
+- **Messages at the bottom.** Results show as a short message: green when it worked, red when it did not.
+- **New ideas have no code.** A new card no longer gets an `I12`-style id; existing ids stay.
+
 ## 0.1.37 · 16 Nov 2026
 
 **The skill you install once no longer goes out of date, and the app stays open in Codex.**
