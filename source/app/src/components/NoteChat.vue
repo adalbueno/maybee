@@ -5,6 +5,8 @@
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { ask, claude, agentLabel } from '../ask.js'
 import { quickFor } from '../stages.js'
+import Bee from './Bee.vue'
+const beeNow = computed(() => claude.listening ? (claude.items.some(i => i.status === 'working') ? 'busy' : 'ok') : 'idle')
 import MarkdownIt from 'markdown-it'
 // Replies are Markdown (lists, bold, short paragraphs). Raw HTML is never rendered, and links open outside the app.
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
@@ -22,8 +24,8 @@ const html = text => md.render(text || '', { linkFiles: props.linkFiles })
 const props = defineProps({
   path: String, title: String, stage: { type: String, default: '' },
   // the same dock serves other places (About): its own wording, no stage shortcuts, and fixed to the window
-  heading: { type: String, default: 'Ask AI about this note' },
-  placeholder: { type: String, default: 'Ask AI about this note, or tell it what to do…' },
+  heading: { type: String, default: 'Ask Maybee about this note' },
+  placeholder: { type: String, default: 'Ask Maybee about this note, or tell Maybee what to do…' },
   empty: { type: String, default: 'Nothing asked about this note yet.' },
   floating: Boolean,
   linkFiles: Boolean,
@@ -115,7 +117,7 @@ function onDockKey(e) {
           <p v-if="!items.length" class="empty">{{ empty }}</p>
           <template v-for="i in items" :key="i.id">
             <div class="you"><p>{{ label(i) }}</p><small>{{ clock(i.at) }}</small></div>
-            <div v-if="i.reply" class="ai"><div class="md" v-html="html(i.reply)"></div><small>AI</small></div>
+            <div v-if="i.reply" class="ai"><div class="md" v-html="html(i.reply)"></div><small>Maybee</small></div>
             <div v-else-if="state(i)" class="ai pending"><p>{{ state(i) }}</p></div>
           </template>
         </div>
@@ -124,8 +126,8 @@ function onDockKey(e) {
         </div>
       </div>
       <div class="compose">
-        <button class="mark" :class="{ on: claude.listening }" :title="open ? 'Hide the conversation' : 'Show the conversation'" @click="toggle()">
-          <i>✳</i><small v-if="pending">{{ pending }}</small><em v-else-if="unread"></em>
+        <button class="mark" :class="beeNow" :title="open ? 'Hide the conversation' : 'Show the conversation'" @click="toggle()">
+          <Bee :state="beeNow" :height="20" /><small v-if="pending">{{ pending }}</small><em v-else-if="unread"></em>
         </button>
         <textarea ref="field" v-model="text" rows="1" :placeholder="placeholder" @keydown="onKey" @input="grow" @focus="items.length && !open && replies > seen && toggle(true)"></textarea>
         <button class="send" :disabled="!text.trim() || sending" @click="send()" title="Send (Enter)">Send</button>
@@ -173,8 +175,7 @@ header b { flex: 1; }
 .quick button:hover:not(:disabled) { background: var(--accent); color: var(--ink); }
 .compose { display: flex; gap: 8px; align-items: flex-end; padding: 8px 8px 8px 10px; }
 .compose textarea { flex: 1; border: 0; background: transparent; padding: 8px 4px; font: 500 14px/1.5 var(--sans); resize: none; outline: none; max-height: 120px; color: var(--ink); }
-.mark { position: relative; flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--ink); display: grid; place-items: center; }
-.mark i { font-style: normal; color: var(--accent); font-size: 15px; }
+.mark { position: relative; flex: none; width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(circle, #f4f2ec 0%, #b3afa4 100%); display: grid; place-items: center; margin: 0; }
 .mark small { position: absolute; top: -4px; right: -4px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 99px; background: var(--accent); color: var(--ink); font-size: 10.5px; font-weight: 700; display: grid; place-items: center; }
 .mark em { position: absolute; top: -1px; right: -1px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--card-hi); }
 .send { flex: none; padding: 8px 16px; border-radius: 99px; background: var(--ink); color: #fff; font-size: 13px; font-weight: 600; }

@@ -384,6 +384,10 @@ a { color: inherit; }
   display: flex; flex-direction: column; transition: flex-basis .28s ease, box-shadow .15s, background .15s;
 }
 .col.open { flex: 1 1 auto; }
+/* Opening a column: its content slides in quickly (the width change is already animated above). */
+@keyframes col-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+.col.open > .col-head, .col.open > .col-body { animation: col-in .16s ease-out; }
+@media (prefers-reduced-motion: reduce) { .col.open > .col-head, .col.open > .col-body { animation: none; } }
 .col.over { box-shadow: 0 0 0 2px var(--accent); background: #fffbe3; }
 .col-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 0; width: 56px; }
 .col-tab:hover { background: #ebe9e2; }
@@ -567,10 +571,7 @@ a { color: inherit; }
 .rhythm-ask { margin-top: 14px; }
 
 .tray { position: relative; }
-.tray-btn { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--ink-2); padding: 9px 11px; border-radius: 99px; background: var(--card); }
-.tray-btn i { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); }
-.tray-btn.ok i { background: var(--good); box-shadow: 0 0 0 4px color-mix(in srgb, var(--good) 18%, transparent); }
-.tray-btn.off i { background: var(--bad); box-shadow: 0 0 0 4px color-mix(in srgb, var(--bad) 18%, transparent); }
+.tray-btn { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--ink-2); padding: 8px 11px; border-radius: 99px; background: var(--card); }
 .tray-btn small { background: var(--accent); color: var(--ink); border-radius: 99px; padding: 0 6px; font-size: 11px; }
 .tray-pop { position: absolute; right: 0; top: calc(100% + 10px); z-index: 30; width: 340px; max-height: 70vh; overflow-y: auto; background: var(--card-hi); border-radius: 20px; padding: 14px; box-shadow: 0 20px 50px rgba(20, 15, 5, .18), 0 0 0 1px var(--line); }
 .tray-state { margin: 0 0 10px; font-size: 13px; color: var(--ink-2); line-height: 1.5; }

@@ -200,7 +200,7 @@ async function resolveItem(item, destination) {
       </div>
       <p v-else class="empty">Changes recorded in logs/CHANGELOG.md will appear here.</p>
     </section>
-    <NoteChat path="@about" title="About" floating link-files @open="open" :quick="false" heading="Change the project by asking" placeholder="Tell AI what to change in the project…" empty="Nothing asked yet. Say what should change and the right file is edited." @settled="load" />
+    <NoteChat path="@about" title="About" floating link-files @open="open" :quick="false" heading="Change the project by asking" placeholder="Tell Maybee what to change in the project…" empty="Nothing asked yet. Say what should change and the right file is edited." @settled="load" />
   </section>
 </template>
 

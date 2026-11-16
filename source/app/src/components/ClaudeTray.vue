@@ -1,11 +1,12 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { claude, agentLabel } from '../ask.js'
+import Bee from './Bee.vue'
 const props = defineProps({ live: Boolean })
 const emit = defineEmits(['open'])
-// one dot: green = connected and a session is listening, grey = connected but nobody listens, red = the app is unreachable
-const state = computed(() => !props.live ? 'off' : claude.listening ? 'ok' : 'idle')
-const title = computed(() => ({ off: 'Offline: the app is not reachable', ok: 'Listening: ' + (agentLabel(claude.bridge) || 'a session') + ' answers your requests', idle: 'No session is listening' }[state.value]))
+// one bee: green = a session is listening, yellow = it is working on a request, grey = nobody listens (faded when the app is unreachable)
+const state = computed(() => !props.live ? 'off' : claude.listening ? (claude.items.some(i => i.status === 'working') ? 'busy' : 'ok') : 'idle')
+const title = computed(() => ({ off: 'Offline: the app is not reachable', ok: 'Listening: ' + (agentLabel(claude.bridge) || 'a session') + ' answers your requests', busy: 'Working: ' + (agentLabel(claude.bridge) || 'a session') + ' is on a request', idle: 'No session is listening' }[state.value]))
 const open = ref(false)
 const active = computed(() => claude.items.filter(i => i.status !== 'done').length)
 const heard = computed(() => {
@@ -19,7 +20,7 @@ const ago = iso => { const m = Math.round((Date.now() - new Date(iso)) / 60000);
 <template>
   <div class="tray" @click.stop>
     <button class="tray-btn" :class="state" @click="open = !open" :title="title" aria-label="Assistant status">
-      <i></i><small v-if="active">{{ active }}</small>
+      <Bee :state="state" :height="14" /><small v-if="active">{{ active }}</small>
     </button>
     <div v-if="open" class="tray-pop">
       <p class="tray-state">
