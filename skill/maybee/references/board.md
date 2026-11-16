@@ -12,7 +12,7 @@ A Maybee board is a folder of Markdown files. The app reads them, shows them as 
 
 | Field | Values | Meaning |
 |---|---|---|
-| `id` | a short unique code, such as `T2` | Used to point at a card. Reuse the workspace's pattern. |
+| `id` | optional short code | Cards are identified by their file. Only a routine that another routine `needs` has one. Don't add ids to new cards. |
 | `title` | text | Shown on the card. Defaults to the file name. |
 | `type` | `idea`, `task`, `routine` | An idea is not committed yet, a task is, a routine repeats. |
 | `stage` | `maybe`, `next`, `now`, `done`, `not` | The column. Missing or unknown means `maybe`. |
@@ -87,7 +87,6 @@ A routine that is `auto` runs on its own only while an agent is connected. Witho
 
 ```markdown
 ---
-id: I12
 title: "Write the pricing page"
 type: idea
 stage: maybe

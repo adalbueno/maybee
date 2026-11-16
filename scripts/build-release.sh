@@ -24,7 +24,9 @@ for skill in "$SKILLS_SRC"/maybee-*; do
   [ -d "$skill" ] && cp -a "$skill" "$STAGE/maybee/skills/"
 done
 mkdir -p "$STAGE/maybee/playbooks"
-cp -a "$ROOT/source/playbooks/template" "$STAGE/maybee/playbooks/"
+for pb in "$ROOT"/source/playbooks/*/; do
+  [ -f "$pb/playbook.json" ] && cp -a "$pb" "$STAGE/maybee/playbooks/"
+done
 find "$STAGE/maybee" -type d -name '__pycache__' -prune -exec rm -rf {} +
 
 ARCHIVE="$DIST/maybee-package-$VERSION.zip"

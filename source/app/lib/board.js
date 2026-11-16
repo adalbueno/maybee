@@ -186,18 +186,16 @@ export async function createCard(root, index, title) {
   const base = safeName(title)
   if (!base) throw new Error('that title has no usable characters')
   const cards = await loadCards(root, index)
-  let n = 0
-  for (const c of cards) { const m = /^I(\d+)$/.exec(c.id || ''); if (m) n = Math.max(n, Number(m[1])) }
   const ranks = cards.filter(c => c.stage === 'maybe' && c.rank != null).map(c => c.rank)
   const rank = (ranks.length ? Math.min(...ranks) : 10) - 10
   let rel = `ideas/${base}.md`, i = 2
   while (true) {
     try { await fsp.access(path.join(root, rel)); rel = `ideas/${base} ${i++}.md` } catch { break }
   }
-  const text = `---\nid: I${n + 1}\ntitle: ${JSON.stringify(title)}\ntype: idea\nstage: maybe\nowner: both\nrank: ${rank}\ncaptured: ${today()}\n---\n\n# ${title}\n`
+  const text = `---\ntitle: ${JSON.stringify(title)}\ntype: idea\nstage: maybe\nowner: both\nrank: ${rank}\ncaptured: ${today()}\n---\n\n# ${title}\n`
   await fsp.mkdir(path.join(root, 'ideas'), { recursive: true })
   await fsp.writeFile(path.join(root, rel), text, { flag: 'wx' })
-  return { path: rel, id: `I${n + 1}`, title }
+  return { path: rel, title }
 }
 
 async function writeRank(root, rel, rank) {

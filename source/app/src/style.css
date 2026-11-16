@@ -1097,3 +1097,5 @@ a { color: inherit; }
 .sort-undo { font-size: 12px; color: var(--ink-2); }
 .why-not { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
 .why-not span { display: block; margin-bottom: 2px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.toast.notice { cursor: pointer; max-width: min(560px, calc(100vw - 32px)); text-align: center; background: #1f7a4d; }
+.toast.notice.error { background: #c0392b; }
