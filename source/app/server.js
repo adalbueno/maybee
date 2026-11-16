@@ -1,6 +1,6 @@
 // Maybee app server: reads the project folder, serves the Vue page, pushes live changes.
 // The .md files are the only source of truth. This server never deletes, moves or renames files.
-import { listPlaybooks, findPlaybook, applyPlaybook, importZip } from './lib/playbooks.js'
+import { importZip } from './lib/playbooks.js'
 import http from 'node:http'
 import { startInstance, stopInstance } from './lib/instance.js'
 import crypto from 'node:crypto'
@@ -601,18 +601,11 @@ async function main() {
       }
       if (url.pathname === '/api/foundations' && req.method === 'GET') return sendJSON(res, { missing: await missingFromTemplate(ROOT), status: await fillStatus(ROOT) })
       if (url.pathname === '/api/foundations/fill' && req.method === 'POST') return sendJSON(res, { created: await addMissing(ROOT) })
-      if (url.pathname === '/api/playbooks' && req.method === 'GET') return sendJSON(res, { items: listPlaybooks().map(({ workspace, ...p }) => p) })
       if (url.pathname === '/api/playbooks/import-zip' && req.method === 'POST') {
         const chunks = []; let size = 0, tooBig = false
         await new Promise(done => { req.on('data', c => { size += c.length; if (size > 60 * 1024 * 1024) tooBig = true; else chunks.push(c) }); req.on('end', done) })
         if (tooBig) return sendJSON(res, { error: 'The zip is too large.' }, 413)
         try { return sendJSON(res, await importZip(ROOT, Buffer.concat(chunks))) } catch (err) { return sendJSON(res, { error: err.message }, 400) }
-      }
-      if (url.pathname === '/api/playbooks/import' && req.method === 'POST') {
-        const body = await readBody(req)
-        const playbook = findPlaybook(body.playbook)
-        if (!playbook) return sendJSON(res, { error: 'That playbook does not exist.' }, 400)
-        return sendJSON(res, await applyPlaybook(ROOT, playbook))
       }
       if (url.pathname === '/api/workspaces' && req.method === 'GET') return sendJSON(res, { active: activeWorkspace, items: workspaceList() })
       if (url.pathname === '/api/workspaces/switch' && req.method === 'POST') {
@@ -626,10 +619,7 @@ async function main() {
         const target = workspaceRoot(name)
         if (fs.existsSync(target)) return sendJSON(res, { error: 'That workspace already exists.' }, 409)
         await fsp.mkdir(target, { recursive: true })
-        const playbook = body.playbook ? findPlaybook(body.playbook) : null
-        if (body.playbook && !playbook) { await fsp.rmdir(target).catch(() => {}); return sendJSON(res, { error: 'That playbook does not exist.' }, 400) }
         if (!body.projectName) await copyTemplate(target, cleanAnswer(body.name, name).slice(0, 80))
-        if (playbook) await applyPlaybook(target, playbook, { title: cleanAnswer(body.name, name).slice(0, 80) })
         await switchWorkspace(name)
         const initialized = body.projectName ? await initializeProject(body) : setupStatus()
         return sendJSON(res, { ...initialized, workspace: activeWorkspace, workspaces: workspaceList() })

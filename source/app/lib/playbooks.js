@@ -1,20 +1,14 @@
-// Playbooks: a folder with a playbook.json and a workspace/ folder of content (ideas, routines, knowledge, decisions...).
+// Playbooks: a .zip of a folder with a playbook.json and a workspace/ folder of content (ideas, routines, knowledge, decisions...).
 // A playbook is shaped like a workspace but does not need PROJECT.md, STATE.md or DASHBOARD.md: it adds to a workspace.
 // Applying one copies the files the workspace does not have yet and never touches a file that exists.
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
-import { fileURLToPath } from 'node:url'
 import { readZip } from './zip.js'
-
-const APP_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-// Same places the package folders are found from the source tree, the packaged script and the packaged server.
-const roots = () => [...new Set([APP_DIR, path.join(APP_DIR, '..'), path.join(APP_DIR, '..', '..')].flatMap(b => [path.join(b, 'playbooks'), path.join(b, 'release', 'playbooks'), path.join(b, 'source', 'playbooks')]))].filter(d => fs.existsSync(d))
 
 // These files belong to the workspace that receives a playbook, so a playbook never brings them.
 const OWN = new Set(['PROJECT.md', 'STATE.md', 'DASHBOARD.md', 'owner/preferences.md'])
-const slug = s => /^[a-z0-9][a-z0-9-]*$/.test(s)
 
 function read(dir, name) {
   try {
@@ -24,19 +18,6 @@ function read(dir, name) {
     return { name, title: String(meta.title || name), description: String(meta.description || ''), author: meta.author ? String(meta.author) : null, workspace }
   } catch { return null }
 }
-
-// Every playbook in the package except the template (the blank workspace every new workspace starts from).
-export function listPlaybooks() {
-  const seen = new Map()
-  for (const r of roots()) for (const e of fs.readdirSync(r, { withFileTypes: true })) {
-    if (!e.isDirectory() || e.name === 'template' || seen.has(e.name)) continue
-    const p = read(path.join(r, e.name), e.name)
-    if (p) seen.set(e.name, p)
-  }
-  return [...seen.values()].sort((a, b) => a.title.localeCompare(b.title))
-}
-
-export const findPlaybook = name => (slug(String(name)) ? listPlaybooks().find(p => p.name === name) || null : null)
 
 async function files(dir, base = dir) {
   const out = []

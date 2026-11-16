@@ -281,7 +281,7 @@ async function chooseWorkspace(name) {
   await loadSetup(); await loadFeed(); await loadNumbers()
 }
 const addingWorkspace = ref(false), newWorkspaceName = ref(''), workspaceError = ref('')
-const playbooks = ref([]), newPlaybook = ref(''), zipInput = ref(null)
+const zipInput = ref(null)
 // A short message at the bottom of the page: kind is 'ok' or 'error'. A click or a few seconds dismiss it.
 const notice = reactive({ text: '', kind: 'ok' })
 let noticeTimer = null
@@ -290,7 +290,6 @@ function say(text, kind = 'ok') {
   clearTimeout(noticeTimer)
   noticeTimer = setTimeout(() => { notice.text = '' }, kind === 'error' ? 7000 : 4500)
 }
-async function loadPlaybooks() { try { const d = await fetch('/api/playbooks').then(r => r.json()); playbooks.value = d.items || [] } catch {} }
 async function importZipFile(e) {
   const file = e.target.files && e.target.files[0]
   e.target.value = ''
@@ -307,10 +306,10 @@ async function addWorkspace() {
   const name = newWorkspaceName.value.trim()
   if (!name) return
   workspaceError.value = ''
-  const res = await fetch('/api/workspaces', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, playbook: newPlaybook.value || undefined }) })
+  const res = await fetch('/api/workspaces', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) { workspaceError.value = data.error || 'Could not create the workspace.'; return }
-  addingWorkspace.value = false; newWorkspaceName.value = ''; newPlaybook.value = ''; workspaceMenuOpen.value = false
+  addingWorkspace.value = false; newWorkspaceName.value = ''; workspaceMenuOpen.value = false
   activeWorkspace.value = data.workspace
   workspaces.value = data.workspaces || workspaces.value
   open.value = null
@@ -318,7 +317,7 @@ async function addWorkspace() {
   await loadSetup(); await loadFeed(); await loadNumbers()
 }
 function onboardingDone(data) { setup.value = data; showOnboarding.value = false; loadFeed(); loadNumbers() }
-async function accessVerified(data) { access.value = data; accessReady.value = true; connect(); startHeartbeat(); await loadWorkspaces(); loadPlaybooks(); loadSetup(); loadFeed(); loadNumbers() }
+async function accessVerified(data) { access.value = data; accessReady.value = true; connect(); startHeartbeat(); await loadWorkspaces(); loadSetup(); loadFeed(); loadNumbers() }
 
 function accessExpired(data) {
   access.value = data
@@ -381,10 +380,6 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
             <input ref="zipInput" type="file" accept=".zip,application/zip" hidden @change="importZipFile" />
             <form v-if="addingWorkspace" class="workspace-add-form" @submit.prevent="addWorkspace">
               <input v-model="newWorkspaceName" placeholder="Workspace name" maxlength="80" autofocus @keydown.esc="addingWorkspace = false" />
-              <select v-if="playbooks.length" v-model="newPlaybook" aria-label="Playbook">
-                <option value="">Blank workspace</option>
-                <option v-for="p in playbooks" :key="p.name" :value="p.name">{{ p.title }}</option>
-              </select>
               <button type="submit" :disabled="!newWorkspaceName.trim()">Create</button>
               <small v-if="workspaceError" class="workspace-error">{{ workspaceError }}</small>
             </form>

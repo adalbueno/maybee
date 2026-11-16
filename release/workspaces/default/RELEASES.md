@@ -2,6 +2,14 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.39 · 16 Nov 2026
+
+**Playbooks are zip files you import. A new workspace always starts from the default template.**
+
+- **A correction to 0.1.38:** **Add workspace** does not offer a list of playbooks. A new workspace always starts from the default template.
+- **Playbooks are separate from Maybee.** Each one is a `.zip` you import with **Import playbook**; nothing already in your workspace is overwritten, and routines come in with auto-run off.
+- **The 7-day challenge is a playbook.** Download `playbook-7-day-challenge.zip` from this release's page on GitHub and import it.
+
 ## 0.1.38 · 16 Nov 2026
 
 **Playbooks: a ready-made set of cards you can start from or add to a workspace you already have.**

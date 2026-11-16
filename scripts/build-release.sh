@@ -24,10 +24,17 @@ for skill in "$SKILLS_SRC"/maybee-*; do
   [ -d "$skill" ] && cp -a "$skill" "$STAGE/maybee/skills/"
 done
 mkdir -p "$STAGE/maybee/playbooks"
-for pb in "$ROOT"/source/playbooks/*/; do
-  [ -f "$pb/playbook.json" ] && cp -a "$pb" "$STAGE/maybee/playbooks/"
-done
+cp -a "$ROOT/source/playbooks/template" "$STAGE/maybee/playbooks/"
 find "$STAGE/maybee" -type d -name '__pycache__' -prune -exec rm -rf {} +
+
+# Playbooks are not part of the package: each one is a separate .zip that people import from the app ("Import playbook").
+for pb in "$ROOT"/source/playbooks/*/; do
+  name="$(basename "$pb")"
+  [ "$name" != template ] && [ -f "$pb/playbook.json" ] || continue
+  rm -f "$DIST/playbook-$name.zip"
+  (cd "$ROOT/source/playbooks" && zip -qr "$DIST/playbook-$name.zip" "$name")
+  printf 'Built %s\n' "$DIST/playbook-$name.zip"
+done
 
 ARCHIVE="$DIST/maybee-package-$VERSION.zip"
 rm -f "$ARCHIVE"
