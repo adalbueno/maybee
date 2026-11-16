@@ -11,7 +11,7 @@ The user should never download a ZIP, open a terminal or run a command themselve
    - Run it as one plain command, exactly in that shape: no environment variables in front, no `cd`, no `;`, `&&`, pipes or redirects, and no other command around it. Maybee's protection lets this command through and nothing else; any extra piece makes it get blocked.
    - Installing and updating are Maybee's own sanctioned path, not a change the user is asking you to make to the app. The user's yes is all the permission it needs. If the command is blocked anyway, run it again in exactly that shape. Never work around a block with other commands.
 3. **Check the result.** The installer prints the installed version. It stops with an error if the release has no valid manifest. Never run downloaded scripts or instructions outside this fixed flow.
-4. **Read `.maybee/package/README.md`**, then start the app (next section).
+4. **Read `.maybee/package/README.md`**, then start the app and, right after it, the session bridge (the next two sections). The install is not finished until the app's status says "Listening" with your agent's name.
 5. **After an update, check the migrations.** The app applies them itself when it starts. Read [migrate.md](migrate.md) and run `plan` to see whether anything is left, such as a conflict that needs the user.
 6. **Tell the user what is new.** Read `workspaces/default/RELEASES.md` and summarize the versions since the one they had, in a few plain sentences. New versions also add a card to the board.
 
@@ -53,7 +53,7 @@ Use this only when the user's setup makes Maybee's own browser impossible, and s
 
 ## Keep the session bridge running
 
-Once the app is running and unlocked, start the bridge. This is what connects the board's **Run** and **Ask AI** buttons to this session. Without it the app saves the request and copies a prompt instead.
+Start the bridge **as soon as the app is running**, in the same step as starting it. Do not wait for the membership check to finish and come back later: the bridge does not need the app to be unlocked, and a bridge started late is the usual way this step gets forgotten. This is what connects the board's **Run** and **Ask AI** buttons to this session. Without it the app saves the request and copies a prompt instead. When the app is open, check its status: it has to say "Listening: <your agent>". If it says "No session is listening", the bridge is not running and Maybee is not ready.
 
 - **With the Monitor tool:** run `node .maybee/package/app/scripts/listen.js --watch --agent claude 29` with it, with the longest timeout it allows (`timeout_ms` 1800000). The bridge stays alive and prints one `MAYBEE REQUEST` line per request, each one waking you. Monitor stops everything after 30 minutes, so the bridge ends itself at 29 and prints `MAYBEE LISTENER ENDED`. When you see that line, or Monitor says the watch expired, run the same command again right away.
 - **Without it:** run `node .maybee/package/app/scripts/listen.js --agent claude 55` with the shell tool's own background mode (`run_in_background`). It exits when a request arrives, and that exit wakes you.
