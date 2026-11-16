@@ -23,6 +23,12 @@ const id = /"id":"([^"]+)"/.exec(prompt)[1]
 const mode = process.env.FAKE_MODE
 if (mode === 'sleep') await new Promise(r => setTimeout(r, 30000))
 if (mode === 'fail') process.exit(3)
+if (mode === 'writer') {
+  const isFork = a.includes('fork')
+  if (!isFork && a.includes('s-42')) { console.error('thread s-42 already has an active writer'); process.exit(1) }
+  if (isFork) console.log(JSON.stringify({ type: 'thread.started', thread_id: 'fork-7' }))
+  execFileSync('node', [${JSON.stringify(path.join(scripts, 'reply.js'))}, id, 'via ' + (isFork ? 'fork' : 'resume') + ' ' + (a.includes('fork-7') ? 'fork-7' : 's-42')])
+}
 if (mode === 'reply') execFileSync('node', [${JSON.stringify(path.join(scripts, 'reply.js'))}, id, 'fake answer for ' + a.join(' ').includes('s-42')])
 `)
 fs.chmodSync(fake, 0o755)
@@ -56,6 +62,14 @@ assert.equal(get('f1').status, 'done'); assert.match(get('f1').reply, /ended wit
 process.env.FAKE_MODE = 'sleep'; put('s1')
 await run({ timeoutMs: 300 })
 assert.equal(get('s1').status, 'done'); assert.match(get('s1').reply, /took longer than/)
+
+// a session open in a window: the first request forks it, the next ones go on in the fork
+process.env.FAKE_MODE = 'writer'; put('w1', 'w2')
+const wb = bridge('codex'); fs.writeFileSync(path.join(data, 'bridge.json'), JSON.stringify(wb))
+await run({ bridge: wb })
+assert.equal(get('w1').reply, 'via fork s-42'); assert.equal(get('w2').reply, 'via resume fork-7')
+assert.equal(wb.forkId, 'fork-7'); assert.equal(JSON.parse(fs.readFileSync(path.join(data, 'bridge.json'), 'utf8')).forkId, 'fork-7')
+assert.ok(commandFor({ ...wb }, 'P', {}).args.includes('fork-7') && commandFor(wb, 'P', { fork: true }).args.includes('s-42'))
 
 process.env.MAYBEE_AGENT_BIN = path.join(temp, 'nothing-here'); put('m1')
 await run()

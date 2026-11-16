@@ -5,7 +5,7 @@ export const claude = reactive({ listening: false, heardAt: null, bridge: null, 
 
 // "Codex · 01a1e4…": the agent that answers and the start of its session id (null when no listener ever recorded one)
 const NAMES = { claude: 'Claude', codex: 'Codex' }
-export const agentLabel = b => b && b.agent ? (NAMES[b.agent] || b.agent) + ' · ' + String(b.sessionId || '').slice(0, 6) + '…' : ''
+export const agentLabel = b => b && b.agent ? (NAMES[b.agent] || b.agent) + ' · ' + String(b.forkId || b.sessionId || '').slice(0, 6) + '…' + (b.forkId ? ' (fork)' : '') : ''
 export const agentName = b => b && b.agent ? (NAMES[b.agent] || b.agent) : 'An assistant'
 
 export async function refreshInbox() {

@@ -23,6 +23,13 @@ export function detectAgent(flag, env = process.env) {
 
 export const readBridge = () => { try { return JSON.parse(fs.readFileSync(dataPath('bridge.json'), 'utf8')) } catch { return null } }
 
+// Adds fields to the recorded bridge (the fork the app talks to when the session is open in a window).
+export function updateBridge(fields) {
+  const info = { ...readBridge(), ...fields }
+  fs.writeFileSync(dataPath('bridge.json'), JSON.stringify(info, null, 1))
+  return info
+}
+
 // Records the agent and session. Throws when the agent has no session id to record.
 export function registerBridge({ agent: flag, env = process.env, cwd = process.cwd() } = {}) {
   const agent = detectAgent(flag, env)

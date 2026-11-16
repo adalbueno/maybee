@@ -3,16 +3,19 @@
 import fs from 'node:fs'
 import { spawn } from 'node:child_process'
 import { requestLine } from './prompt.js'
+import { updateBridge } from './bridge.js'
 
 // The command that resumes a session with a prompt. Always the exact session id, never "the latest one".
 // MAYBEE_AGENT_BIN replaces the program name (tests use a fake agent).
-export function commandFor(bridge, prompt, { dataDir } = {}) {
+// With `fork`, Codex starts a new session from the registered one instead of resuming it (needed when the session is open in a
+// window: a resume then fails with "active writer"). After a fork the app goes on in the fork (bridge.forkId).
+export function commandFor(bridge, prompt, { dataDir, fork = false } = {}) {
   const bin = process.env.MAYBEE_AGENT_BIN
   if (bridge.agent === 'codex') {
     // A resumed run is read-only by default (checked with Codex 0.169.0): let it edit the project folder, and write
     // the answer into Maybee's own data folder, which sits outside it. Approvals and the sandbox are never skipped.
     const roots = JSON.stringify(dataDir ? [dataDir] : [])
-    return { bin: bin || 'codex', args: ['exec', 'resume', '--json', '--skip-git-repo-check', '-c', 'sandbox_mode="workspace-write"', '-c', 'sandbox_workspace_write.writable_roots=' + roots, bridge.sessionId, prompt] }
+    return { bin: bin || 'codex', args: ['exec', fork ? 'fork' : 'resume', '--json', '--skip-git-repo-check', '-c', 'sandbox_mode="workspace-write"', '-c', 'sandbox_workspace_write.writable_roots=' + roots, fork ? bridge.sessionId : (bridge.forkId || bridge.sessionId), prompt] }
   }
   if (bridge.agent === 'claude') {
     // Headless, so nothing can ask for a permission: allow reading, editing and the node scripts of the bridge, no more.
@@ -34,9 +37,10 @@ function update(file, id, fields) {
 
 function runProcess({ bin, args, cwd, timeoutMs }) {
   return new Promise(resolve => {
-    let stderr = '', timedOut = false, settled = false
-    const done = result => { if (!settled) { settled = true; clearTimeout(timer); resolve({ stderr: stderr.trim().slice(-200), ...result }) } }
-    const child = spawn(bin, args, { cwd, stdio: ['ignore', 'ignore', 'pipe'] })
+    let stderr = '', stdout = '', timedOut = false, settled = false
+    const done = result => { if (!settled) { settled = true; clearTimeout(timer); resolve({ stderr: stderr.trim().slice(-200), all: stderr + stdout, ...result }) } }
+    const child = spawn(bin, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] })
+    child.stdout.on('data', d => { stdout = (stdout + d).slice(-20000) })
     child.stderr.on('data', d => { stderr = (stderr + d).slice(-2000) })
     const timer = setTimeout(() => { timedOut = true; child.kill('SIGTERM') }, timeoutMs)
     child.on('error', e => done({ code: null, error: e.message }))
@@ -51,7 +55,16 @@ export async function runPending({ inbox, bridge, dataDir, scriptsDir, timeoutMs
     update(inbox, r.id, { status: 'working' })
     log(`Request ${r.id} (${r.action}) goes to ${bridge.agent}, session ${bridge.sessionId}`)
     const { bin, args } = commandFor(bridge, requestLine(r, scriptsDir), { dataDir })
-    const out = await runProcess({ bin, args, cwd: bridge.cwd || process.cwd(), timeoutMs })
+    const cwd = bridge.cwd || process.cwd()
+    let out = await runProcess({ bin, args, cwd, timeoutMs })
+    if (bridge.agent === 'codex' && out.code !== 0 && !bridge.forkId && /active writer/i.test(out.all)) {
+      // the session is open in a window: go on in a fork of it, and stay in that fork for the next requests
+      log(`Session ${bridge.sessionId} is open in a window, so this request goes to a fork of it`)
+      const f = commandFor(bridge, requestLine(r, scriptsDir), { dataDir, fork: true })
+      out = await runProcess({ bin: f.bin, args: f.args, cwd, timeoutMs })
+      const id = /"type":"thread\.started","thread_id":"([^"]+)"/.exec(out.all)
+      if (id) { bridge.forkId = id[1]; updateBridge({ forkId: id[1] }); log(`The app now goes on in the fork ${id[1]}`) }
+    }
     const now = read(inbox).find(x => x.id === r.id)
     if (now && now.status !== 'done') {
       const why = out.error ? `Could not start ${bin}: ${out.error}` : out.timedOut ? `The ${bridge.agent} run took longer than ${Math.round(timeoutMs / 60000)} min and was stopped.` : `The ${bridge.agent} run ended without an answer (exit code ${out.code}).${out.stderr ? ' ' + out.stderr : ''}`
