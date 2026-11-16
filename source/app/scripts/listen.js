@@ -12,13 +12,19 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DATA_DIR } from '../lib/paths.js'
 import { requestLine, batchInstructions } from '../lib/prompt.js'
+import { registerBridge } from '../lib/bridge.js'
 const data = DATA_DIR
 const here = path.dirname(fileURLToPath(import.meta.url))
 const inbox = path.join(data, 'inbox.json'), beat = path.join(data, 'listening')
 const args = process.argv.slice(2)
+// --agent claude|codex says which agent started this listener (see lib/bridge.js); it is not the minutes
+const at = args.indexOf('--agent')
+const agentFlag = at < 0 ? null : args.splice(at, 2)[1]
 const watch = args.includes('--watch')
 const until = Date.now() + Number(args.find(a => !a.startsWith('--')) || (watch ? 29 : 55)) * 60000
 fs.mkdirSync(data, { recursive: true })
+// Record which agent and session this is. Asked for with --agent, a failure stops the listener; otherwise it is best effort.
+try { registerBridge({ agent: agentFlag }) } catch (e) { if (agentFlag) { console.error(e.message); process.exit(1) } }
 function tick() {
   fs.writeFileSync(beat, String(Date.now()))
   let list = []
