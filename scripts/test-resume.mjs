@@ -27,6 +27,7 @@ if (mode === 'writer') {
   const isFork = a.includes('fork')
   if (!isFork && a.includes('s-42')) { console.error('thread s-42 already has an active writer'); process.exit(1) }
   if (isFork) console.log(JSON.stringify({ type: 'thread.started', thread_id: 'fork-7' }))
+  if (isFork) console.log('x'.repeat(30000)) // a long run: the id at the top must survive
   execFileSync('node', [${JSON.stringify(path.join(scripts, 'reply.js'))}, id, 'via ' + (isFork ? 'fork' : 'resume') + ' ' + (a.includes('fork-7') ? 'fork-7' : 's-42')])
 }
 if (mode === 'reply') execFileSync('node', [${JSON.stringify(path.join(scripts, 'reply.js'))}, id, 'fake answer for ' + a.join(' ').includes('s-42')])

@@ -37,10 +37,11 @@ function update(file, id, fields) {
 
 function runProcess({ bin, args, cwd, timeoutMs }) {
   return new Promise(resolve => {
-    let stderr = '', stdout = '', timedOut = false, settled = false
-    const done = result => { if (!settled) { settled = true; clearTimeout(timer); resolve({ stderr: stderr.trim().slice(-200), all: stderr + stdout, ...result }) } }
+    let stderr = '', head = '', stdout = '', timedOut = false, settled = false
+    const done = result => { if (!settled) { settled = true; clearTimeout(timer); resolve({ stderr: stderr.trim().slice(-200), all: stderr + head + stdout, ...result }) } }
     const child = spawn(bin, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] })
-    child.stdout.on('data', d => { stdout = (stdout + d).slice(-20000) })
+    // the first lines hold the session id (thread.started), so they are kept apart from the tail
+    child.stdout.on('data', d => { if (head.length < 4000) head += d; else stdout = (stdout + d).slice(-20000) })
     child.stderr.on('data', d => { stderr = (stderr + d).slice(-2000) })
     const timer = setTimeout(() => { timedOut = true; child.kill('SIGTERM') }, timeoutMs)
     child.on('error', e => done({ code: null, error: e.message }))
