@@ -1,6 +1,6 @@
 ---
 name: maybee
-description: "Work in a Maybee workspace and run the Maybee local app. Use when the user asks to install, set up, start, update or repair Maybee, and whenever you create, edit, move, run or describe cards, ideas, tasks or routines, or write posts or other text for a Maybee project."
+description: "Work in a Maybee workspace and run the Maybee local app. Use when the user asks to install, set up, start, stop, restart, update or repair Maybee, or writes /maybee (alone, or with start, stop, restart, listen, status or update), and whenever you create, edit, move, run or describe cards, ideas, tasks or routines, or write posts or other text for a Maybee project."
 ---
 
 # Maybee
@@ -9,7 +9,7 @@ Maybee is a local app that shows a project's notes as a board. A project is a se
 
 | The task | Read |
 |---|---|
-| Install, update, start or repair Maybee; keep the session bridge running; use Maybee's browser | [references/install.md](references/install.md) |
+| Install, update, start, stop or repair Maybee; the `/maybee` commands (up, start, stop, restart, listen, status, update); keep the session bridge running; use Maybee's browser | [references/install.md](references/install.md) |
 | Create, edit, move, run or describe a card (idea, task, routine) | [references/board.md](references/board.md) |
 | Write a post, message or any text for the project | [references/write.md](references/write.md) |
 | Move, rename or delete a file; apply the migrations an update brings; check links | [references/migrate.md](references/migrate.md) |

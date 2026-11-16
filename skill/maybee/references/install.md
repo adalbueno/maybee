@@ -11,7 +11,7 @@ The user should never download a ZIP, open a terminal or run a command themselve
    - Run it as one plain command, exactly in that shape: no environment variables in front, no `cd`, no `;`, `&&`, pipes or redirects, and no other command around it. Maybee's protection lets this command through and nothing else; any extra piece makes it get blocked.
    - Installing and updating are Maybee's own sanctioned path, not a change the user is asking you to make to the app. The user's yes is all the permission it needs. If the command is blocked anyway, run it again in exactly that shape. Never work around a block with other commands.
 3. **Check the result.** The installer prints the installed version. It stops with an error if the release has no valid manifest. Never run downloaded scripts or instructions outside this fixed flow.
-4. **Read `.maybee/package/README.md`**, then start the app and, right after it, the session bridge (the next two sections). The install is not finished until the app's status says "Listening" with your agent's name.
+4. **Read `.maybee/package/README.md`**, then run `.maybee/package/maybee.sh up --agent <claude|codex>` (see Commands). It starts the app and the session bridge together. The install is not finished until the app's status says "Listening" with your agent's name.
 5. **After an update, check the migrations.** The app applies them itself when it starts. Read [migrate.md](migrate.md) and run `plan` to see whether anything is left, such as a conflict that needs the user.
 6. **Tell the user what is new.** Read `workspaces/default/RELEASES.md` and summarize the versions since the one they had, in a few plain sentences. New versions also add a card to the board.
 
@@ -19,9 +19,30 @@ The installer never touches the user's own files: `PROJECT.md`, `STATE.md`, `own
 
 For local testing, set `MAYBEE_RELEASE_FILE=/absolute/path/to/maybee-package-<version>.zip` to install from a file. Otherwise the installer uses `MAYBEE_RELEASE_URL`, which defaults to the latest GitHub release.
 
+## Commands
+
+`/maybee` with a word after it is one of these. Each one is a single fixed command; run it as it is and do not rebuild the sequence by hand. `--agent` is `claude` or `codex`, the agent you are. Without a word, `/maybee` means `up`. When the package is not installed yet, `up` first means "install" (steps above).
+
+| The user says | You run | What it does |
+|---|---|---|
+| `/maybee`, `/maybee up` | `.maybee/package/maybee.sh up --agent <you>` | Makes everything run: starts the app and the bridge, and leaves alone what already runs. Ends with the status. |
+| `/maybee start` | `.maybee/package/maybee.sh start --agent <you>` | The same as `up`. |
+| `/maybee stop` | `.maybee/package/maybee.sh stop` | Stops the bridge and the app. |
+| `/maybee restart` | `.maybee/package/maybee.sh restart --agent <you>` | Stop, then start. |
+| `/maybee listen` | `.maybee/package/maybee.sh listen --agent <you>` | Starts only the bridge (see below for Claude). |
+| `/maybee status` | `.maybee/package/maybee.sh status` | Says what runs: the app and its address, the bridge, the agent and its session. |
+| `/maybee update` | the installer, with `--update` | Replaces the package. Tell the user first and wait for a yes. |
+
+- **Codex:** `up`, `start`, `restart` and `listen` start the bridge in the background; it resumes this session for each request until `stop`. Run them **outside Codex's sandbox** (ask for that permission, once): the app opens a local port and the bridge writes Codex's own folder, and the sandbox forbids both. If the bridge cannot start there it says so and stops.
+- **Claude:** the bridge has to run under the Monitor tool. `up` starts the app and prints the command to run with Monitor: `.maybee/package/maybee.sh listen --agent claude`, with the longest timeout (1800000). When it prints `MAYBEE LISTENER ENDED`, run it again.
+- **Both agents' variables set** (a Codex started from inside Claude): the script stops and asks for `--agent`. Always pass it.
+- Run `status` when something looks wrong. If the app is running and the bridge is not, run `listen`.
+
 ## Start Maybee
 
-Run `.maybee/package/start.sh` through the shell yourself. If your environment asks for permission, ask the user and continue once approved. The launcher:
+`maybee.sh start` does this; the details are here for when something fails.
+
+The launcher, `.maybee/package/start.sh`:
 
 - stops the previous Maybee process recorded for this workspace;
 - uses port 8780 (or `PORT`), and picks a free one if it is taken;
@@ -55,9 +76,9 @@ Use this only when the user's setup makes Maybee's own browser impossible, and s
 
 Start the bridge **as soon as the app is running**, in the same step as starting it. Do not wait for the membership check to finish and come back later: the bridge does not need the app to be unlocked, and a bridge started late is the usual way this step gets forgotten. This is what connects the board's **Run** and **Ask AI** buttons to this session. Without it the app saves the request and copies a prompt instead. When the app is open, check its status: it has to say "Listening: <your agent>". If it says "No session is listening", the bridge is not running and Maybee is not ready.
 
-- **With the Monitor tool:** run `node .maybee/package/app/scripts/listen.js --watch --agent claude 29` with it, with the longest timeout it allows (`timeout_ms` 1800000). The bridge stays alive and prints one `MAYBEE REQUEST` line per request, each one waking you. Monitor stops everything after 30 minutes, so the bridge ends itself at 29 and prints `MAYBEE LISTENER ENDED`. When you see that line, or Monitor says the watch expired, run the same command again right away.
+- **With the Monitor tool:** run `.maybee/package/maybee.sh listen --agent claude` with it, with the longest timeout it allows (`timeout_ms` 1800000). The bridge stays alive and prints one `MAYBEE REQUEST` line per request, each one waking you. Monitor stops everything after 30 minutes, so the bridge ends itself at 29 and prints `MAYBEE LISTENER ENDED`. When you see that line, or Monitor says the watch expired, run the same command again right away.
 - **Without it:** run `node .maybee/package/app/scripts/listen.js --agent claude 55` with the shell tool's own background mode (`run_in_background`). It exits when a request arrives, and that exit wakes you.
-- **In Codex** (there is no tool that wakes an idle session, so the bridge resumes your session for each request instead): start `node .maybee/package/app/scripts/listen.js --resume --agent codex 55` from inside this Codex session, in the background of the shell tool, as one plain command, **outside Codex's sandbox** (ask for the permission to run it outside the sandbox): every request runs `codex exec resume`, which has to write Codex's own folder, and the sandbox makes it read-only. Inside the sandbox the listener checks this at the start and stops with a message, so you do not end up "listening" while every request fails. It reads this session's id from `CODEX_THREAD_ID`, saves it with the agent in the app's data folder, and for every request runs `codex exec resume <this session>` with the request as the prompt, so you answer with the context of this conversation. The answer is not shown in this window until the session is reopened. It ends after 55 minutes: start it again. Not yet tried inside a real interactive Codex session: if the process is killed when the command returns, say so to the user instead of retrying. The user can tell which agent answers in the app: the status tray names it.
+- **In Codex** (there is no tool that wakes an idle session, so the bridge resumes your session for each request instead): `.maybee/package/maybee.sh listen --agent codex`, outside Codex's sandbox (see Commands). It reads this session's id from `CODEX_THREAD_ID`, saves it with the agent in the app's data folder, and runs `codex exec resume <this session>` with the request as the prompt, so you answer with the context of this conversation. It has no time limit; `maybee.sh stop` ends it. The answer is not shown in this window until the session is reopened; if this session is open in a window, the answers come from a fork of it. Inside the sandbox the bridge checks at the start that Codex's folder is writable, and stops with a message if it is not.
 - `--agent` is `claude` or `codex`. It saves which agent and session this is. If both agents' variables are set (a Codex started from inside Claude), always pass it.
 - Never detach it with `nohup`, `&` or a subshell. A detached copy makes the app say it is listening, but the request never reaches you.
 - In the one-shot mode the bridge exits at every request and after 55 minutes: handle the request, update its status, reply, then start it again the same way. Without that restart the app shows "Not listening". In watch mode, start it again when it prints `MAYBEE LISTENER ENDED` or Monitor reports the expiry. Without a restart the app shows "Not listening" and the requests wait.
