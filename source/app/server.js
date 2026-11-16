@@ -769,13 +769,13 @@ async function main() {
       }
       if (url.pathname === '/api/inbox') {
         // With ?path=, only the requests about that note (its chat); otherwise the latest ones across the project.
-        const all = readInbox()
+        const all = readInbox().filter(r => r.path !== '@about' || !r.workspace || r.workspace === activeWorkspace)
         const items = q.path ? all.filter(r => r.path === String(q.path)).slice(-30) : all.slice(-20)
         return sendJSON(res, { listening: listening(), heardAt: lastHeard(), items: items.reverse() })
       }
       if (url.pathname === '/api/ask' && req.method === 'POST') {
         const body = await readBody(req)
-        const r = addRequest(body)
+        const r = addRequest({ ...body, workspace: activeWorkspace })
         return sendJSON(res, { ok: true, listening: listening(), request: r, prompt: promptFor(r) })
       }
       if (url.pathname === '/api/library') return sendJSON(res, await library())

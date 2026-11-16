@@ -5,10 +5,15 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dataPath } from '../lib/paths.js'
 const inbox = dataPath('inbox.json')
-const [id, ...rest] = process.argv.slice(2)
+const [id, ...args] = process.argv.slice(2)
+// "--changed a.md b.md" at the end lists the files this request changed; the About page marks them as updated.
+const cut = args.indexOf('--changed')
+const rest = cut < 0 ? args : args.slice(0, cut)
+const changed = cut < 0 ? [] : args.slice(cut + 1).filter(Boolean)
 const list = JSON.parse(fs.readFileSync(inbox, 'utf8'))
 const r = list.find(x => x.id === id)
 if (!r) { console.error('no request ' + id); process.exit(1) }
 r.status = 'done'; r.reply = rest.join(' '); r.doneAt = new Date().toISOString()
+if (changed.length) r.changed = changed
 fs.writeFileSync(inbox, JSON.stringify(list, null, 1))
 console.log('ok')

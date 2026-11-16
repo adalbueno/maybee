@@ -1,6 +1,7 @@
 <script setup>
 // About: the project's cover page. Where things are and where to go, not a long note. Built from the ordinary files.
 import { ref, computed, watch, onMounted } from 'vue'
+import NoteChat from './NoteChat.vue'
 const props = defineProps({ changedAt: Number })
 const emit = defineEmits(['open', 'go'])
 const st = ref({ project: {}, focus: [], waiting: [], now: [], decisions: [], changes: [], updated: null })
@@ -11,6 +12,27 @@ const counts = ref(null)
 const files = ref([])
 const foundations = ref({ missing: [], status: {} })
 const filling = ref(false)
+// Files the About chat changed lately: path -> { key, at }. A mark goes away when the file is opened, or after a day.
+const updated = ref({})
+const SEEN_KEY = 'maybee-about-seen'
+const readSeen = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY) || '{}') } catch { return {} } }
+function loadUpdated(items) {
+  const seen = readSeen(), out = {}
+  for (const r of items.slice().reverse()) { // oldest first, so the newest change of a file wins
+    const at = Date.parse(r.doneAt || '')
+    if (r.status !== 'done' || !Array.isArray(r.changed) || !at || Date.now() - at > 86400000) continue
+    for (const path of r.changed) out[path] = { key: r.id + ':' + path, at: r.doneAt }
+  }
+  updated.value = Object.fromEntries(Object.entries(out).filter(([, v]) => !seen[v.key]))
+}
+const stamp = u => 'Updated · ' + new Date(u.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+function dismiss(path) {
+  const u = updated.value[path]
+  if (!u) return
+  try { const seen = readSeen(); seen[u.key] = Date.now(); localStorage.setItem(SEEN_KEY, JSON.stringify(seen)) } catch {}
+  const { [path]: _, ...rest } = updated.value
+  updated.value = rest
+}
 async function load() {
   try { st.value = await (await fetch('/api/state')).json() } catch {}
   try {
@@ -18,6 +40,7 @@ async function load() {
     const weekAgo = Date.now() - 7 * 86400000
     counts.value = { now: b.now.count, next: b.next.count, maybe: b.maybe.count, week: b.done.cards.filter(c => c.mtime >= weekAgo).length }
   } catch {}
+  try { loadUpdated((await (await fetch('/api/inbox?path=' + encodeURIComponent('@about'))).json()).items || []) } catch {}
   try { files.value = (await (await fetch('/api/library')).json()).items.filter(i => i.ext === '.md') } catch {}
   try {
     const d = await (await fetch('/api/foundations')).json()
@@ -81,7 +104,7 @@ const memory = computed(() => {
 onMounted(load)
 watch(() => props.changedAt, load)
 const dayLabel = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : ''
-const open = path => path && emit('open', { path })
+const open = path => { if (path) { dismiss(path); emit('open', { path }) } }
 async function resolveItem(item, destination) {
   if (resolving.value) return
   resolving.value = true
@@ -163,7 +186,7 @@ async function resolveItem(item, destination) {
             <template v-if="progress(f).filled === 0"><circle cx="7" cy="7" r="5.5" class="ring-missing" /></template>
             <template v-else-if="progress(f).filled < progress(f).total"><circle cx="7" cy="7" r="5.5" class="ring-track" /><circle cx="7" cy="7" r="5.5" class="ring-arc" :stroke-dasharray="arc(progress(f))" transform="rotate(-90 7 7)" /></template>
             <template v-else><circle cx="7" cy="7" r="6.5" class="ring-done" /><path d="M4.2 7.2l1.9 1.9 3.7-3.9" class="ring-tick" /></template>
-          </svg></b><span v-if="sub(f)">{{ sub(f) }}</span></button>
+          </svg><em v-if="updated[f.path]" class="upd">{{ stamp(updated[f.path]) }}</em></b><span v-if="sub(f)">{{ sub(f) }}</span></button>
         </div>
       </div>
     </section>
@@ -177,10 +200,12 @@ async function resolveItem(item, destination) {
       </div>
       <p v-else class="empty">Changes recorded in logs/CHANGELOG.md will appear here.</p>
     </section>
+    <NoteChat path="@about" title="About" floating link-files @open="open" :quick="false" heading="Change the project by asking" placeholder="Tell AI what to change in the project…" empty="Nothing asked yet. Say what should change and the right file is edited." @settled="load" />
   </section>
 </template>
 
 <style scoped>
+.upd { margin-left: 8px; padding: 1px 8px; border-radius: 99px; background: var(--accent); color: var(--ink); font: 650 11px/1.6 var(--sans); font-style: normal; white-space: nowrap; }
 .overview-brief { max-width: 820px; margin: 0 auto 42px; }
 .brief-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; padding: 30px 2px 24px; border-bottom: 1px solid var(--line); }
 .eyebrow { display: block; color: var(--ink-3); font: 700 11px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 9px; }

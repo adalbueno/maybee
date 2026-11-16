@@ -10,9 +10,30 @@ import MarkdownIt from 'markdown-it'
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 const defaultLink = md.renderer.rules.link_open || ((t, i, o, e, self) => self.renderToken(t, i, o))
 md.renderer.rules.link_open = (t, i, o, e, self) => { t[i].attrSet('target', '_blank'); t[i].attrSet('rel', 'noopener noreferrer'); return defaultLink(t, i, o, e, self) }
-const html = text => md.render(text || '')
-const props = defineProps({ path: String, title: String, stage: { type: String, default: '' } })
-const emit = defineEmits(['settled'])
+// In the About chat, a file named in code (`knowledge/brand/voice.md`) is a link that opens that file.
+const FILE_NAME = /^[\w .\/-]+\.md$/
+const defaultCode = md.renderer.rules.code_inline
+md.renderer.rules.code_inline = (t, i, o, env, self) => {
+  const name = t[i].content.trim()
+  if (!env.linkFiles || !FILE_NAME.test(name)) return defaultCode(t, i, o, env, self)
+  return `<a class="filelink" href="#" data-open="${md.utils.escapeHtml(name)}">${md.utils.escapeHtml(name)}</a>`
+}
+const html = text => md.render(text || '', { linkFiles: props.linkFiles })
+const props = defineProps({
+  path: String, title: String, stage: { type: String, default: '' },
+  // the same dock serves other places (About): its own wording, no stage shortcuts, and fixed to the window
+  heading: { type: String, default: 'Ask AI about this note' },
+  placeholder: { type: String, default: 'Ask AI about this note, or tell it what to do…' },
+  empty: { type: String, default: 'Nothing asked about this note yet.' },
+  floating: Boolean,
+  linkFiles: Boolean,
+  quick: { type: Boolean, default: true },
+})
+const emit = defineEmits(['settled', 'open'])
+function onMsgClick(e) {
+  const a = e.target.closest && e.target.closest('a[data-open]')
+  if (a) { e.preventDefault(); emit('open', a.dataset.open) }
+}
 
 const items = ref([])
 const text = ref('')
@@ -82,23 +103,23 @@ function onDockKey(e) {
 </script>
 
 <template>
-  <div class="nchat-dock" @click.stop @keydown="onDockKey">
+  <div class="nchat-dock" :class="{ floating }" @click.stop @keydown="onDockKey">
     <section class="nchat" :class="{ open }">
       <div v-if="open" class="panel">
         <header>
-          <b>Ask AI about this note</b>
+          <b>{{ heading }}</b>
           <span class="live" :class="{ on: claude.listening }"><i></i>{{ claude.listening ? 'A session is listening' : 'No session is listening: open Claude and write "listen to Maybee"' }}</span>
           <button class="close" title="Hide (Esc)" @click="toggle(false)">⌄</button>
         </header>
-        <div ref="box" class="msgs">
-          <p v-if="!items.length" class="empty">Nothing asked about this note yet.</p>
+        <div ref="box" class="msgs" @click="onMsgClick">
+          <p v-if="!items.length" class="empty">{{ empty }}</p>
           <template v-for="i in items" :key="i.id">
             <div class="you"><p>{{ label(i) }}</p><small>{{ clock(i.at) }}</small></div>
             <div v-if="i.reply" class="ai"><div class="md" v-html="html(i.reply)"></div><small>AI</small></div>
             <div v-else-if="state(i)" class="ai pending"><p>{{ state(i) }}</p></div>
           </template>
         </div>
-        <div class="quick">
+        <div v-if="quick" class="quick">
           <button v-for="q in quickFor(stage)" :key="q" :disabled="sending" @click="send(q)">{{ q }}</button>
         </div>
       </div>
@@ -106,7 +127,7 @@ function onDockKey(e) {
         <button class="mark" :class="{ on: claude.listening }" :title="open ? 'Hide the conversation' : 'Show the conversation'" @click="toggle()">
           <i>✳</i><small v-if="pending">{{ pending }}</small><em v-else-if="unread"></em>
         </button>
-        <textarea ref="field" v-model="text" rows="1" placeholder="Ask AI about this note, or tell it what to do…" @keydown="onKey" @input="grow" @focus="items.length && !open && replies > seen && toggle(true)"></textarea>
+        <textarea ref="field" v-model="text" rows="1" :placeholder="placeholder" @keydown="onKey" @input="grow" @focus="items.length && !open && replies > seen && toggle(true)"></textarea>
         <button class="send" :disabled="!text.trim() || sending" @click="send()" title="Send (Enter)">Send</button>
       </div>
     </section>
@@ -115,6 +136,7 @@ function onDockKey(e) {
 
 <style scoped>
 .nchat-dock { position: absolute; left: 0; right: 0; bottom: 16px; z-index: 20; padding: 0 24px; pointer-events: none; display: flex; justify-content: center; }
+.nchat-dock.floating { position: fixed; }
 .nchat { pointer-events: auto; width: min(720px, 100%); background: var(--card-hi); border-radius: 24px; box-shadow: 0 14px 40px rgba(20, 15, 5, .16), 0 0 0 1px var(--line); display: flex; flex-direction: column; overflow: hidden; }
 .panel { display: flex; flex-direction: column; gap: 10px; padding: 14px 14px 4px; border-bottom: 1px solid var(--line); }
 header { display: flex; align-items: center; gap: 12px; font-size: 13px; }
@@ -144,6 +166,7 @@ header b { flex: 1; }
 .md :deep(pre code) { padding: 0; background: none; }
 .md :deep(blockquote) { margin: 0 0 .7em; padding-left: 10px; border-left: 3px solid var(--line); color: var(--ink-2); }
 .md :deep(a) { color: inherit; text-decoration: underline; }
+.md :deep(a.filelink) { font-size: 12.5px; padding: 1px 6px; border-radius: 5px; background: var(--accent); text-decoration: none; font-weight: 600; }
 .ai.pending p { color: var(--ink-3); font-style: italic; }
 .quick { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 8px; }
 .quick button { padding: 5px 11px; border-radius: 99px; background: var(--card); font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
