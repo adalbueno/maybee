@@ -2,6 +2,14 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.40 · 16 Nov 2026
+
+**The bee tells you what the assistant is doing, and board columns slide open.**
+
+- **The bee is the status.** In the top bar and on the chat button, it is grey when no session is listening, green when one is, and yellow and swaying while it works. When the work ends it pulses once and goes back to green.
+- **Board columns slide open.** A column's content slides in quickly when you open it.
+- **The chat says Maybee.** "Ask Maybee about this note", and replies are signed Maybee.
+
 ## 0.1.39 · 16 Nov 2026
 
 **Playbooks are zip files you import. A new workspace always starts from the default template.**
