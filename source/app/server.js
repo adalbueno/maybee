@@ -18,6 +18,15 @@ import { openAppWindow, ensureBrowser } from './lib/browser.js'
 import { dataPath, DATA_DIR } from './lib/paths.js'
 import { apply as applyMigrations } from './lib/migrations.js'
 import { missingFromTemplate, addMissing, fillStatus } from './lib/foundations.js'
+import { detachSelf } from './lib/detach.js'
+
+// --detach: run in a session of our own and return once the app is up, so the app (and the browser it opens) outlives the
+// command that started it. See lib/detach.js.
+if (process.argv.includes('--detach') && !process.env.MAYBEE_DETACHED) {
+  const r = await detachSelf({ script: process.argv[1], args: process.argv.slice(2).filter(a => a !== '--detach'), logFile: dataPath('app.log'), ready: /Maybee is open at (\S+)/, timeoutMs: 90000 })
+  if (r.ok) { console.log(`Maybee is running in the background at ${r.match[1]} (pid ${r.pid}). Stop it with maybee.sh stop.`); process.exit(0) }
+  console.error(`Maybee did not start (${r.reason}). Its log:\n${r.text.trim().split('\n').slice(-8).join('\n')}`); process.exit(1)
+}
 
 const APP_DIR = path.dirname(fileURLToPath(import.meta.url))
 const DEFAULT_ROOT = path.resolve(APP_DIR, '..', '..')

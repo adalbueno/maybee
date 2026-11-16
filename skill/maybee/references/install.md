@@ -33,6 +33,7 @@ For local testing, set `MAYBEE_RELEASE_FILE=/absolute/path/to/maybee-package-<ve
 | `/maybee status` | `.maybee/package/maybee.sh status` | Says what runs: the app and its address, the bridge, the agent and its session. |
 | `/maybee update` | the installer, with `--update` | Replaces the package. Tell the user first and wait for a yes. |
 
+- **Codex: every `maybee.sh` command, `status` too, runs outside the sandbox.** Inside it the script cannot see the app or the listener and says "not running" about things that run, so it refuses to run there. Ask for the permission each time; do not read a "not running" from a sandboxed run as the truth.
 - **Codex:** `up`, `start`, `restart` and `listen` start the bridge in the background; it resumes this session for each request until `stop`. Run them **outside Codex's sandbox** (ask for that permission, once): the app opens a local port and the bridge writes Codex's own folder, and the sandbox forbids both. If the bridge cannot start there it says so and stops.
 - **Claude:** the bridge has to run under the Monitor tool. `up` starts the app and prints the command to run with Monitor: `.maybee/package/maybee.sh listen --agent claude`, with the longest timeout (1800000). When it prints `MAYBEE LISTENER ENDED`, run it again.
 - **Both agents' variables set** (a Codex started from inside Claude): the script stops and asks for `--agent`. Always pass it.

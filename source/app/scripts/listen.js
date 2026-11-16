@@ -14,6 +14,7 @@ import { DATA_DIR } from '../lib/paths.js'
 import { requestLine, batchInstructions } from '../lib/prompt.js'
 import { registerBridge } from '../lib/bridge.js'
 import { runPending, preflight } from '../lib/resume.js'
+import { detachSelf } from '../lib/detach.js'
 const data = DATA_DIR
 const here = path.dirname(fileURLToPath(import.meta.url))
 const inbox = path.join(data, 'inbox.json'), beat = path.join(data, 'listening')
@@ -28,6 +29,12 @@ const resume = args.includes('--resume')
 const given = args.find(a => !a.startsWith('--'))
 const until = given ? Date.now() + Number(given) * 60000 : resume ? Infinity : Date.now() + (watch ? 29 : 55) * 60000
 fs.mkdirSync(data, { recursive: true })
+// --detach: run in a session of our own and return once it is listening, so it outlives the command that started it (lib/detach.js)
+if (process.argv.includes('--detach') && !process.env.MAYBEE_DETACHED) {
+  const r = await detachSelf({ script: process.argv[1], args: process.argv.slice(2).filter(a => a !== '--detach'), logFile: path.join(data, 'listener.log'), ready: /MAYBEE LISTENER STARTED/, timeoutMs: 20000 })
+  if (r.ok) { console.log(`Listener running in the background (pid ${r.pid}). Stop it with maybee.sh stop.`); process.exit(0) }
+  console.error(`The listener did not start (${r.reason}):\n${r.text.trim().split('\n').slice(-6).join('\n')}`); process.exit(1)
+}
 // `listener.pid` says that a listener is running, for maybee.sh status and stop. Two resume listeners would answer a request twice.
 const pidFile = path.join(data, 'listener.pid')
 const alive = pid => { try { process.kill(pid, 0); return true } catch { return false } }

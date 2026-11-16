@@ -76,4 +76,11 @@ ensure_node
 ensure_dependencies "$PLATFORM"
 # Keep agents from changing this installed package (agent settings and instructions in the workspace; idempotent).
 "$NODE_BIN/node" "$PACKAGE_DIR/guard-settings.mjs" "$WORKSPACE" || echo "Maybee: could not update the agent protection settings." >&2
-MAYBEE_ACCESS_MODE="${MAYBEE_ACCESS_MODE:-skool}" PORT="$PORT" exec "$NODE_BIN/node" "$APP_DIR/server.js" --project "$WORKSPACE" "$@"
+# Run by an assistant (output is not a terminal) the app must outlive the command that started it, so it detaches and this
+# returns once the app is up. In a terminal, or with --foreground (or MAYBEE_FOREGROUND=1), it stays in the foreground as before.
+ARGS=(); FOREGROUND="${MAYBEE_FOREGROUND:-}"
+for a in "$@"; do if [ "$a" = --foreground ]; then FOREGROUND=1; else ARGS+=("$a"); fi; done
+DETACH_FLAG=()
+if [ -z "$FOREGROUND" ] && [ ! -t 1 ]; then DETACH_FLAG=(--detach); fi
+# (the ${arr[@]+...} form keeps an empty array from failing under `set -u` in the bash 3.2 that macOS ships)
+MAYBEE_ACCESS_MODE="${MAYBEE_ACCESS_MODE:-skool}" PORT="$PORT" exec "$NODE_BIN/node" "$APP_DIR/server.js" --project "$WORKSPACE" ${DETACH_FLAG[@]+"${DETACH_FLAG[@]}"} ${ARGS[@]+"${ARGS[@]}"}
