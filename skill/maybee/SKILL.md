@@ -7,6 +7,8 @@ description: "Work in a Maybee workspace and run the Maybee local app. Use when 
 
 Maybee is a local app that shows a project's notes as a board. A project is a set of workspaces (`workspaces/<name>/`, `default` on a fresh install) made of plain Markdown files; the app and you edit the same files. This is the only Maybee skill. Read the reference that matches the task, before you act:
 
+**`/maybee` runs one fixed command. Do not start, stop or listen any other way.** Run `.maybee/package/maybee.sh <word> --agent <claude|codex>`, where `<word>` is what follows `/maybee` (`up`, `start`, `stop`, `restart`, `listen`, `status`) and `--agent` is the agent you are. With no word, the word is `up`. `/maybee update` is the installer, after the user's yes. If `.maybee/package` does not exist yet, install first. Run the command outside your sandbox if you have one (ask for that permission once). Details and what each word does: [references/install.md](references/install.md).
+
 | The task | Read |
 |---|---|
 | Install, update, start, stop or repair Maybee; the `/maybee` commands (up, start, stop, restart, listen, status, update); keep the session bridge running; use Maybee's browser | [references/install.md](references/install.md) |
