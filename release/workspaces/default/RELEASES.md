@@ -2,6 +2,14 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.37 · 16 Nov 2026
+
+**The skill you install once no longer goes out of date.**
+
+- **A small starter.** The `maybee` skill in your home folder is now three files: if the project has Maybee installed it hands over to the skill inside the package, otherwise it installs it. What changes with each version lives in the package, so updating Maybee updates how your assistant behaves.
+- **To switch:** install `maybee.zip` of this release once in place of your old `maybee` skill.
+- **Nothing changes in the app.**
+
 ## 0.1.36 · 16 Nov 2026
 
 **Your assistant starts, stops and restarts Maybee with one command, and the bridge stays on.**
