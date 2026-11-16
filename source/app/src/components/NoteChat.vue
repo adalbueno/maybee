@@ -3,7 +3,7 @@
 // AI about this note and what it answered. It uses the same requests as the "Ask AI" button in the board
 // (ask.js), so both end up in the same place.
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import { ask, claude } from '../ask.js'
+import { ask, claude, agentLabel } from '../ask.js'
 import { quickFor } from '../stages.js'
 import MarkdownIt from 'markdown-it'
 // Replies are Markdown (lists, bold, short paragraphs). Raw HTML is never rendered, and links open outside the app.
@@ -74,7 +74,7 @@ function toggle(force) {
   if (open.value) { seen.value = replies.value; scrollEnd() }
 }
 const label = i => i.action === 'Request' ? i.text : i.action + (i.text ? ': ' + i.text : '')
-const state = i => i.status === 'done' ? '' : i.status === 'working' ? 'Working on it…' : i.status === 'queued' ? 'In line…' : (claude.listening ? 'Sent…' : 'Saved. It waits until a Claude session listens again.')
+const state = i => i.status === 'done' ? '' : i.status === 'working' ? 'Working on it…' : i.status === 'queued' ? 'In line…' : (claude.listening ? 'Sent…' : 'Saved. It waits until a session listens again.')
 const clock = iso => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 
 function grow() {
@@ -108,7 +108,7 @@ function onDockKey(e) {
       <div v-if="open" class="panel">
         <header>
           <b>{{ heading }}</b>
-          <span class="live" :class="{ on: claude.listening }"><i></i>{{ claude.listening ? 'A session is listening' : 'No session is listening: open Claude and write "listen to Maybee"' }}</span>
+          <span class="live" :class="{ on: claude.listening }"><i></i>{{ claude.listening ? (agentLabel(claude.bridge) ? agentLabel(claude.bridge) + ' is listening' : 'A session is listening') : 'No session is listening: open your assistant and write "listen to Maybee"' }}</span>
           <button class="close" title="Hide (Esc)" @click="toggle(false)">⌄</button>
         </header>
         <div ref="box" class="msgs" @click="onMsgClick">

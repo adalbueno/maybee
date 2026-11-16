@@ -11,6 +11,7 @@ import { buildIndex, feed, numbers, library, search, readNote, resolveName, stat
 import { board, backlog, setStage, logChange, createCard, placeCard, topOfColumn, restoreRanks, ranksOf, ORDER_NAMES } from './lib/board.js'
 import { desktop, setFields, dayKey, nowCards, routinesOn, overviewState, resolveWaiting } from './lib/desktop.js'
 import { initInbox, readInbox, addRequest, listening, lastHeard, promptFor } from './lib/inbox.js'
+import { readBridge } from './lib/bridge.js'
 import { initSnapshots, snapshot, diffFor } from './lib/snapshots.js'
 import { verifySkool } from './local-skool-verifier.js'
 import { openAppWindow, ensureBrowser } from './lib/browser.js'
@@ -771,7 +772,7 @@ async function main() {
         // With ?path=, only the requests about that note (its chat); otherwise the latest ones across the project.
         const all = readInbox().filter(r => r.path !== '@about' || !r.workspace || r.workspace === activeWorkspace)
         const items = q.path ? all.filter(r => r.path === String(q.path)).slice(-30) : all.slice(-20)
-        return sendJSON(res, { listening: listening(), heardAt: lastHeard(), items: items.reverse() })
+        return sendJSON(res, { listening: listening(), heardAt: lastHeard(), bridge: readBridge(), items: items.reverse() })
       }
       if (url.pathname === '/api/ask' && req.method === 'POST') {
         const body = await readBody(req)
