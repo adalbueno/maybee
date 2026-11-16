@@ -2,6 +2,14 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.34 · 16 Nov 2026
+
+**Change the project by asking, from About.**
+
+- **A chat on About.** Write what should change in the voice, audience, offer, brand, decisions or knowledge notes, and the assistant edits the right file straight away and logs it in the changelog. When the file is unclear, it asks.
+- **Updated marks.** A file the chat changed shows "Updated" with the time in the Memory list, until you open it or a day passes. Each workspace has its own chat and marks.
+- **Files are links.** A file named in a reply opens with a click.
+
 ## 0.1.33 · 15 Nov 2026
 
 **Put an image, a video, a page or a PDF inside a note, and see it right there.**
