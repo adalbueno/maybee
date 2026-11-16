@@ -2,6 +2,15 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.35 · 16 Nov 2026
+
+**Run and Ask AI reach the agent you already work with: Codex or Claude Code.**
+
+- **Codex works.** The bridge started from your Codex session sends each request from the board back to that same session, with its context. The status tray names the agent and the session.
+- **A session open in a window.** Codex does not let a second process take over a session that is open, so Maybee answers from a fork of it and keeps going in that fork. The answers show in the app, not in your open window.
+- **A run that fails closes the request.** If the agent ends without an answer or takes too long, the request gets a reply that says why.
+- **Claude works as before.** The start command now carries `--agent claude`.
+
 ## 0.1.34 · 16 Nov 2026
 
 **Change the project by asking, from About.**
