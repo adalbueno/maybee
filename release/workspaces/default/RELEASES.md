@@ -4,11 +4,12 @@ The newest version is at the top. Maybee keeps this file up to date when you upd
 
 ## 0.1.37 · 16 Nov 2026
 
-**The skill you install once no longer goes out of date.**
+**The skill you install once no longer goes out of date, and the app stays open in Codex.**
 
 - **A small starter.** The `maybee` skill in your home folder is now three files: if the project has Maybee installed it hands over to the skill inside the package, otherwise it installs it. What changes with each version lives in the package, so updating Maybee updates how your assistant behaves.
 - **To switch:** install `maybee.zip` of this release once in place of your old `maybee` skill.
-- **Nothing changes in the app.**
+- **The app stays open when Codex ends a command.** The app, the Skool window and the bridge are started in a session of their own, on Linux and macOS; `start.sh` does it whenever an assistant runs it. Checked on Linux with a real Codex; not tried on macOS yet.
+- **`maybee.sh` asks to run outside Codex's sandbox** instead of saying "not running" about an app that runs.
 
 ## 0.1.36 · 16 Nov 2026
 
