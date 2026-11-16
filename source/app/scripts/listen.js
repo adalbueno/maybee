@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 import { DATA_DIR } from '../lib/paths.js'
 import { requestLine, batchInstructions } from '../lib/prompt.js'
 import { registerBridge } from '../lib/bridge.js'
-import { runPending } from '../lib/resume.js'
+import { runPending, preflight } from '../lib/resume.js'
 const data = DATA_DIR
 const here = path.dirname(fileURLToPath(import.meta.url))
 const inbox = path.join(data, 'inbox.json'), beat = path.join(data, 'listening')
@@ -64,6 +64,8 @@ async function resumeTick() {
   setTimeout(resumeTick, 2000)
 }
 if (resume) {
+  const bad = preflight(bridge)
+  if (bad) { console.error(bad); process.exit(1) }
   setInterval(() => fs.writeFileSync(beat, String(Date.now())), 2000) // the heartbeat goes on while a long run is waited for
   fs.writeFileSync(beat, String(Date.now()))
   console.log(`MAYBEE LISTENER STARTED (resume mode: ${bridge.agent}, session ${bridge.sessionId})`); resumeTick() } else {

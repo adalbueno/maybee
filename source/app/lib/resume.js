@@ -1,6 +1,8 @@
 // Resume mode: for each pending request, resume the registered agent's own session (see bridge.js) with the request
 // as the prompt, wait for the run to end, and make sure the request is closed even when the agent never answered.
 import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { requestLine } from './prompt.js'
 import { updateBridge } from './bridge.js'
@@ -22,6 +24,17 @@ export function commandFor(bridge, prompt, { dataDir, fork = false } = {}) {
     return { bin: bin || 'claude', args: ['-p', prompt, '--resume', bridge.sessionId, '--allowedTools', 'Read', 'Edit', 'Write', 'Bash(node:*)'] }
   }
   throw new Error(`Cannot resume an agent called "${bridge.agent}".`)
+}
+
+// Codex writes its own state (a database, the session files) into its home folder on every run. Inside Codex's sandbox that
+// folder is read-only, so a listener started from there would say "Listening" and fail on the first request.
+const SANDBOX_HINT = 'Start the listener outside the sandbox: ask Codex to run it with approval to run outside the sandbox, or run it in your own terminal with CODEX_THREAD_ID=<the session id> in front of the command.'
+export function preflight(bridge, env = process.env) {
+  if (bridge.agent !== 'codex') return null
+  const home = env.CODEX_HOME || path.join(os.homedir(), '.codex')
+  try { fs.accessSync(home, fs.constants.W_OK); return null } catch {
+    return `Codex cannot write its own folder (${home}). This happens when the listener runs inside Codex's sandbox. ${SANDBOX_HINT}`
+  }
 }
 
 const read = file => { try { return JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return [] } }
@@ -68,7 +81,7 @@ export async function runPending({ inbox, bridge, dataDir, scriptsDir, timeoutMs
     }
     const now = read(inbox).find(x => x.id === r.id)
     if (now && now.status !== 'done') {
-      const why = out.error ? `Could not start ${bin}: ${out.error}` : out.timedOut ? `The ${bridge.agent} run took longer than ${Math.round(timeoutMs / 60000)} min and was stopped.` : `The ${bridge.agent} run ended without an answer (exit code ${out.code}).${out.stderr ? ' ' + out.stderr : ''}`
+      const why = out.error ? `Could not start ${bin}: ${out.error}` : out.timedOut ? `The ${bridge.agent} run took longer than ${Math.round(timeoutMs / 60000)} min and was stopped.` : `The ${bridge.agent} run ended without an answer (exit code ${out.code}).${out.stderr ? ' ' + out.stderr : ''}${/read-only file system/i.test(out.all) ? ' ' + SANDBOX_HINT : ''}`
       update(inbox, r.id, { status: 'done', reply: why, doneAt: new Date().toISOString() })
       log(why)
     }

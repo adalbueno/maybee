@@ -10,7 +10,7 @@ const data = path.join(temp, 'data'); fs.mkdirSync(data)
 process.env.MAYBEE_DATA_DIR = data
 const root = new URL('..', import.meta.url).pathname
 const scripts = path.join(root, 'source/app/scripts')
-const { commandFor, runPending } = await import('../source/app/lib/resume.js')
+const { commandFor, runPending, preflight } = await import('../source/app/lib/resume.js')
 const inbox = path.join(data, 'inbox.json')
 
 // the fake agent: reads the request id from the prompt (its last argument, or the one after -p) and does what MODE says
@@ -48,6 +48,12 @@ for (const agent of ['codex', 'claude']) {
 }
 assert.ok(commandFor(bridge('codex'), 'P', { dataDir: '/d' }).args.some(x => x.includes('writable_roots=["/d"]')))
 assert.throws(() => commandFor({ agent: 'gemini' }, 'P'), /Cannot resume/)
+
+// inside Codex's sandbox its home folder is read-only: the listener must refuse to start
+const ro = path.join(temp, 'ro-home'); fs.mkdirSync(ro); fs.chmodSync(ro, 0o555)
+if (process.getuid && process.getuid() !== 0) assert.match(preflight(bridge('codex'), { CODEX_HOME: ro }), /outside the sandbox/)
+assert.equal(preflight(bridge('codex'), { CODEX_HOME: temp }), null)
+assert.equal(preflight(bridge('claude'), { CODEX_HOME: ro }), null, 'only Codex needs its folder')
 
 const run = (extra = {}) => runPending({ inbox, bridge: bridge('codex'), dataDir: data, scriptsDir: scripts, timeoutMs: 5000, ...extra })
 
