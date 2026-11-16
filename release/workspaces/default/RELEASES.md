@@ -2,6 +2,15 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.36 · 16 Nov 2026
+
+**Your assistant starts, stops and restarts Maybee with one command, and the bridge stays on.**
+
+- **`/maybee` does the right thing.** Alone, it makes everything run: the app and the bridge, leaving alone what already runs. With a word it is `start`, `stop`, `restart`, `listen`, `status` or `update`.
+- **The bridge starts with the app.** The install is not finished until the app says "Listening" with the assistant's name.
+- **Codex: no time limit, and no silent failure.** The bridge keeps answering until you stop it. Started inside Codex's sandbox, it now stops at the start and says to run it outside the sandbox, instead of saying "Listening" and failing every request.
+- **One bridge at a time** answers for a workspace.
+
 ## 0.1.35 · 16 Nov 2026
 
 **Run and Ask AI reach the agent you already work with: Codex or Claude Code.**
