@@ -6,6 +6,8 @@ APP_SRC="$ROOT/source/app"
 SKILLS_SRC="$ROOT/source/skills"
 RELEASE_SRC="$ROOT/release"
 BOOTSTRAP_SRC="$ROOT/skill/maybee"
+# The skill the user installs once in their home folder: small and stable, it hands over to the skill inside the package.
+HOME_SKILL_SRC="$ROOT/skill/bootstrap"
 DIST="$ROOT/dist"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
@@ -34,7 +36,9 @@ printf 'Built %s\n' "$ARCHIVE"
 SKILL_STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE" "$SKILL_STAGE"' EXIT
 mkdir -p "$SKILL_STAGE/maybee"
-cp -a "$BOOTSTRAP_SRC/." "$SKILL_STAGE/maybee/"
+cp -a "$HOME_SKILL_SRC/." "$SKILL_STAGE/maybee/"
+mkdir -p "$SKILL_STAGE/maybee/scripts"
+cp -a "$BOOTSTRAP_SRC/scripts/install-release.sh" "$SKILL_STAGE/maybee/scripts/"
 SKILL_ARCHIVE="$DIST/maybee-$VERSION.zip"
 rm -f "$SKILL_ARCHIVE"
 (cd "$SKILL_STAGE" && zip -qr "$SKILL_ARCHIVE" maybee)
