@@ -29,7 +29,7 @@ a { color: inherit; }
 /* ---------- first-run onboarding ---------- */
 .onboarding-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; background: color-mix(in srgb, var(--dark) 42%, transparent); }
 .onboarding-card { width: min(560px, 100%); padding: 38px; border-radius: 28px; background: var(--card-hi); box-shadow: 0 24px 80px #16151333; }
-.onboarding-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px; background: var(--accent); font-weight: 800; }
+.onboarding-mark { height: 44px; width: auto; display: block; }
 .onboarding-kicker { margin: 22px 0 7px; color: var(--ink-3); font-size: 13px; font-weight: 600; }
 .onboarding-card h1 { margin: 0; font-size: 30px; line-height: 1.15; letter-spacing: -.03em; }
 .onboarding-intro { margin: 12px 0 26px; color: var(--ink-2); }
@@ -55,10 +55,7 @@ a { color: inherit; }
   height: 68px; padding: 0 32px;
 }
 .brand { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
-.mark {
-  width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center;
-  background: var(--accent); color: var(--ink); font-weight: 800; font-size: 15px;
-}
+.mark { height: 25px; width: auto; display: block; margin-bottom: 7.5px; }
 .name { font-weight: 700; letter-spacing: -.02em; font-size: 16px; }
 .project { color: var(--ink-3); font-weight: 500; }
 .workspace-picker { position: relative; }
@@ -70,6 +67,7 @@ a { color: inherit; }
 .workspace-menu-label { padding: 5px 9px 8px; color: var(--ink-3); font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
 .workspace-option { width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px; border-radius: 11px; text-align: left; }
 .workspace-option:hover, .workspace-option.selected { background: var(--accent-soft); }
+.workspace-option-icon img { height: 17px; width: auto; display: block; margin-bottom: 3px; }
 .workspace-option-icon { width: 26px; height: 26px; display: grid; flex: none; place-items: center; border-radius: 8px; background: var(--card); color: var(--ink-2); font-size: 12px; font-weight: 800; }
 .workspace-option b, .workspace-option small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-option b { font-size: 12.5px; }

@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.png" alt="Maybee" height="96"></p>
+
 # Maybee package experiment
 
 This is an isolated prototype for distributing Maybee as a thin bootstrap skill plus a versioned release ZIP.

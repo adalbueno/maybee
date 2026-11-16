@@ -1,4 +1,5 @@
 <script setup>
+import logo from '../assets/logo.png'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 const emit = defineEmits(['verified'])
@@ -89,7 +90,7 @@ onUnmounted(() => accessEvents?.close())
 <template>
   <div class="onboarding-backdrop">
     <section class="onboarding-card access-card">
-      <div class="onboarding-mark">M</div>
+      <img class="onboarding-mark" :src="logo" alt="" />
       <p class="onboarding-kicker">Session access</p>
       <h1>Verify your How I membership.</h1>
       <p v-if="status?.mode === 'agent-browser'" class="onboarding-intro">Maybee opens How I in the browser already available to Claude or Codex. If Skool asks you to log in, do it there; Maybee will unlock after the browser confirms your membership.</p>

@@ -10,6 +10,7 @@ The newest version is at the top. Maybee keeps this file up to date when you upd
 - **Start a workspace from one.** **Add workspace** lists the playbooks, with a blank workspace first.
 - **The first playbook: 7-day challenge.** One card in Now explains it; Next has every step in order.
 - **Messages at the bottom.** Results show as a short message: green when it worked, red when it did not.
+- **A new logo.** The yellow bee replaces the "M" in the top bar, the first-run screens and the browser tab.
 - **New ideas have no code.** A new card no longer gets an `I12`-style id; existing ids stay.
 
 ## 0.1.37 · 16 Nov 2026

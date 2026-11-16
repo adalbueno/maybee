@@ -1,4 +1,5 @@
 <script setup>
+import logo from '../assets/logo.png'
 import { ref } from 'vue'
 
 const emit = defineEmits(['done'])
@@ -45,7 +46,7 @@ async function skip() {
 <template>
   <div class="onboarding-backdrop">
     <section class="onboarding-card">
-      <div class="onboarding-mark">M</div>
+      <img class="onboarding-mark" :src="logo" alt="" />
       <p class="onboarding-kicker">First run · {{ step + 1 }} of {{ questions.length }}</p>
       <h1>Let’s make this project yours.</h1>
       <p class="onboarding-intro">I’ll ask a few questions, then create the Maybee structure in this workspace. Existing files will be kept.</p>

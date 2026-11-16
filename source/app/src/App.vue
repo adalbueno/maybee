@@ -1,5 +1,6 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
+import logo from './assets/logo.png'
 import FeedCard from './components/FeedCard.vue'
 import Viewer from './components/Viewer.vue'
 import Board from './components/Board.vue'
@@ -22,6 +23,8 @@ const fresh = ref(new Set()) // paths changed while the page is open
 const lastChange = ref(0)
 const filter = ref('all')
 const setup = ref(null)
+// ?setup=1 opens the onboarding; read at load, before the page rewrites its own address
+const forceSetup = new URLSearchParams(location.search).get('setup') === '1'
 const showOnboarding = ref(false)
 const access = ref(null)
 const accessReady = ref(false)
@@ -233,7 +236,7 @@ function onKey(e) { if (e.key === 'Escape' && open.value) closeViewer() }
 async function loadSetup() {
   try {
     setup.value = await fetch('/api/setup').then(r => r.json())
-    showOnboarding.value = (!setup.value.initialized && !setup.value.skipped) || new URLSearchParams(location.search).get('setup') === '1'
+    showOnboarding.value = (!setup.value.initialized && !setup.value.skipped) || forceSetup
   } catch {}
 }
 // A workspace made from outside the page (by your assistant, say) shows up without a reload
@@ -353,7 +356,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
     <Onboarding v-if="showOnboarding" @done="onboardingDone" />
     <header class="top">
       <div class="brand">
-        <span class="mark">M</span>
+        <img class="mark" :src="logo" alt="" />
         <span class="name">Maybee</span>
         <div v-if="workspaces.length" class="workspace-picker" @click.stop>
           <button class="workspace-select" :aria-expanded="workspaceMenuOpen" aria-haspopup="listbox" @click="workspaceMenuOpen = !workspaceMenuOpen; if (workspaceMenuOpen) refreshWorkspaces()">
@@ -362,7 +365,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
           <div v-if="workspaceMenuOpen" class="workspace-menu" role="listbox">
             <div class="workspace-menu-label">Workspaces</div>
             <button v-for="w in workspaces" :key="w.name" class="workspace-option" :class="{ selected: w.name === activeWorkspace }" role="option" :aria-selected="w.name === activeWorkspace" @click="chooseWorkspace(w.name)">
-              <span class="workspace-option-icon">{{ w.name === 'default' ? 'M' : '↗' }}</span>
+              <span class="workspace-option-icon"><img v-if="w.name === 'default'" :src="logo" alt="" /><template v-else>↗</template></span>
               <span><b>{{ w.label }}</b><small>{{ w.name === 'default' ? 'Default workspace' : 'Playbook workspace' }}</small></span>
               <span v-if="w.name === activeWorkspace" class="workspace-check">✓</span>
             </button>
