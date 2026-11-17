@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import logo from './assets/logo.png'
 import FeedCard from './components/FeedCard.vue'
 import Viewer from './components/Viewer.vue'
@@ -15,6 +15,8 @@ import { claude } from './ask.js'
 const logoSpin = ref(false)
 let logoTimer = null
 function spinLogo() { logoSpin.value = false; clearTimeout(logoTimer); requestAnimationFrame(() => { logoSpin.value = true; logoTimer = setTimeout(() => { logoSpin.value = false }, 800) }) }
+// The logo is home: it spins, and takes you to the board on Now (a card that is open stays open)
+function goHome() { spinLogo(); onMaybee('board/now') }
 const items = ref([])
 const next = ref(null)
 const total = ref(0)
@@ -84,6 +86,17 @@ window.addEventListener('popstate', () => {
   openTab.value = r.open && r.open.tab || 'content'
 })
 function onTab(t) { openTab.value = t; syncUrl(false) }
+// Links inside a note that talk to the app: maybee:board/<column> opens that column of the board, maybee:go/<place> goes to a page.
+// The card that holds the link stays open, so the note and the board work together.
+const board = ref(null)
+async function onMaybee(cmd) {
+  const [kind, what] = String(cmd).split('/')
+  if (kind === 'go' && PLACES.includes(fixPlace(what))) return go(what)
+  if (kind === 'board') {
+    if (place.value !== 'workspace') { go('workspace'); await nextTick() }
+    board.value?.show(what)
+  }
+}
 function closeViewer() { open.value = null; syncUrl() }
 function go(p) { p = fixPlace(p); place.value = p; try { localStorage.setItem('maybee.place', p) } catch {}; syncUrl() }
 const unread = ref(0)
@@ -240,7 +253,7 @@ function onKey(e) { if (e.key === 'Escape' && open.value) closeViewer() }
 async function loadSetup() {
   try {
     setup.value = await fetch('/api/setup').then(r => r.json())
-    showOnboarding.value = (!setup.value.initialized && !setup.value.skipped) || forceSetup
+    showOnboarding.value = (!setup.value.initialized && !setup.value.skipped) || !!setup.value.needsOnboarding || forceSetup
   } catch {}
 }
 // A workspace made from outside the page (by your assistant, say) shows up without a reload
@@ -320,7 +333,10 @@ async function addWorkspace() {
   go('workspace')
   await loadSetup(); await loadFeed(); await loadNumbers()
 }
-function onboardingDone(data) { setup.value = data; showOnboarding.value = false; loadFeed(); loadNumbers() }
+function onboardingDone(data) {
+  setup.value = data; showOnboarding.value = false; loadFeed(); loadNumbers()
+  if (data && data.openPath) openItem({ path: data.openPath })
+}
 async function accessVerified(data) { access.value = data; accessReady.value = true; connect(); startHeartbeat(); await loadWorkspaces(); loadSetup(); loadFeed(); loadNumbers() }
 
 function accessExpired(data) {
@@ -359,7 +375,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
     <Onboarding v-if="showOnboarding" @done="onboardingDone" />
     <header class="top">
       <div class="brand">
-        <img class="mark" :class="{ spin: logoSpin }" :src="logo" alt="" @click="spinLogo" />
+        <img class="mark" :class="{ spin: logoSpin }" :src="logo" alt="Maybee: home" title="Home: the Now column" @click="goHome" />
         <span class="name">Maybee</span>
         <div v-if="workspaces.length" class="workspace-picker" @click.stop>
           <button class="workspace-select" :aria-expanded="workspaceMenuOpen" aria-haspopup="listbox" @click="workspaceMenuOpen = !workspaceMenuOpen; if (workspaceMenuOpen) refreshWorkspaces()">
@@ -404,7 +420,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
 
     <div v-if="accessReady" class="body">
       <main v-if="place === 'workspace'" class="board-wrap">
-        <Board :changed-at="lastChange" :active-path="open && open.path" @open="openItem" />
+        <Board ref="board" :changed-at="lastChange" :active-path="open && open.path" @open="openItem" />
       </main>
       <main v-else-if="place === 'vault'" class="lib-wrap">
         <Library :changed-at="lastChange" :active-path="open && open.path" @open="openItem" />
@@ -449,7 +465,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
         </div>
       </main>
 
-      <Viewer v-if="open" :target="open" :fresh-at="lastChange" :fresh="fresh" @close="closeViewer" @open="openItem" @tab="onTab" />
+      <Viewer v-if="open" :target="open" :fresh-at="lastChange" :fresh="fresh" @close="closeViewer" @open="openItem" @tab="onTab" @maybee="onMaybee" />
     </div>
     <div v-if="claude.toast" class="toast">{{ claude.toast }}</div>
     <div v-if="notice.text" class="toast notice" :class="notice.kind" role="status" @click="notice.text = ''">{{ notice.text }}</div>

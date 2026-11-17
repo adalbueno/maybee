@@ -36,7 +36,7 @@ Anything else in the frontmatter is kept and ignored. If a card has no descripti
 - **Done:** finished work, kept visible as history. Set `done: YYYY-MM-DD`.
 - **Not:** set aside on purpose. Hidden from the board by default. Write the user's reason in `why_not` (and a "Why not" section if it needs more), so it is not forgotten for the wrong reason.
 
-Routines have their own Routines column on the board. What puts a card there is `type: routine`, not `stage`: a routine's `stage` is ignored, except `stage: not`, which hides it.
+Routines have their own Routine column, hidden at the right edge of the board (it shows when there is a routine for today, with a yellow number for the ones ready to run). What puts a card there is `type: routine`, not `stage`: a routine's `stage` is ignored, except `stage: not`, which hides it. A routine the user sends to Not stops being a routine (its `type` becomes `idea`), so it shows in Not as an ordinary card and can be deleted there; a card dropped on Routine becomes one (`type: routine`, `recurring: daily`, `auto: off`).
 
 **Moving cards is the user's call.** Offer, don't decide: never move a card to `next` or `now` on your own. Moving to `done` after you finished something the user asked for is fine, with the date.
 
@@ -55,7 +55,7 @@ Score = (`value_members` + `want` + `value_money`) points ÷ `hard` points. The 
 
 ## Routines
 
-A routine is a card with `type: routine`. It shows in the Routines column, not in Maybe, Next, Now or Done, and it does not need a `stage` (leave it out; `stage: not` hides the routine).
+A routine is a card with `type: routine`. It shows in the Routine column, not in Maybe, Next, Now or Done, and it does not need a `stage` (leave it out; `stage: not` hides the routine).
 
 | Field | Values | Meaning |
 |---|---|---|
@@ -70,7 +70,10 @@ A routine is a card with `type: routine`. It shows in the Routines column, not i
 | `at` | `13:00` | Not before that time. |
 | `needs` | a routine id | Only after that routine is done today. |
 | `not_today` | date | Skips it for that one day without touching `last_done`. |
-| `deliverable`, `deliverable_on` | file path, date | The file this run produced, shown as a link for that day. |
+| `where` | `maybe`, `next`, `now`, `none` | Where the cards a run makes for the owner land. Missing means `none`: make no card. |
+| `deliverable`, `deliverable_on` | file path, date | The file this run produced, shown as a link for that day. Optional: prefer a card that links the file. |
+
+When a routine has `where: maybe`, `next` or `now`, a run makes at most 3 cards in that column: ordinary notes in `ideas/` with that `stage` and `source: routine <its title>`. Look at the open cards first so you do not repeat one, and say in the reply how many you made.
 
 A routine that is `auto` runs on its own only while an agent is connected. Without one, the app saves the request and the user presses **Run**.
 
@@ -79,7 +82,7 @@ A routine that is `auto` runs on its own only while an agent is connected. Witho
 1. Read the whole file first. Change only the fields you need, and leave the body and the other fields exactly as they were.
 2. Don't invent facts. Facts in a card come from the user, from the workspace's files, or from what you just did.
 3. Keep the card's links: the line under the frontmatter points back to the dashboard and the overview.
-4. Add one line to `logs/CHANGELOG.md` for each change, in the form `- YYYY-MM-DD: what changed (ideas/Card title.md)`. The app shows these lines in each card's **Changes** tab and in the feed.
+4. Add one line to `logs/CHANGELOG.md` for each change, in the form `- YYYY-MM-DD HH:MM: what changed (ideas/Card title.md)`, with the local date and time now (the time is optional, but the **Changes** tab shows it when it is there). The app shows these lines in each card's **Changes** tab and in the feed.
 5. External actions, such as publishing or sending something, wait for the user's explicit OK. A card that asks for one still needs it.
 6. The installed program in `.maybee/package/` is read-only. Never edit it, even to fix a card problem: change the card instead.
 

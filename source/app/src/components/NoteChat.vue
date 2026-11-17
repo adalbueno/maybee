@@ -146,6 +146,10 @@ function onDockKey(e) {
 <style scoped>
 .nchat-dock { position: absolute; left: 0; right: 0; bottom: 16px; z-index: 20; padding: 0 24px; pointer-events: none; display: flex; justify-content: center; }
 .nchat-dock.floating { position: fixed; }
+/* The About page's chat is fixed to the window. With a card open beside the page it keeps to the page's own side, so it never covers the card's chat bar;
+   on a narrow window, where the card takes the whole width, it steps aside for the card's chat. */
+.with-viewer .nchat-dock.floating { right: auto; width: var(--list-pane); }
+@media (max-width: 1100px) { .with-viewer .nchat-dock.floating { display: none; } }
 .nchat { pointer-events: auto; width: min(720px, 100%); background: var(--card-hi); border-radius: 24px; box-shadow: 0 14px 40px rgba(20, 15, 5, .16), 0 0 0 1px var(--line); display: flex; flex-direction: column; overflow: hidden; }
 .panel { display: flex; flex-direction: column; gap: 10px; padding: 14px 14px 4px; border-bottom: 1px solid var(--line); }
 header { display: flex; align-items: center; gap: 12px; font-size: 13px; }

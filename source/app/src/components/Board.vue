@@ -1,8 +1,7 @@
 <script setup>
-import RoutineSchedule from './RoutineSchedule.vue'
 import { ask, claude } from '../ask.js'
 import { sideMove } from '../stages.js'
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 const props = defineProps({ changedAt: Number, activePath: String })
 const emit = defineEmits(['open'])
 
@@ -11,85 +10,88 @@ const dragging = ref(null)
 const over = ref(null)
 const openCol = ref('now') // the board always starts on Now
 const nearNot = ref(false)
+const nearRoutine = ref(false) // the pointer is at the right edge: the Routine column slides out, only when there are routines
 // Routines have their own column; today's due state still controls their Run buttons.
 const routines = ref([])
-const rLeft = computed(() => routines.value.filter(r => !r.done).length)
-const rDone = computed(() => routines.value.filter(r => r.done).length)
-// D262: Now shows what can be done now (the next 3 first); what waits for its time and what is done fold away
+// the routines that can run now (not done today, not waiting for their time): their number is the yellow dot at the right edge
 const rTodo = computed(() => routines.value.filter(r => !r.done && !r.later))
-const rLater = computed(() => routines.value.filter(r => !r.done && r.later))
-const rFinished = computed(() => routines.value.filter(r => r.done))
-const NEXT = 3
-const fold = ref({ more: false, later: false, done: false })
-const rShown = computed(() => [
-  ...rTodo.value.slice(0, NEXT).map(r => ({ r, part: 'next' })),
-  ...(fold.value.more ? rTodo.value.slice(NEXT).map(r => ({ r, part: 'more' })) : []),
-])
-const delivName = r => r.deliverable.split('/').pop().replace(/\.md$/, '')
-const laterLabel = r => r.later === 'needs' ? `after “${r.needsTitle}”` + (r.at ? ` · from ${r.at}` : '') : `from ${r.at}`
 const todayISO = () => new Date().toISOString().slice(0, 10)
 function runState(r) {
   const req = [...claude.items].find(i => i.path === r.path && i.action === 'Run routine' && String(i.at).slice(0, 10) === todayISO())
   return req ? req.status : null
 }
-async function notToday(r) {
-  const res = await fetch('/api/fields', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: r.path, title: r.full || r.title, fields: { not_today: new Date().toLocaleDateString('sv-SE') } }) })
-  if (res.ok) routines.value = routines.value.filter(x => x.path !== r.path)
-}
 // Start: the assistant works on a Now card. With a next step it does that; without one it picks the first step itself.
 const working = c => [...claude.items].some(i => i.path === c.path && ['Work on this now', 'Do the next step'].includes(i.action) && ['pending', 'queued', 'working'].includes(i.status))
 const start = c => ask({ action: c.nextStep ? 'Do the next step' : 'Work on this now', path: c.path, title: c.title })
 const runRoutine = r => ask({ action: 'Run routine', path: r.path, title: r.full || r.title })
-// D246: drag to reorder (order = priority = run order), gear to set how it runs by itself, Run all in order
-const rDrag = ref(null)
-const rOver = ref(null)
-function rStart(r, e) { rDrag.value = r.path; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/routine', r.path); e.stopPropagation() }
-function rEnter(r, e) { if (!rDrag.value) return; e.preventDefault(); e.stopPropagation(); rOver.value = r.path }
-async function rDrop(r, e) {
-  if (!rDrag.value) return
-  e.preventDefault(); e.stopPropagation()
-  const list = routines.value.slice()
-  const from = list.findIndex(x => x.path === rDrag.value), to = list.findIndex(x => x.path === r.path)
-  rDrag.value = null; rOver.value = null
-  if (from < 0 || to < 0 || from === to) return
-  list.splice(to, 0, list.splice(from, 1)[0])
-  routines.value = list
-  await fetch('/api/routines/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paths: list.map(x => x.path) }) })
-}
-function rEnd() { rDrag.value = null; rOver.value = null }
-const gearFor = ref(null)
-const menuFor = ref(null) // the Run button's dropdown (Not today, Remove)
-const removeAsk = ref(null)
-if (typeof window !== 'undefined') window.addEventListener('click', () => { menuFor.value = null; removeAsk.value = null })
-// D248: removing a routine = stage: not (the file is never deleted); Undo puts the old stage back
-const undo = ref(null)
-async function removeRoutine(r) {
-  menuFor.value = null; removeAsk.value = null
-  const res = await fetch('/api/stage', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: r.path, title: r.full || r.title, stage: 'not' }) })
-  if (!res.ok) { say('Could not remove it'); return }
-  const { from } = await res.json()
+// A routine leaves by going to Not, and Not is the only place where a card is deleted. A note of type routine never shows on the board,
+// so it stops being a routine on the way: it becomes an ordinary idea in Not, and the delete there is the usual one.
+async function routineToNot(r) {
+  const title = r.full || r.title
+  const post = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: r.path, title, ...body }) })
+  const a = await post('/api/fields', { fields: { type: 'idea' } })
+  if (!a.ok) { say('Could not move it'); return }
+  const b = await post('/api/stage', { stage: 'not' })
+  if (!b.ok) { say('Could not move it'); return }
   routines.value = routines.value.filter(x => x.path !== r.path)
-  undo.value = { r, from: from || 'now' }
-  setTimeout(() => { if (undo.value && undo.value.r === r) undo.value = null }, 8000)
-}
-async function undoRemove() {
-  const u = undo.value; undo.value = null
-  if (!u) return
-  await fetch('/api/stage', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: u.r.path, title: u.r.full || u.r.title, stage: u.from }) })
+  say('Moved to Not. It is a regular card now: delete it there.')
   load()
 }
-function openGear(r) { gearFor.value = gearFor.value === r.path ? null : r.path }
-const cap = d => d[0].toUpperCase() + d.slice(1)
-function autoLabel(r) {
-  const n = r.autoEvery, m = r.autoMode
-  if (m === 'session') return 'auto · every session'
-  if (m === 'hours') return `auto · every ${n} h`
-  if (m === 'days') return `auto · every ${n === 1 ? 'day' : n + ' days'}`
-  if (m === 'weeks') return `auto · ${n === 1 ? 'weekly' : 'every ' + n + ' weeks'}${r.autoDays && r.autoDays.length ? ' · ' + r.autoDays.map(cap).join(', ') : ''}`
-  if (m === 'months') return `auto · ${n === 1 ? 'monthly' : 'every ' + n + ' months'} · day ${r.autoMday}`
-  return ''
+// Routines are ordered by hand like any card (the order is the run order), and a card dropped on Routine becomes one.
+const rDrag = ref(null) // the routine being dragged
+const rOver = ref(null) // { path, pos }: where it would land
+function rStart(r, e) { rDrag.value = r; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', r.path); dragGhost(e) }
+function rEnd() { rDrag.value = null; rOver.value = null; over.value = null }
+function rEnter(r, e) {
+  if (!rDrag.value || rDrag.value.path === r.path) return
+  e.preventDefault(); e.stopPropagation()
+  const b = e.currentTarget.getBoundingClientRect()
+  rOver.value = { path: r.path, pos: e.clientY < b.top + b.height / 2 ? 'before' : 'after' }
 }
-function runAll() { for (const r of rTodo.value) { const st = runState(r); if (st !== 'pending' && st !== 'queued' && st !== 'working') runRoutine(r) } }
+async function rDrop(r, e) {
+  if (!rDrag.value || !rOver.value) return
+  e.preventDefault(); e.stopPropagation()
+  const d = rDrag.value, pos = rOver.value.pos
+  rEnd()
+  const list = routines.value.filter(x => x.path !== d.path)
+  list.splice(list.findIndex(x => x.path === r.path) + (pos === 'after' ? 1 : 0), 0, d)
+  routines.value = list
+  const res = await fetch('/api/routines/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paths: list.map(x => x.path) }) })
+  if (!res.ok) say('Could not reorder')
+  load()
+}
+// A routine back to a column of the board: it stops being a routine and becomes an ordinary card there (the mirror of making one)
+async function routineToCard(r, stage) {
+  const title = r.full || r.title
+  const post = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: r.path, title, ...body }) })
+  const a = await post('/api/fields', { fields: { type: stage === 'maybe' ? 'idea' : 'task', kind: '' } })
+  if (!a.ok) { say('Could not move it'); return }
+  const b = await post('/api/stage', { stage })
+  if (!b.ok) { say('Could not move it'); return }
+  routines.value = routines.value.filter(x => x.path !== r.path)
+  say(`Back to ${stageName(stage)}. It is a regular card now.`)
+  load()
+}
+// Not today: the routine skips today and comes back tomorrow (its last run does not change)
+async function notToday(r) {
+  const res = await fetch('/api/fields', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: r.path, title: r.full || r.title, fields: { not_today: new Date().toLocaleDateString('sv-SE') } }) })
+  if (!res.ok) { say('Could not skip it'); return }
+  routines.value = routines.value.filter(x => x.path !== r.path)
+  say('Skipped for today. It comes back tomorrow.')
+  load()
+}
+// A routine is a type of note, not a stage: making one changes the type (daily, run by hand until you set otherwise, see its Settings)
+async function makeRoutine(card) {
+  if (!card) return
+  const post = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: card.path, title: card.title, ...body }) })
+  const a = await post('/api/fields', { fields: { type: 'routine', kind: 'Routine', recurring: 'daily', auto: 'off' } })
+  if (!a.ok) { say('Could not make it a routine'); return }
+  if (['not', 'done'].includes(card.stage)) await post('/api/stage', { stage: 'now' }) // a routine in Not is a stopped one, and a routine is never "done": it comes back
+  const col = cols.value[card.stage]
+  if (col) { col.cards = col.cards.filter(c => c.path !== card.path); col.count-- }
+  say('Now it is a routine: it comes back every day. Change that in its Settings.')
+  load()
+}
 // moved: once the user has opened a column by hand, the next one opens in two steps (the drawer first, then its cards)
 const moved = ref(false)
 function toggle(key) { moved.value = true; openCol.value = key }
@@ -99,7 +101,7 @@ const q = ref('')
 const toast = ref('')
 
 // the strip colours follow the column dots (style.css .dot.*): background and the text colour that reads on it
-const STAGE = { delete: { bg: 'var(--bad)' }, maybe: { bg: '#c9c4b6' }, next: { bg: '#4a7dff' }, now: { bg: '#f2b705' }, done: { bg: 'var(--good)' }, not: { bg: 'var(--bad)' } }
+const STAGE = { delete: { bg: 'var(--bad)' }, maybe: { bg: '#c9c4b6' }, next: { bg: '#4a7dff' }, now: { bg: '#f2b705' }, done: { bg: 'var(--good)' }, not: { bg: 'var(--bad)' }, routine: { bg: '#a56bdb' } }
 const stageName = key => key === 'delete' ? 'Delete' : (COLS.find(c => c.key === key) || {}).label || key
 // the strip at one side of a card: where it would go, and the colour of that column
 // the strip that slides out from under the card is the one on the half the mouse is over
@@ -111,21 +113,41 @@ const COLS = [
   { key: 'maybe', label: 'Maybe', hint: 'Worth a look, by priority' },
   { key: 'next', label: 'Next', hint: 'The short queue' },
   { key: 'now', label: 'Now', hint: 'What we are working on' },
-  { key: 'routine', label: 'Routine', hint: 'Recurring work' },
   { key: 'done', label: 'Done', hint: '' },
+  { key: 'routine', label: 'Routine', hint: 'Recurring work' },
 ]
 const weekAgo = Date.now() - 7 * 86400000
 const wins = computed(() => cols.value ? cols.value.done.cards : [])
 const winsThisWeek = computed(() => wins.value.filter(c => c.mtime >= weekAgo).length)
 const when = ms => { const d = Math.round((Date.now() - ms) / 86400000); return d <= 0 ? 'today' : d === 1 ? 'yesterday' : d < 7 ? d + ' days ago' : new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) }
-const shown = computed(() => COLS.filter(c => !c.onlyWhileDragging || dragging.value || openCol.value === c.key || (c.key === 'not' && nearNot.value)))
+// Routine hides at the right edge, like Not at the left: it shows only when there is a routine for today, and the pointer is at the edge or it is open
+const hasRoutines = computed(() => routines.value.length > 0)
+const shown = computed(() => COLS.filter(c => c.key === 'routine'
+  ? openCol.value === 'routine' || (hasRoutines.value && nearRoutine.value) || !!dragging.value || !!rDrag.value // while a card is dragged it is a place to drop, even with no routine yet
+  : !c.onlyWhileDragging || dragging.value || rDrag.value || openCol.value === c.key || (c.key === 'not' && nearNot.value)))
+const routineBusy = r => ['pending', 'queued', 'working'].includes(runState(r))
+const routineLabel = r => ({ working: 'Running…', queued: 'In line', pending: 'Sent' }[runState(r)] || 'Run')
+const routineLine = r => runState(r) === 'working' ? 'Running now…' : runState(r) === 'queued' ? 'In line' : r.done ? 'Done today' : [r.recurring, r.at && 'at ' + r.at].filter(Boolean).join(' · ')
 
 async function load() {
   const res = await fetch('/api/board').then(r => r.json())
   cols.value = res.columns
   routines.value = res.routinesToday || []
 }
-onMounted(load)
+// A card opened from anywhere (a link, the chat, the URL, the feed) shows the column it is in, and the board scrolls to it.
+// Only when a card is opened: moving between columns by hand is never undone.
+function reveal(path) {
+  if (!path || !cols.value) return
+  const stage = Object.keys(cols.value).find(k => cols.value[k].cards.some(c => c.path === path)) || (routines.value.some(r => r.path === path) ? 'routine' : null)
+  if (!stage) return
+  if (openCol.value !== stage) toggle(stage)
+  // the column opens first (its width, then its cards), so the card is only there a moment later
+  setTimeout(() => nextTick(() => document.querySelector(`[data-path="${CSS.escape(path)}"]`)?.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })), 320)
+}
+onMounted(() => load().then(() => reveal(props.activePath)))
+// a note can open a column by a link (App.vue, onMaybee) while its card stays open
+defineExpose({ show: key => { if (COLS.some(c => c.key === key)) toggle(key) } })
+watch(() => props.activePath, reveal)
 watch(() => props.changedAt, load)
 
 function say(msg) { toast.value = msg; setTimeout(() => { if (toast.value === msg) toast.value = '' }, 2600) }
@@ -144,6 +166,7 @@ async function remove(card) {
 
 async function move(card, stage) {
   if (card && stage === 'delete') return remove(card)
+  if (card && stage === 'routine') return makeRoutine(card)
   if (!card || card.stage === stage) return
   const from = card.stage
   // optimistic
@@ -161,9 +184,8 @@ async function move(card, stage) {
   load()
 }
 
-function onDragStart(card, e) {
-  dragging.value = card; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', card.path)
-  // the browser's own drag image is a snapshot of the card with its hover shadow and see-through corners: draw a clean, solid copy instead
+// the browser's own drag image is a snapshot of the card with its hover shadow and see-through corners: draw a clean, solid copy instead
+function dragGhost(e) {
   const el = e.currentTarget, box = el.getBoundingClientRect()
   const ghost = el.cloneNode(true)
   ghost.classList.add('drag-ghost'); ghost.classList.remove('dragging', 'active', 'drop-before', 'drop-after')
@@ -172,6 +194,7 @@ function onDragStart(card, e) {
   e.dataTransfer.setDragImage(ghost, e.clientX - box.left, e.clientY - box.top)
   setTimeout(() => ghost.remove(), 0)
 }
+function onDragStart(card, e) { dragging.value = card; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', card.path); dragGhost(e) }
 function onDragEnd() { dragging.value = null; over.value = null; dropAt.value = null }
 
 // Arrange cards inside Maybe, Next and Now by hand: drop on the upper or lower half of a card.
@@ -240,7 +263,12 @@ async function addIdea() {
     else say(out.error || 'Could not add it')
   } finally { adding.value = false }
 }
-function onDrop(stage) { const c = dragging.value; onDragEnd(); move(c, stage) }
+function onDrop(stage) {
+  if (rDrag.value) { const r = rDrag.value; rEnd(); if (stage === 'not') routineToNot(r); else if (stage !== 'routine') routineToCard(r, stage); return } // a routine goes to Not, or back to any column as a regular card
+  const c = dragging.value; onDragEnd()
+  if (stage === 'routine') return makeRoutine(c)
+  move(c, stage)
+}
 
 async function openBacklog() {
   showBacklog.value = true
@@ -259,12 +287,16 @@ async function pull(card, stage) {
 </script>
 
 <template>
-  <div class="board" :class="{ moved }" v-if="cols" @mouseleave="nearNot = false">
+  <div class="board" :class="{ moved }" v-if="cols" @mouseleave="nearNot = false; nearRoutine = false">
     <div class="not-edge" aria-label="Reveal Not column" @mouseenter="nearNot = true"></div>
+    <!-- the Routine column waits at the right edge; a yellow dot with a number says there are routines to run today -->
+    <div v-if="hasRoutines && openCol !== 'routine'" class="routine-edge" :aria-label="rTodo.length ? rTodo.length + ' routines to run today' : 'Reveal Routine column'" @mouseenter="nearRoutine = true">
+      <b v-if="rTodo.length" class="routine-due" :title="rTodo.length + (rTodo.length === 1 ? ' routine to run today' : ' routines to run today')">{{ rTodo.length }}</b>
+    </div>
     <section
       v-for="col in shown" :key="col.key" class="col" :class="[col.key, { open: openCol === col.key, over: over === col.key }]"
       @dragover.prevent="over = col.key" @dragleave.self="over = null" @drop.prevent="onDrop(col.key)"
-      @mouseenter="col.key === 'not' && (nearNot = true)" @mouseleave="col.key === 'not' && (nearNot = false)"
+      @mouseenter="col.key === 'not' ? (nearNot = true) : col.key === 'routine' && (nearRoutine = true)" @mouseleave="col.key === 'not' ? (nearNot = false) : col.key === 'routine' && (nearRoutine = false)"
     >
       <!-- collapsed: a narrow tab -->
       <!-- it stays in the open column too: while the drawer opens the tab is still there, and it fades once the cards appear -->
@@ -284,78 +316,24 @@ async function pull(card, stage) {
           </div>
         </header>
         <div class="col-body">
-          <div v-if="col.key === 'routine' && routines.length" class="r-today">
-            <div v-if="undo" class="r-undo">Removed “{{ undo.r.full || undo.r.title }}” <button class="link-btn" @click.stop="undoRemove">Undo</button></div>
-            <div class="r-head">Today's routines <b class="r-count">{{ rDone }} of {{ routines.length }} done</b> <small>drag to set the order · they run in this order</small>
-              <button v-if="rTodo.length" class="r-all" @click.stop="runAll" title="Send every routine that can run now to Claude, top to bottom">Run all ({{ rTodo.length }})</button>
-            </div>
-            <p v-if="!rTodo.length && rLater.length" class="r-empty">Nothing to do right now. Next: {{ rLater[0].full || rLater[0].title }}, {{ laterLabel(rLater[0]) }}.</p>
-            <p v-else-if="!rTodo.length" class="r-empty ok">✓ All of today's routines are done.</p>
-            <template v-for="({ r, part }, i) in rShown" :key="r.path">
-            <div v-if="i === NEXT" class="r-sub">The rest for today</div>
-            <article class="kcard routine" :class="{ 'r-next': part === 'next', dragging: rDrag === r.path, 'r-over': rOver === r.path && rDrag !== r.path, 'r-running': runState(r) === 'working', 'r-queued': runState(r) === 'queued' || runState(r) === 'pending' }"
-                 draggable="true" @dragstart="rStart(r, $event)" @dragover="rEnter(r, $event)" @drop="rDrop(r, $event)" @dragend="rEnd"
-                 @click="emit('open', { path: r.path, key: r.path })">
-              <div class="k-meta">
-                <span class="tag">Routine</span>
-                <span class="prio" title="Run order: drag to change">{{ i + 1 }}</span>
-              </div>
+          <!-- a routine looks like any other card: its title, a line about it, one button -->
+          <template v-if="col.key === 'routine'"><div v-for="r in routines" :key="r.path" class="krow" @mousemove="pickSide" @mouseleave="$event.currentTarget.dataset.side = ''">
+            <button class="k-side prev" :style="{ '--c': '#a56bdb' }" title="Not today: it comes back tomorrow" aria-label="Not today" @click.stop="notToday(r)"><span>‹ Not today</span></button>
+            <article class="kcard" :data-path="r.path" :class="{ active: activePath === r.path, dragging: rDrag && rDrag.path === r.path, 'drop-before': rOver && rOver.path === r.path && rOver.pos === 'before', 'drop-after': rOver && rOver.path === r.path && rOver.pos === 'after' }"
+              draggable="true" @dragstart="rStart(r, $event)" @dragend="rEnd" @dragover="rEnter(r, $event)" @drop="rDrop(r, $event)" @click="emit('open', { path: r.path, key: r.path })">
               <h3>{{ r.full || r.title }}</h3>
-              <p v-if="runState(r) === 'working'" class="r-state run">Claude is doing this now…</p>
-              <p v-else-if="runState(r) === 'queued'" class="r-state">In line, Claude does it after the one running</p>
-              <p v-else>{{ r.recurring }}<template v-if="r.at"> · at {{ r.at }}</template><template v-if="r.stale"> · <em>{{ r.last ? `${r.idle} days without` : 'Never run' }}</em></template><template v-if="r.auto"> · {{ autoLabel(r) }}</template></p>
-              <a v-if="r.deliverable" class="r-deliv" @click.stop="emit('open', { path: r.deliverable, key: r.deliverable })" :title="r.deliverable">📄 {{ delivName(r) }}</a>
-              <div class="k-moves r-actions" @click.stop>
-                <div class="r-split">
-                  <button class="pill-btn yellow" :disabled="runState(r) === 'pending' || runState(r) === 'queued' || runState(r) === 'working'" @click="runRoutine(r)">
-                    {{ runState(r) === 'working' ? 'Running…' : runState(r) === 'queued' ? 'In line' : runState(r) === 'pending' ? 'Sent' : 'Run' }}
-                  </button>
-                  <button class="r-caret" :class="{ open: menuFor === r.path }" @click="menuFor = menuFor === r.path ? null : r.path" title="More">▾</button>
-                  <div v-if="menuFor === r.path" class="r-menu">
-                    <button @click="menuFor = null; notToday(r)">Not today <small>comes back tomorrow</small></button>
-                    <button v-if="removeAsk !== r.path" class="danger" @click="removeAsk = r.path">Remove routine <small>stops it for good (stage: not)</small></button>
-                    <button v-else class="danger sure" @click="removeRoutine(r)">Sure? Remove it <small>the note stays, you can bring it back</small></button>
-                  </div>
-                </div>
-                <button class="r-gear" :class="{ on: r.auto, open: gearFor === r.path }" @click.stop="openGear(r)" title="Run by itself: every session, or every N hours, days, weeks or months">⚙</button>
+              <p>{{ routineLine(r) }}</p>
+              <div class="k-moves" @click.stop>
+                <button class="start" :disabled="routineBusy(r) || r.done" @click="runRoutine(r)">{{ r.done ? 'Done today' : routineLabel(r) }}</button>
               </div>
             </article>
-            <RoutineSchedule v-if="gearFor === r.path" :r="r" cancelable @cancel="gearFor = null" @saved="v => { Object.assign(r, v); gearFor = null; say('Saved') }" />
-            </template>
-            <button v-if="rTodo.length > NEXT" class="r-fold" @click.stop="fold.more = !fold.more">
-              <span class="caret" :class="{ open: fold.more }">▸</span>{{ fold.more ? 'Show only the next 3' : `${rTodo.length - NEXT} more for today` }}
-            </button>
-            <button v-if="rLater.length" class="r-fold" @click.stop="fold.later = !fold.later">
-              <span class="caret" :class="{ open: fold.later }">▸</span>Later today <small>{{ rLater.length }}</small>
-            </button>
-            <template v-if="fold.later">
-              <article v-for="r in rLater" :key="r.path" class="kcard routine r-later" @click="emit('open', { path: r.path, key: r.path })">
-                <div class="k-meta"><span class="tag">Routine</span><span class="prio" title="Waits">◷</span></div>
-                <h3>{{ r.full || r.title }}</h3>
-                <p>{{ laterLabel(r) }}</p>
-                <a v-if="r.deliverable" class="r-deliv" @click.stop="emit('open', { path: r.deliverable, key: r.deliverable })" :title="r.deliverable">📄 {{ delivName(r) }}</a>
-                <div class="k-moves r-actions" @click.stop>
-                  <button class="pill-btn ghost" :disabled="runState(r) === 'pending' || runState(r) === 'queued' || runState(r) === 'working'" @click="runRoutine(r)" title="Run it now anyway">Run now</button>
-                </div>
-              </article>
-            </template>
-            <button v-if="rFinished.length" class="r-fold" @click.stop="fold.done = !fold.done">
-              <span class="caret" :class="{ open: fold.done }">▸</span>Done today <small>{{ rFinished.length }}</small>
-            </button>
-            <template v-if="fold.done">
-              <article v-for="r in rFinished" :key="r.path" class="kcard routine r-done" @click="emit('open', { path: r.path, key: r.path })">
-                <div class="k-meta"><span class="tag">Routine</span><span class="prio" title="Done today">✓</span></div>
-                <h3>{{ r.full || r.title }}</h3>
-                <p class="r-state ok">Done today · back {{ r.recurring === 'daily' ? 'tomorrow' : 'when due' }}</p>
-                <a v-if="r.deliverable" class="r-deliv" @click.stop="emit('open', { path: r.deliverable, key: r.deliverable })" :title="r.deliverable">📄 {{ delivName(r) }}</a>
-              </article>
-            </template>
-          </div>
+            <button class="k-side next" :style="{ '--c': 'var(--bad)' }" title="Stop this routine: it goes to Not, where it can be deleted" aria-label="Move to Not" @click.stop="routineToNot(r)"><span>Not ›</span></button>
+          </div></template>
           <div v-for="c in cols[col.key].cards" :key="c.path" class="krow" @mousemove="pickSide" @mouseleave="$event.currentTarget.dataset.side = ''">
           <!-- moving a card: a strip before and one after, in the colour of the column it goes to (back on the left, on on the right) -->
           <button v-if="side(c, 'prev')" class="k-side prev" :style="{ '--c': side(c, 'prev').bg }" :title="side(c, 'prev').label" :aria-label="side(c, 'prev').label" @click.stop="move(c, side(c, 'prev').to)"><span>‹ {{ side(c, 'prev').name }}</span></button>
           <article
-            class="kcard" :class="{ dragging: dragging && dragging.path === c.path, active: activePath === c.path, 'drop-before': dropAt && dropAt.path === c.path && dropAt.pos === 'before', 'drop-after': dropAt && dropAt.path === c.path && dropAt.pos === 'after' }"
+            class="kcard" :data-path="c.path" :class="{ dragging: dragging && dragging.path === c.path, active: activePath === c.path, 'drop-before': dropAt && dropAt.path === c.path && dropAt.pos === 'before', 'drop-after': dropAt && dropAt.path === c.path && dropAt.pos === 'after' }"
             draggable="true" @dragstart="onDragStart(c, $event)" @dragend="onDragEnd" @dragover="cardOver(c, $event)" @drop="cardDrop(c, $event)" @click="emit('open', { path: c.path, key: c.path })"
           >
             <!-- priority is a small signal in the corner, not a row of its own: 2 · 3 · 5 · 8 · 13 fill 1 to 5 bars -->
@@ -380,9 +358,6 @@ async function pull(card, stage) {
             </div>
             <div v-if="col.key === 'now'" class="k-moves" @click.stop>
               <button class="start" :disabled="working(c)" :title="c.nextStep ? 'Ask your assistant to do the next step' : 'Ask your assistant to start working on this'" @click="start(c)">{{ working(c) ? 'Working…' : c.nextStep ? 'Do the next step' : 'Start' }}</button>
-            </div>
-            <div class="k-foot">
-              <span v-if="c.area">{{ c.area }}</span>
             </div>
           </article>
           <button v-if="side(c, 'next')" class="k-side next" :style="{ '--c': side(c, 'next').bg }" :title="side(c, 'next').label" :aria-label="side(c, 'next').label" @click.stop="move(c, side(c, 'next').to)"><span>{{ side(c, 'next').name }} ›</span></button>

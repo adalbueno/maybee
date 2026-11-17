@@ -12,6 +12,7 @@ export const movesFor = stage => MOVES[stage] || MOVES.maybe
 // The card's side arrows: one stage back and one forward along maybe → next → now → done. "Not" is not on the line, but Maybe has nothing before it, so its left side is Not. In Not the left side deletes the card and the right one sends it back to Maybe.
 const LINE = ['maybe', 'next', 'now', 'done']
 export function sideMove(stage, dir) {
+  if (stage === 'done' && dir === 'next') return { to: 'routine', label: 'Make it a routine' } // what is done and worth repeating
   const i = LINE.indexOf(stage)
   const to = stage === 'not' ? (dir === 'prev' ? 'delete' : 'maybe') : stage === 'maybe' && dir === 'prev' ? 'not' : LINE[i + (dir === 'prev' ? -1 : 1)]
   if (!to) return null

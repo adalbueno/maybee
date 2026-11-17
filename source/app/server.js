@@ -16,6 +16,7 @@ import { readBridge } from './lib/bridge.js'
 import { initSnapshots, snapshot, diffFor } from './lib/snapshots.js'
 import { verifySkool } from './local-skool-verifier.js'
 import { openAppWindow, ensureBrowser } from './lib/browser.js'
+import { watchChangelog, stampChangelog } from './lib/changelog-stamp.js'
 import { dataPath, DATA_DIR } from './lib/paths.js'
 import { apply as applyMigrations } from './lib/migrations.js'
 import { missingFromTemplate, addMissing, fillStatus } from './lib/foundations.js'
@@ -401,12 +402,24 @@ async function heartbeat() {
 }
 
 const ONBOARDING_DIRS = ['owner', 'knowledge', 'decisions', 'ideas', 'people', 'outputs', 'logs']
+// What a workspace says before anyone has told Maybee what the project is: the packaged defaults. A workspace that still says
+// so (a fresh install, a new workspace from the template) gets the Maybee chat; one that was personalized never does.
+const GENERIC = {
+  'PROJECT.md': /Choose one project and one useful next action|What this workspace is for\./,
+  'STATE.md': /Choose one project to move forward|Write the focus of this workspace here\./,
+  'owner/preferences.md': /No preferences recorded yet/,
+}
 function setupStatus() {
   const has = rel => fs.existsSync(path.join(ROOT, rel))
   const skipped = has('.maybee/onboarding-skipped.json')
+  const onboarded = has('.maybee/onboarded.json')
+  let needsOnboarding = false
+  try { needsOnboarding = !skipped && !onboarded && GENERIC['PROJECT.md'].test(fs.readFileSync(path.join(ROOT, 'PROJECT.md'), 'utf8')) } catch {}
   return {
     root: ROOT,
     initialized: has('PROJECT.md') && has('STATE.md'),
+    needsOnboarding,
+    onboarded,
     skipped,
     hasProject: has('PROJECT.md'),
     hasState: has('STATE.md'),
@@ -459,17 +472,74 @@ async function initializeProject(body) {
     'ideas/README.md': '# Ideas\n\nIdeas and tasks begin here.\n',
     'people/README.md': '# People\n\nPeople connected to this project.\n',
     'outputs/README.md': '# Outputs\n\nThings this project produces.\n',
-    'logs/CHANGELOG.md': `# Changelog\n\n- ${now}: Maybee created the initial project structure through onboarding.\n`,
+    'logs/CHANGELOG.md': `# Changelog\n\n- ${now} ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}: Maybee created the initial project structure through onboarding.\n`,
   }
   const created = []
   for (const [rel, text] of Object.entries(files)) {
     const abs = path.join(ROOT, rel)
-    if (fs.existsSync(abs)) continue
+    if (fs.existsSync(abs)) {
+      // a file that still has the packaged default is replaced by the answers; anything the owner wrote is kept
+      const generic = GENERIC[rel]
+      if (!generic || !generic.test(await fsp.readFile(abs, 'utf8').catch(() => ''))) continue
+    }
     await fsp.mkdir(path.dirname(abs), { recursive: true })
     await fsp.writeFile(abs, text)
     created.push(rel)
   }
-  return { ...setupStatus(), created, preserved: Object.keys(files).filter(rel => !created.includes(rel)) }
+  await writeVoice(voice)
+  await fsp.mkdir(path.join(ROOT, '.maybee'), { recursive: true })
+  await fsp.writeFile(path.join(ROOT, '.maybee', 'onboarded.json'), JSON.stringify({ at: new Date().toISOString() }, null, 2))
+  // the first card: the goal, as an idea in Maybe. In the default playbook the Maybe column already has a card that explains it
+  // ("Capture an idea"): that card becomes the goal and keeps explaining the column, so it is the only card there.
+  let firstCard = null
+  if (body.firstCard) {
+    try {
+      const CAPTURE = 'ideas/Turn the work into a post.md'
+      const abs = path.join(ROOT, CAPTURE)
+      const old = fs.existsSync(abs) ? await fsp.readFile(abs, 'utf8') : ''
+      const title = goal.replace(/\s+/g, ' ').trim().slice(0, 140)
+      if (/^stage:\s*maybe\s*$/m.test(old) && /^title:\s*"?Capture an idea"?\s*$/m.test(old)) {
+        const id = /^id:\s*(.+)$/m.exec(old)?.[1]?.trim()
+        await fsp.writeFile(abs, goalCardText(title, id, now))
+        firstCard = { path: CAPTURE, title }
+      } else {
+        const c = await createCard(ROOT, getIndex(), goal)
+        firstCard = { path: c.path, title: c.title }
+      }
+      await statFile(ROOT, firstCard.path)
+      seen.items[firstCard.path] = Date.now() + 2000; saveSeen(); await snapshot(firstCard.path)
+    } catch {}
+  }
+  await logChange(ROOT, `Personalized the project in the Maybee chat: ${projectName}`)
+  const WELCOME = 'ideas/Start here — how Maybee works.md'
+  const welcome = fs.existsSync(path.join(ROOT, WELCOME)) ? { path: WELCOME, title: 'How Maybee works' } : null
+  // "What is Maybee" comes before the tour, the same for everyone: it is the first card the chat opens
+  const INTRO = 'ideas/What is Maybee.md'
+  const intro = fs.existsSync(path.join(ROOT, INTRO)) ? { path: INTRO, title: 'What is Maybee' } : null
+  return { ...setupStatus(), created, firstCard, welcome, intro, preserved: Object.keys(files).filter(rel => !created.includes(rel)) }
+}
+
+// The first card of a project made in the Maybee chat: the goal, with the explanation of the Maybee column kept.
+function goalCardText(title, id, day) {
+  return `---\n${id ? `id: ${id}\n` : ''}title: ${JSON.stringify(title)}\ntype: idea\nstage: maybe\nowner: both\nrank: 0\ndescription: "Your first idea: the goal you gave Maybee, kept here until you decide what it should become"\ncaptured: ${day}\nsource: "Maybee first-run chat"\nnext_step: "Ask Maybee for the first small step toward this goal"\n---\n\n`
+    + `> [Dashboard](../DASHBOARD.md) · [Start here](Start%20here%20—%20how%20Maybee%20works.md)\n\n# ${title}\n\n`
+    + `This is your first idea. It is the goal you gave Maybee when you set up this project, and it sits in **Maybe**, the column where ideas wait without becoming commitments.\n\n`
+    + `An idea can stay here, become a task when you decide to act, become a routine when it repeats, move to Done if it is already resolved, or move to Not when you deliberately leave it aside.\n\n`
+    + `**Done when:** you know whether this goal stays in Maybe or becomes something you act on.\n\n`
+    + `**First step:** ask Maybee in the chat below, "What would be the first small step toward this goal?"\n`
+}
+
+// The voice goes where the workspace keeps it: the Tone list of the template's voice.md, or the whole file when it is the short default.
+async function writeVoice(voice) {
+  const abs = path.join(ROOT, 'knowledge', 'brand', 'voice.md')
+  let text = null
+  try { text = await fsp.readFile(abs, 'utf8') } catch {}
+  await fsp.mkdir(path.dirname(abs), { recursive: true })
+  if (text === null || /No voice profile recorded yet/.test(text)) {
+    return fsp.writeFile(abs, `---\ntitle: Voice\nsource: Maybee onboarding\n---\n\n# Voice\n\n${voice}\n`)
+  }
+  const tone = /(## Tone\n\n_[^\n]*_\n\n)-[ \t]*\n/
+  if (tone.test(text)) await fsp.writeFile(abs, text.replace(tone, (_m, head) => `${head}- ${voice.replace(/\n+/g, ' ')}\n`))
 }
 
 async function sendRaw(req, res, rel) {
@@ -509,6 +579,7 @@ let timer = null
 let watcher = null
 function watch() {
   const watchedRoot = ROOT
+  watchChangelog(watchedRoot) // from here on, new changelog lines get their time (lib/changelog-stamp.js)
   const handle = fs.watch(watchedRoot, { recursive: true }, (_type, file) => {
     if (!file) return
     const rel = file.split(path.sep).join('/')
@@ -518,6 +589,7 @@ function watch() {
     timer = setTimeout(async () => {
       const paths = [...pending]
       pending = new Set()
+      if (paths.includes('logs/CHANGELOG.md')) await stampChangelog(watchedRoot).catch(() => {})
       for (const p of paths) await statFile(ROOT, p)
       broadcast('change', { paths, at: Date.now() })
     }, 250)
@@ -737,10 +809,11 @@ async function main() {
       if (url.pathname === '/api/desktop') return sendJSON(res, await desktop(ROOT, getIndex(), APP_DIR, seen))
       if (url.pathname === '/api/fields' && req.method === 'POST') {
         const body = await readBody(req)
-        const allowed = ['value_members', 'value_money', 'want', 'hard', 'last_done', 'auto_run', 'importance', 'not_today', 'auto', 'auto_every', 'priority', 'auto_days', 'auto_since', 'auto_mday', 'type', 'kind', 'recurring', 'owner', 'needed_by', 'area', 'next_step', 'why_not', 'done', 'at', 'needs', 'deliverable', 'deliverable_on']
+        const allowed = ['value_members', 'value_money', 'want', 'hard', 'last_done', 'auto_run', 'importance', 'not_today', 'auto', 'auto_every', 'priority', 'auto_days', 'auto_since', 'auto_mday', 'type', 'kind', 'recurring', 'owner', 'needed_by', 'area', 'next_step', 'why_not', 'done', 'at', 'needs', 'deliverable', 'deliverable_on', 'where']
         // D249: values may have spaces (needed_by: "This week"); one line, short
         const fields = Object.fromEntries(Object.entries(body.fields || {}).filter(([k, v]) => allowed.includes(k) && String(v).length <= 200 && !/[\r\n]/.test(String(v))))
         if (fields.type && !['idea', 'task', 'routine'].includes(fields.type)) delete fields.type
+        if (fields.where && !['maybe', 'next', 'now', 'none'].includes(fields.where)) delete fields.where
         if (!Object.keys(fields).length) return sendJSON(res, { error: 'nothing to change' }, 400)
         try {
           const before = await setFields(ROOT, body.path, fields)

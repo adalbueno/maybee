@@ -5,7 +5,7 @@ import LiveEditor from './LiveEditor.vue'
 import { humanize, when } from '../humanize.js'
 import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 const props = defineProps({ target: Object, freshAt: Number, fresh: Object })
-const emit = defineEmits(['close', 'open', 'tab'])
+const emit = defineEmits(['close', 'open', 'tab', 'maybee'])
 
 const note = ref(null)
 // a note always opens on Content (Adal, 8/11), unless the link asks for a tab (D254)
@@ -201,6 +201,8 @@ async function load(keepScroll = false) {
   loading.value = false
   // a decision card opens the full register, where its row is (D253)
   if (!keepScroll && props.target.decision && parts.value.record) { tab.value = 'changes'; emit('tab', 'changes') }
+  // for a routine the configuration is the main thing: it opens there, unless a tab was asked for
+  if (!keepScroll && !props.target.tab && note.value && note.value.frontmatter && note.value.frontmatter.type === 'routine' && TABS.value.some(t => t[0] === 'settings')) { tab.value = 'settings'; emit('tab', 'settings') }
   await nextTick()
   sectionizeAll()
   if (always.value && !editing.value) startEdit()
@@ -269,6 +271,9 @@ watch(() => props.freshAt, () => {
 })
 
 function onClick(e) {
+  // [Now](maybee:board/now) opens a column of the board and [About](maybee:go/about) goes to a page, with this card still open
+  const cmd = e.target.closest('a[href^="maybee:"]')
+  if (cmd) { e.preventDefault(); emit('maybee', cmd.getAttribute('href').slice(7)); return }
   const a = e.target.closest('a[data-path]')
   if (a) { e.preventDefault(); emit('open', { path: a.dataset.path }) }
 }
@@ -329,6 +334,20 @@ const headTitle = computed(() => note.value && !note.value.error ? (note.value.e
 // every markdown note gets the tabs (Adal, 8/11: the Feed opens notes the same way)
 const tabbed = computed(() => note.value && note.value.ext === '.md' && (!editing.value || always.value))
 const tabLabel = t => t[0] === 'settings' && !isIdeaNote.value ? 'Details' : parts.value.record && t[0] === 'content' ? 'Summary' : parts.value.record && t[0] === 'changes' ? 'Everything' : t[1]
+// one line above a routine's text: when it repeats, where the result lands, how long since the last run
+const routineSummary = computed(() => {
+  const fm = note.value && note.value.frontmatter
+  if (!fm || fm.type !== 'routine') return null
+  const last = fm.last_done ? String(fm.last_done).slice(0, 10) : null
+  const days = last ? Math.round((new Date(new Date().toLocaleDateString('sv-SE')) - new Date(last)) / 86400000) : null
+  const where = { maybe: 'Maybe', next: 'Next', now: 'Now' }[fm.where]
+  return [
+    'Repeats ' + (fm.recurring || 'daily') + (fm.at ? ' at ' + fm.at : ''),
+    fm.auto && fm.auto !== 'off' ? 'Runs by itself' : 'Run by hand',
+    where ? 'Result: cards in ' + where : 'Result: no card',
+    last ? 'Last run ' + (days <= 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago') : 'Never run',
+  ]
+})
 const hasDetails = computed(() => isIdeaNote.value || chips.value.length > 0 || !!liveLink.value)
 const TABS_ALL = [['content', 'Content'], ['settings', 'Settings'], ['changes', 'Changes']]
 const TABS = computed(() => TABS_ALL.filter(t => t[0] !== 'settings' || hasDetails.value))
@@ -339,7 +358,7 @@ const changes = computed(() => {
   const list = (note.value && note.value.caption && note.value.caption.recent) || []
   const out = []
   for (const e of list) {
-    const a = { ...humanize(e.text), date: e.date, n: 1 }
+    const a = { ...humanize(e.text), date: e.date, time: e.time || null, n: 1 }
     if (a.noop) continue
     const prev = out[out.length - 1]
     if (prev && prev.date === a.date && prev.who === a.who && prev.text === a.text) { prev.n++; continue }
@@ -391,7 +410,7 @@ const updated = computed(() => note.value && note.value.mtime
               <button class="icon" :disabled="groupIndex >= group.length - 1" @click="step(1)">›</button>
             </span>
           </div>
-          <p v-if="note.caption" class="caption" title="The latest line about this file in logs/CHANGELOG.md"><span>Last change · {{ note.caption.date }}</span>{{ note.caption.text }}</p>
+          <p v-if="note.caption" class="caption" title="The latest line about this file in logs/CHANGELOG.md"><span>Last change · {{ note.caption.date }}<template v-if="note.caption.time"> {{ note.caption.time }}</template></span>{{ note.caption.text }}</p>
         </template>
 
         <template v-else>
@@ -419,6 +438,7 @@ const updated = computed(() => note.value && note.value.mtime
                     </div>
                   </div>
                   <span v-if="a.n > 1" class="act-n" title="Same change, several times">×{{ a.n }}</span>
+                  <time v-if="a.time" class="act-time" :datetime="a.date + 'T' + a.time" :title="a.date + ' ' + a.time">{{ a.time }}</time>
                 </div>
               </div>
             </section>
@@ -431,9 +451,10 @@ const updated = computed(() => note.value && note.value.mtime
               <button class="fm quiet" @click="setAll(false)">Close all</button>
             </span>
           </div>
+          <p v-if="routineSummary && curTab === 'content'" class="routine-summary"><span v-for="(t, i) in routineSummary" :key="i">{{ t }}</span></p>
           <div v-if="editing" v-show="!inline || curTab === 'content'" class="editor" :class="{ 'always-on': inline }">
             <p v-if="changedUnder && !inline" class="warn">This note changed on disk while you were editing (Claude or Sync). Saving now would overwrite that change, so the app will refuse. Copy your text first.</p>
-            <LiveEditor v-model="draft" :path="editPath" @save="save" @open-link="p => emit('open', { path: p })" />
+            <LiveEditor v-model="draft" :path="editPath" @save="save" @open-link="p => emit('open', { path: p })" @maybee="c => emit('maybee', c)" />
             <div v-if="inline" class="editor-foot" :class="syncState">
               <span>{{ syncText }}</span>
               <template v-if="changedUnder">

@@ -12,4 +12,4 @@ by: Maybee playbook
 - **Choose one project to move forward:** Start with the onboarding cards, then replace this line with the real focus of the project you are working on.
 
 ## Next
-- Read the onboarding card in Now and choose the first useful action.
+- Read the card in Now, then take the tour that waits in Next.

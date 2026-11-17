@@ -6,7 +6,10 @@ export const claude = reactive({ listening: false, heardAt: null, bridge: null, 
 // what the listener writes when a request could not be answered (see scripts/listen.js)
 const FAILURE = /^(Could not start |The \w+ run (took longer than|ended without an answer))/
 // the bee's state: grey nobody listens, green listening, yellow working, red when the latest answered request failed
-export const beeState = (live = true) => !live ? 'off' : !claude.listening ? 'idle' : claude.items.some(i => i.status === 'working') ? 'busy' : claude.failed ? 'error' : 'ok'
+// A request counts as work from the moment it is sent (pending or in line), not only once the assistant marks it as running: a quick answer
+// would otherwise never be seen between two polls. Old requests nobody picked up (older than 30 minutes) do not keep the bee yellow.
+const inFlight = i => i.status === 'working' || ((i.status === 'pending' || i.status === 'queued') && Date.now() - Date.parse(i.at) < 30 * 60000)
+export const beeState = (live = true) => !live ? 'off' : !claude.listening ? 'idle' : claude.items.some(inFlight) ? 'busy' : claude.failed ? 'error' : 'ok'
 
 // "Codex · 01a1e4…": the agent that answers and the start of its session id (null when no listener ever recorded one)
 const NAMES = { claude: 'Claude', codex: 'Codex' }
@@ -20,7 +23,7 @@ export async function refreshInbox() {
     claude.heardAt = r.heardAt || null
     claude.bridge = r.bridge || null
     claude.items = r.items
-    const last = [...r.items].reverse().find(i => i.status === 'done')
+    const last = r.items.find(i => i.status === 'done') // the list comes newest first
     claude.failed = !!(last && FAILURE.test(last.reply || ''))
   } catch {}
 }
@@ -40,6 +43,8 @@ export async function ask({ action, text = '', path = null, title = null, quiet 
     try { await navigator.clipboard.writeText(res.prompt); if (!quiet) say('No session is listening. The request is saved and the prompt is copied: paste it in your assistant.') }
     catch { if (!quiet) say('No session is listening. The request is saved; ask your assistant to "listen to Maybee".') }
   }
+  // the bee turns yellow at once, before the next poll brings the request back
+  if (res.request && !claude.items.some(i => i.id === res.request.id)) claude.items.unshift(res.request)
   refreshInbox()
   return res
 }

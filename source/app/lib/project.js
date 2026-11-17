@@ -108,7 +108,7 @@ const raw = rel => '/raw?path=' + encodeURIComponent(rel)
 const frame = (src, title) => `<iframe class="embed" src="${esc(src)}" title="${esc(title)}" loading="lazy" sandbox="allow-scripts allow-popups"></iframe>`
 
 function resolveHref(href, from) {
-  if (!href || /^(https?:|mailto:|obsidian:|#)/i.test(href)) return null
+  if (!href || /^(https?:|mailto:|obsidian:|maybee:|#)/i.test(href)) return null
   try { return resolveName(decodeURIComponent(href.split('#')[0]), from) } catch { return resolveName(href.split('#')[0], from) }
 }
 
@@ -289,9 +289,9 @@ function loadChangelog() {
   for (const line of text.split('\n')) {
     const h = /^## (\d{4}-\d{2}-\d{2})/.exec(line)
     if (h) { section = h[1]; continue }
-    // dated bullets: "- 2026-11-08: text" (app) or "- 2026-11-08 · Claude Code · text"; otherwise the section's date
-    const b = /^- (?:(\d{4}-\d{2}-\d{2})(?::|\s+·)\s*)?(.+)$/.exec(line)
-    if (b && (b[1] || section)) entries.push({ date: b[1] || section, text: b[2] })
+    // dated bullets: "- 2026-11-08: text" (app), "- 2026-11-08 14:32: text" (with the time) or "- 2026-11-08 · Claude Code · text"; otherwise the section's date
+    const b = /^- (?:(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?(?::|\s+·)\s*)?(.+)$/.exec(line)
+    if (b && (b[1] || section)) entries.push({ date: b[1] || section, time: b[2] || null, text: b[3] })
   }
   changelog = { mtime: meta.mtime, entries }
   return entries
@@ -315,8 +315,8 @@ function captionFor(rel, dirOnly = false) {
   const cut = t => t.length > 320 ? t.slice(0, 320).replace(/\s+\S*$/, '') + '…' : t
   const t = plain(hit.text)
   // the last few changes, newest first (the viewer shows them as an activity list)
-  const recent = hits.slice(-40).reverse().map(e => ({ date: e.date, text: cut(plain(e.text)) }))
-  return { date: hit.date, text: cut(t), recent }
+  const recent = hits.slice(-40).reverse().map(e => ({ date: e.date, time: e.time || null, text: cut(plain(e.text)) }))
+  return { date: hit.date, time: hit.time || null, text: cut(t), recent }
 }
 
 // ---------- decisions as feed items ----------

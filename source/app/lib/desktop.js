@@ -233,9 +233,9 @@ async function recentDecisions(root, limit = 4) {
 async function recentChanges(root, limit = 5) {
   let text = ''
   try { text = await fsp.readFile(path.join(root, 'logs', 'CHANGELOG.md'), 'utf8') } catch { return [] }
-  return text.split('\n').filter(line => /^-\s+\d{4}-\d{2}-\d{2}:/.test(line)).slice(-limit).reverse().map(line => {
-    const match = /^-\s+(\d{4}-\d{2}-\d{2}):\s*(.*)$/.exec(line)
-    return { date: match[1], text: plainMarkdown(match[2]), path: 'logs/CHANGELOG.md' }
+  return text.split('\n').filter(line => /^-\s+\d{4}-\d{2}-\d{2}(\s+\d{2}:\d{2})?:/.test(line)).slice(-limit).reverse().map(line => {
+    const match = /^-\s+(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?:\s*(.*)$/.exec(line)
+    return { date: match[1], time: match[2] || null, text: plainMarkdown(match[3]), path: 'logs/CHANGELOG.md' }
   })
 }
 

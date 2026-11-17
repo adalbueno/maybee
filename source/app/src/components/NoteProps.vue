@@ -53,6 +53,9 @@ const routine = computed(() => {
     autoMday: Math.max(1, Math.min(31, parseInt(fm.auto_mday, 10) || 1)),
   }
 })
+// where a routine's result lands: cards in a column of the board, or nowhere (unset = nowhere, as routines always were)
+const WHERE = [['maybe', 'Maybe'], ['next', 'Next'], ['now', 'Now'], ['none', 'Nowhere']]
+const where = computed(() => WHERE.some(w => w[0] === local.value.where) ? local.value.where : 'none')
 const lastDone = computed(() => local.value.last_done ? String(local.value.last_done).slice(0, 10) : null)
 const doneToday = computed(() => lastDone.value === today())
 const ago = d => { if (!d) return 'never'; const n = Math.round((new Date(today()) - new Date(d)) / 86400000); return n <= 0 ? 'today' : n === 1 ? 'yesterday' : n + ' days ago' }
@@ -98,6 +101,11 @@ const ownerKey = computed(() => ({ Adal: 'owner', owner: 'owner', agent: 'agent'
         </template>
         <span class="np-l np-ltop">Runs</span>
         <div class="np-v"><RoutineSchedule :r="routine" @saved="emit('changed')" /></div>
+        <span class="np-l">Result lands</span>
+        <div class="np-v">
+          <div class="seg"><button v-for="w in WHERE" :key="w[0]" :class="{ on: where === w[0] }" @click="setFields({ where: w[0] })">{{ w[1] }}</button></div>
+          <span class="np-dim">{{ where === 'none' ? 'No card: it only does the work and logs it' : 'It makes at most 3 cards in ' + WHERE.find(w => w[0] === where)[1] + ', after checking the open ones' }}</span>
+        </div>
       </template>
 
       <template v-else>

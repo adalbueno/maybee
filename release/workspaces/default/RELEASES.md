@@ -2,6 +2,17 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.42 · 17 Nov 2026
+
+**The bee introduces itself, the tour is new, and routines have a place of their own.**
+
+- **A first-run chat with the bee.** Four short questions, one question back if something is vague, then your project is set up and the tour is written for you.
+- **A new tour.** *What is Maybee*, then *How Maybee works* in Next, with screenshots and links that open the columns.
+- **Routines on the right edge.** They look like any other card; drag to reorder, skip one for today, send one to Not, or make a card a routine.
+- **Routines open on their settings,** with a summary line and a **Result lands** choice.
+- **A calmer board, one window, and the logo takes you home.**
+- **The bee turns yellow the moment you ask. Changes show the time.**
+
 ## 0.1.41 · 17 Nov 2026
 
 **Cards move with one click, Not can be cleaned up, and Maybee opens in a single window.**

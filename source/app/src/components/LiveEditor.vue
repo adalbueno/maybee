@@ -13,7 +13,7 @@ import { syntaxTree, HighlightStyle, syntaxHighlighting } from '@codemirror/lang
 import { tags as t } from '@lezer/highlight'
 
 const props = defineProps({ modelValue: String, path: String })
-const emit = defineEmits(['update:modelValue', 'save', 'cancel', 'open-link'])
+const emit = defineEmits(['update:modelValue', 'save', 'cancel', 'open-link', 'maybee'])
 const editing = ref(false)
 const host = ref(null)
 let view = null
@@ -58,6 +58,7 @@ function build(view) {
       from, to,
       enter(node) {
         const n = node.name
+        if (n === 'ListItem') decos.push(lineCls('cm-li').range(state.doc.lineAt(node.from).from))
         if (n === 'Blockquote' || n === 'FencedCode') {
           const cls = n === 'Blockquote' ? 'cm-bq' : 'cm-fence'
           for (let pos = node.from; pos <= node.to;) {
@@ -341,7 +342,9 @@ function linkAt(state, pos) {
 function follow(target) {
   const t = target.trim().replace(/^<|>$/g, '')
   if (!t || t.startsWith('#')) return
-  if (/^https?:\/\//i.test(t)) { window.open(t, '_blank', 'noopener'); return }
+  // an outside link opens in a window of its own (not over the note): it is in Maybee's browser, so a Skool login is already there
+  if (/^https?:\/\//i.test(t)) { window.open(t, '_blank', 'noopener,noreferrer,popup=yes,width=1180,height=860'); return }
+  if (/^maybee:/i.test(t)) { emit('maybee', t.slice(7)); return } // [Now](maybee:board/now): a command for the app, see App.vue onMaybee
   if (/^[a-z][a-z0-9+.-]*:/i.test(t)) return
   fetch('/api/resolve?name=' + encodeURIComponent(t) + '&from=' + encodeURIComponent(props.path || ''))
     .then(r => r.json()).then(r => { if (r && r.path) emit('open-link', r.path) }).catch(() => {})
