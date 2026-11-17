@@ -162,14 +162,24 @@ export function ensureBrowser(startUrl) {
   return launching
 }
 
-/** Shows the Maybee interface: starts the window, or brings the existing one to the front. */
-export async function openAppWindow(url) {
+let opening = Promise.resolve()
+
+/** Shows the Maybee interface: starts the window, or brings the existing one to the front.
+ *  Calls are serialized and never add a second window while one for Maybee (or one still loading) exists. */
+export function openAppWindow(url) {
+  const run = opening.then(() => showWindow(url))
+  opening = run.catch(() => {})
+  return run
+}
+
+async function showWindow(url) {
   const wasRunning = alive(current)
   const c = await ensureBrowser(url)
   if (wasRunning) {
     const origin = new URL(url).origin
     const pages = c.browser.contexts().flatMap(context => context.pages())
-    const page = pages.find(p => p.url().startsWith(origin))
+    // A window that is still loading its first URL shows about:blank: it is the Maybee window, not a new one to add.
+    const page = pages.find(p => p.url().startsWith(origin)) || pages.find(p => p.url() === 'about:blank' || p.url() === '')
     if (page) await page.bringToFront().catch(() => {})
     else {
       const fresh = await c.browser.contexts()[0].newPage()

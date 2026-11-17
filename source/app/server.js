@@ -291,7 +291,10 @@ function appUrl() {
 async function openMaybeeWindow() {
   try {
     await openAppWindow(appUrl())
-  } catch {
+  } catch (error) {
+    // Only when there is no Chromium-based browser at all. Any other failure (a slow start, a profile in use)
+    // must not open a second window in the default browser on top of the one that is starting.
+    if (!/No Chromium-based browser/.test(error?.message || '')) return
     const { spawn } = await import('node:child_process')
     const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
     spawn(cmd, [appUrl()], { detached: true, stdio: 'ignore' }).unref()

@@ -45,8 +45,8 @@ elif [ -d "$APP/node_modules" ]; then
     [ -n "$url" ] && break
     sleep 0.5
   done
+  # The server opens its own window when it starts, so no second request here.
   status="started and opened at $url"
-  [ -n "$url" ] && open_window "$url"
   [ -n "$url" ] || status="startup not confirmed; inspect $ROOT/.maybee/data/server.log"
 else
   status="dependencies missing; the agent should run the package launcher"
