@@ -11,9 +11,11 @@ rank: 20
 
 # Set the rules
 
-Copy these and change what does not fit. They are the rules that made the original challenge work (see [The seven days](../knowledge/challenge/the-seven-days.md)):
+**Previous:** [Decide who the challenge is for](Decide%20who%20the%20challenge%20is%20for.md) · **Challenge index:** [Start here](7-day%20challenge%20%E2%80%94%20start%20here.md) · **Next:** [Decide where it runs](Decide%20where%20it%20runs.md)
 
-- **15 minutes a day:** 10 to do one small step and post it, 5 to help at least one other participant.
+Copy these and change what does not fit your challenge (see [The seven days](../knowledge/challenge/the-seven-days.md)):
+
+- **About 30 minutes a day:** 20 to do one small step and post it, 10 to help at least one other participant.
 - **One post a day**, in the daily place. Every post from day 2 starts with a context line.
 - **Helping is a P.S.** at the end of every day's lesson, not a separate task.
 - **A missed day is fine:** continue where you left off.

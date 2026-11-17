@@ -9,6 +9,17 @@ export const MOVES = {
 }
 export const movesFor = stage => MOVES[stage] || MOVES.maybe
 
+// The card's side arrows: one stage back and one forward along maybe → next → now → done. "Not" is not on the line, but Maybe has nothing before it, so its left side is Not. In Not the left side deletes the card and the right one sends it back to Maybe.
+const LINE = ['maybe', 'next', 'now', 'done']
+export function sideMove(stage, dir) {
+  const i = LINE.indexOf(stage)
+  const to = stage === 'not' ? (dir === 'prev' ? 'delete' : 'maybe') : stage === 'maybe' && dir === 'prev' ? 'not' : LINE[i + (dir === 'prev' ? -1 : 1)]
+  if (!to) return null
+  if (to === 'delete') return { to, label: 'Delete this card' }
+  const m = movesFor(stage).find(x => x.to === to)
+  return { to, label: m ? m.label : 'Move to ' + to }
+}
+
 // Quick asks for the AI, by column: explore in Maybe, test and refine in Next, carry out in Now.
 // "Do the next step" is one the bridge knows by name; the others are plain requests about the note.
 export const QUICK = {

@@ -3,10 +3,10 @@
 // AI about this note and what it answered. It uses the same requests as the "Ask AI" button in the board
 // (ask.js), so both end up in the same place.
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import { ask, claude, agentLabel } from '../ask.js'
+import { ask, claude, agentLabel, beeState } from '../ask.js'
 import { quickFor } from '../stages.js'
 import Bee from './Bee.vue'
-const beeNow = computed(() => claude.listening ? (claude.items.some(i => i.status === 'working') ? 'busy' : 'ok') : 'idle')
+const beeNow = computed(() => beeState())
 import MarkdownIt from 'markdown-it'
 // Replies are Markdown (lists, bold, short paragraphs). Raw HTML is never rendered, and links open outside the app.
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
@@ -76,7 +76,14 @@ function toggle(force) {
   if (open.value) { seen.value = replies.value; scrollEnd() }
 }
 const label = i => i.action === 'Request' ? i.text : i.action + (i.text ? ': ' + i.text : '')
-const state = i => i.status === 'done' ? '' : i.status === 'working' ? 'Working on it…' : i.status === 'queued' ? 'In line…' : (claude.listening ? 'Sent…' : 'Saved. It waits until a session listens again.')
+// Playful status while the assistant works: a word per message that changes every few seconds
+const WORDS = ['Maybeeing', 'Honeying', 'Buzzing', 'Zzzooming', 'Pollinating', 'Foraging', 'Waggle-dancing', 'Humming along', 'Honeycombing', 'Beelaboring', 'Nectaring', 'Hiving', 'Bee-thinking', 'Stinging an idea', 'Bumbling', 'Swarming on it', 'Royal-jellying', 'Beeswaxing', 'Maybe-ing']
+const tick = ref(0)
+let wordTimer = null
+onMounted(() => { wordTimer = setInterval(() => tick.value++, 2800) })
+onBeforeUnmount(() => clearInterval(wordTimer))
+const word = i => WORDS[(Math.abs([...String(i.id)].reduce((a, c) => a + c.charCodeAt(0), 0)) + tick.value) % WORDS.length] + '…'
+const state = i => i.status === 'done' ? '' : i.status === 'working' ? word(i) : i.status === 'queued' ? 'In line…' : (claude.listening ? 'Sent…' : 'Saved. It waits until a session listens again.')
 const clock = iso => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 
 function grow() {
@@ -89,7 +96,7 @@ async function send(action = 'Request', extra = text.value) {
   if (sending.value || (action === 'Request' && !extra.trim())) return
   sending.value = true
   toggle(true)
-  try { await ask({ action, text: action === 'Request' ? extra.trim() : '', path: props.path, title: props.title }) } finally { sending.value = false }
+  try { await ask({ action, text: action === 'Request' ? extra.trim() : '', path: props.path, title: props.title, quiet: true }) } finally { sending.value = false }
   if (action === 'Request') { text.value = ''; nextTick(grow) }
   await load()
   scrollEnd()
@@ -127,7 +134,7 @@ function onDockKey(e) {
       </div>
       <div class="compose">
         <button class="mark" :class="beeNow" :title="open ? 'Hide the conversation' : 'Show the conversation'" @click="toggle()">
-          <Bee :state="beeNow" :height="20" /><small v-if="pending">{{ pending }}</small><em v-else-if="unread"></em>
+          <Bee :state="beeNow" :height="14" /><small v-if="pending">{{ pending }}</small><em v-else-if="unread"></em>
         </button>
         <textarea ref="field" v-model="text" rows="1" :placeholder="placeholder" @keydown="onKey" @input="grow" @focus="items.length && !open && replies > seen && toggle(true)"></textarea>
         <button class="send" :disabled="!text.trim() || sending" @click="send()" title="Send (Enter)">Send</button>

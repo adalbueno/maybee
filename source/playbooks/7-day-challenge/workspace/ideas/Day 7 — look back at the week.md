@@ -1,58 +1,53 @@
 ---
-title: "Day 7: look back at the week"
+title: "Define day 7: the proof and the next problem"
 type: idea
 stage: next
 owner: both
-kind: Do
-description: "Write the day 7 lesson: day 1 next to day 7, with numbers, and who to thank."
+kind: Define
+description: "Define day 7: how participants prove the transformation and name the next problem."
 captured: 2026-11-16
 rank: 110
 ---
 
-# Day 7: look back at the week
+# Define day 7: the proof and the next problem
 
-Template for the day 7 lesson. This one goes in the **review place**, not the daily one.
+**Previous:** [Define day 6: the result](Day%206%20%E2%80%94%20finish%20it.md) · **Challenge index:** [Start here](7-day%20challenge%20%E2%80%94%20start%20here.md) · **Next:** [Choose the start date and announce it](Choose%20the%20start%20date%20and%20announce%20it.md)
 
-## Day 7: How I did it: my 7-day review
+Day 7 closes the arc. Participants compare day 1 with today, show their proof, and say what problem comes next. The proof and the next problem come from your transformation.
 
-Today is your review. You'll put day 1 next to day 7 and see what changed.
+Start from your transformation sentence ([Define the transformation](Define%20the%20transformation.md)). What happens on this day is whatever moves participants from your starting point to your finish point. The example at the end is only one possible challenge.
 
-Written down, your progress is hard to miss, for you and for everyone who helped. *(Add a fact of yours: where you started and what the first week gave you.)*
+## Decide
 
-Most people end a week looking only at what's left. What they finished, and who helped them, gets forgotten.
+1. What proof do participants show: before and after, numbers, a link, something finished?
+2. How do they name the next problem, so it can become the next challenge or the group's next step?
 
-**Do the work**
+The next problem is the reason people come back. End day 7 with it, not with a goodbye.
 
-Open your posts from days 1 to 6 and count:
+## Write the day brief
 
-- posts you published
-- comments you received
-- members you helped
+Fill in these lines. They become the daily post you publish and the guide participants follow.
 
-**Or use AI:** paste this in the AI coach chat. It will ask for the numbers:
+- **Participants:** [what they do today, in one sentence]
+- **They post:** [what goes in the post]
+- **Post title:** [a title that names what they did]
+- **Time:** [about 20 minutes of work, 10 to help others]
+- **How they help each other:** [what a helpful reply looks like today]
+
+**Done when:** a participant could read the brief and do the day without asking you anything.
+
+## Example
+
+A challenge where people start a newsletter. Day 7 is the proof and the next problem: day 1 next to day 7, and what comes next.
+
+> What I did in 7 days
+>
+> I started with a newsletter and no topic. I ended with issue one published. What comes next: finding the first 20 readers.
+
+## Or use AI
+
+Paste this in your AI chat to define the day together:
 
 ```text
-Day 7, my review. Ask me, one at a time: what I finished (a link or an excerpt), how many posts I published,
-how many comments I received and how many members I helped. Use my day 1 post from this chat. Show me a short
-before and after: where I was on day 1, what I finished, what helped and who helped. Don't call anything
-finished that isn't. Then write a post titled "How I" + the result + "in 7 days", with the context line,
-day 1 next to day 7, what I finished, my numbers, who I want to thank and what I'll do next.
+I'm designing a 7-day challenge. Day 7 is about the proof and the next problem. Ask me for my transformation sentence and my audience, one question at a time. Then help me fill in the day brief: what participants do, what they post, the post title and how they help each other. Keep it small enough for about 30 minutes.
 ```
-
-**Share it**
-
-Post in the review place. A smaller finished piece is a win too. Tag the people who helped. A fictional example:
-
-> How I wrote my first newsletter issue in 7 days
->
-> I'm building a newsletter for freelancers. My main difficulty was choosing which topic to start with.
->
-> Day 1: a list of topics and no first issue. Day 7: issue one, sent to ten people.
->
-> 7 posts, 12 comments, 4 members helped. Thank you to everyone who answered the roast.
->
-> Next, I'm writing issue two.
-
-✌️
-
-P.S. Celebrate together: open the review place and cheer on at least one other member's results.

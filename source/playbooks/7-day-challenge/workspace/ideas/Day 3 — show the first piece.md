@@ -1,57 +1,55 @@
 ---
-title: "Day 3: show the first piece"
+title: "Define day 3: the first visible piece"
 type: idea
 stage: next
 owner: both
-kind: Do
-description: "Write the day 3 lesson from this template."
+kind: Define
+description: "Define day 3: the first real piece participants show, even if it is rough."
 captured: 2026-11-16
 rank: 70
 ---
 
-# Day 3: show the first piece
+# Define day 3: the first visible piece
 
-Template for the day 3 lesson. Keep the structure; write the opening and the "why" in your own voice, with a real fact of yours where the text says so.
+**Previous:** [Define day 2: the first immediate step](Day%202%20%E2%80%94%20pick%20one%20small%20thing%20to%20finish.md) · **Challenge index:** [Start here](7-day%20challenge%20%E2%80%94%20start%20here.md) · **Next:** [Define day 4: an outside reaction](Day%204%20%E2%80%94%20ask%20for%20honest%20feedback.md)
 
-## Day 3: How I'm starting it
+Day 3 is the first time participants show something. Define what counts as a first piece for your challenge: a draft, a sketch, a screenshot, a message sent, a first result.
 
-You're going to show the first piece of your work today, even if it's rough.
+Start from your transformation sentence ([Define the transformation](Define%20the%20transformation.md)). What happens on this day is whatever moves participants from your starting point to your finish point. The example at the end is only one possible challenge.
 
-The sooner people see it, the easier it is to change. *(Add one fact of yours here, if you have one.)*
+## Decide
 
-Most people wait until it looks good. By then, they've spent hours on something nobody has seen.
+1. What can participants show by day 3 that is real but rough?
+2. What should they leave out until after the week?
 
-**Do the work**
+People who see something early can help. Nobody can help with an idea that stays in someone's head.
 
-1. Pick a short excerpt of what you have so far: a paragraph, a screenshot, a sketch, a list.
-2. Decide what can wait until after this week.
-3. Say what you'll do next.
+## Write the day brief
 
-**Or use AI:** paste this in the AI coach chat:
+Fill in these lines. They become the daily post you publish and the guide participants follow.
 
-```text
-Day 3. Ask me what I've done so far, and ask me to paste it or describe it. Help me pick a short
-excerpt to share and decide what can wait until after this week. Then write a post titled "How I'm"
-+ what I'm working on: the context line, the excerpt, what I'll do next, what can wait and one
-question about the draft.
-```
+- **Participants:** [what they do today, in one sentence]
+- **They post:** [what goes in the post]
+- **Post title:** [a title that names what they did]
+- **Time:** [about 20 minutes of work, 10 to help others]
+- **How they help each other:** [what a helpful reply looks like today]
 
-**Share it**
+**Done when:** a participant could read the brief and do the day without asking you anything.
 
-Post in the daily place, titled "How I'm starting it". A fictional example:
+## Example
 
-> How I'm writing my first newsletter issue
-> 
+A challenge where people start a newsletter. Day 3 is the first visible piece: something real, even if rough.
+
+> Starting my first newsletter issue
+>
 > I'm building a newsletter for freelancers. My main difficulty is choosing which topic to start with.
 > 
 > Now, I'm writing issue one. Here's the opening: "If you haven't heard back after a few days, a short follow-up can bring your proposal back to the top of the inbox."
-> 
-> Next, I'm writing the example message. Tool comparisons can wait for another issue.
-> 
-> Is the main point clear from the opening?
 
-Tomorrow, you'll ask for honest feedback on the work.
+## Or use AI
 
-✌️
+Paste this in your AI chat to define the day together:
 
-P.S. It's often easier to see what's too much in someone else's project, and then in yours. Open the daily place and support at least one member.
+```text
+I'm designing a 7-day challenge. Day 3 is about the first visible piece. Ask me for my transformation sentence and my audience, one question at a time. Then help me fill in the day brief: what participants do, what they post, the post title and how they help each other. Keep it small enough for about 30 minutes.
+```

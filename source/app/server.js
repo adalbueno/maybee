@@ -1,5 +1,5 @@
 // Maybee app server: reads the project folder, serves the Vue page, pushes live changes.
-// The .md files are the only source of truth. This server never deletes, moves or renames files.
+// The .md files are the only source of truth. This server never deletes, moves or renames files, except for a card in Not that you delete: that note moves to _to_delete/.
 import { importZip } from './lib/playbooks.js'
 import http from 'node:http'
 import { startInstance, stopInstance } from './lib/instance.js'
@@ -9,7 +9,7 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildIndex, feed, numbers, library, search, readNote, resolveName, statFile, isHidden, allPaths, getIndex } from './lib/project.js'
-import { board, backlog, setStage, logChange, createCard, placeCard, topOfColumn, restoreRanks, ranksOf, ORDER_NAMES } from './lib/board.js'
+import { board, backlog, setStage, deleteCard, logChange, createCard, placeCard, topOfColumn, restoreRanks, ranksOf, ORDER_NAMES } from './lib/board.js'
 import { desktop, setFields, dayKey, nowCards, routinesOn, overviewState, resolveWaiting } from './lib/desktop.js'
 import { initInbox, readInbox, addRequest, listening, lastHeard, promptFor } from './lib/inbox.js'
 import { readBridge } from './lib/bridge.js'
@@ -676,6 +676,19 @@ async function main() {
           await statFile(ROOT, body.path)
           seen.items[body.path] = Date.now() + 2000; saveSeen(); await snapshot(body.path)
           if (r.from !== r.to) await logChange(ROOT, `${body.title || body.path}: stage ${r.from || '—'} → ${r.to} (${body.path})`)
+          return sendJSON(res, { ok: true, ...r })
+        } catch (err) {
+          return sendJSON(res, { error: err.message }, err.code === 409 ? 409 : 400)
+        }
+      }
+      // Clean up a card in Not: the note moves to _to_delete/ (the only place this server moves a file, and only on this request)
+      if (url.pathname === '/api/card/delete' && req.method === 'POST') {
+        const body = await readBody(req)
+        try {
+          const r = await deleteCard(ROOT, body.path, body.mtime)
+          await statFile(ROOT, body.path)
+          saveSeen()
+          await logChange(ROOT, `${body.title || body.path}: deleted from Not, kept in ${r.moved}`)
           return sendJSON(res, { ok: true, ...r })
         } catch (err) {
           return sendJSON(res, { error: err.message }, err.code === 409 ? 409 : 400)

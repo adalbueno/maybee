@@ -2,6 +2,17 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.41 · 17 Nov 2026
+
+**Cards move with one click, Not can be cleaned up, and Maybee opens in a single window.**
+
+- **Move a card from its sides.** A strip slides out on the left or right half of a card, in the colour of the column it goes to. Dragging still works.
+- **Delete a card in Not.** The left strip deletes it (click twice); the card is kept in `_to_delete/`. The right one sends it back to Maybee.
+- **Priority is a small signal.** 1 to 5 bars in the corner of the card, and every card is shown, not only the first 15.
+- **The bee turns red** when the last request could not be answered.
+- **One window.** No second window when a session starts or when you ask to open Maybee again.
+- **The 7-day challenge playbook** starts with defining the transformation.
+
 ## 0.1.40 · 16 Nov 2026
 
 **The bee tells you what the assistant is doing, and board columns slide open.**

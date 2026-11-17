@@ -55,7 +55,12 @@ a { color: inherit; }
   height: 68px; padding: 0 32px;
 }
 .brand { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
-.mark { height: 25px; width: auto; display: block; margin-bottom: 7.5px; }
+.mark { height: 25px; width: auto; display: block; margin-bottom: 7.5px; cursor: pointer; }
+.brand .mark:hover:not(.spin) { animation: logo-wiggle .5s ease-in-out; }
+.brand .mark.spin { animation: logo-spin .8s cubic-bezier(.3, 1.4, .5, 1); }
+@keyframes logo-wiggle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-10deg); } 75% { transform: rotate(10deg); } }
+@keyframes logo-spin { 0% { transform: rotate(0) scale(1); } 40% { transform: rotate(240deg) scale(1.2); } 100% { transform: rotate(360deg) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .brand .mark:hover, .brand .mark.spin { animation: none; } }
 .name { font-weight: 700; letter-spacing: -.02em; font-size: 16px; }
 .project { color: var(--ink-3); font-weight: 500; }
 .workspace-picker { position: relative; }
@@ -298,7 +303,6 @@ a { color: inherit; }
 
 /* narrow: the viewer covers the feed (side by side with Claude) */
 @media (max-width: 1100px) {
-  .with-viewer .feed { display: none; }
   .viewer { border-radius: 0; }
   .top { gap: 22px; }
   .places { gap: 18px; }
@@ -376,24 +380,27 @@ a { color: inherit; }
 .board-wrap { flex: 1; min-width: 0; height: 100%; overflow: hidden; padding: 14px 24px 24px; }
 .with-viewer .board-wrap { flex: 0 0 min(780px, 55%); }
 .board { display: flex; gap: 10px; height: 100%; position: relative; }
-.not-edge { position: absolute; z-index: 4; top: 0; right: -10px; width: 22px; height: 100%; }
-.not-edge::after { content: ''; position: absolute; top: 50%; right: 5px; width: 3px; height: 48px; border-radius: 99px; background: var(--line); opacity: .7; transform: translateY(-50%); transition: height .18s, background .18s; }
+.not-edge { position: absolute; z-index: 4; top: 0; left: -10px; width: 22px; height: 100%; }
+.not-edge::after { content: ''; position: absolute; top: 50%; left: 5px; width: 3px; height: 48px; border-radius: 99px; background: var(--line); opacity: .7; transform: translateY(-50%); transition: height .18s, background .18s; }
 .not-edge:hover::after { height: 72px; background: var(--bad); }
 .col {
-  flex: 0 0 56px; min-width: 0; background: var(--card); border-radius: 26px; overflow: hidden;
-  display: flex; flex-direction: column; transition: flex-basis .28s ease, box-shadow .15s, background .15s;
+  position: relative; flex: 0 0 56px; min-width: 0; background: var(--card); border-radius: 26px; overflow: hidden;
+  display: flex; flex-direction: column; transition: flex .15s cubic-bezier(.3, 1.35, .5, 1), box-shadow .15s, background .15s;
 }
-.col.open { flex: 1 1 auto; }
-/* Opening a column: its content slides in quickly (the width change is already animated above). */
-@keyframes col-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
-.col.open > .col-head, .col.open > .col-body { animation: col-in .16s ease-out; }
-@media (prefers-reduced-motion: reduce) { .col.open > .col-head, .col.open > .col-body { animation: none; } }
+.col.open { flex: 1 1 0%; } /* 0%, not auto: auto cannot be animated, so the column used to jump to its size */
+/* Opening a column happens in two steps: the drawer opens first (the width), and only then the cards appear, so they never change size while it moves. */
+@keyframes col-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.board.moved .col.open > .col-head, .board.moved .col.open > .col-body { animation: col-in .09s ease .07s both; }
+@media (prefers-reduced-motion: reduce) { .col { transition: none; } .board.moved .col.open > .col-head, .board.moved .col.open > .col-body { animation: none; } }
 .col.over { box-shadow: 0 0 0 2px var(--accent); background: #fffbe3; }
-.col-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 0; width: 56px; }
+.col-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 0; width: 56px; transition: opacity .08s ease; }
+/* in the open column the tab stays put on the left while the drawer opens, then fades when the cards come in (same delay as the cards) */
+.col.open > .col-tab { position: absolute; left: 0; top: 0; bottom: 0; opacity: 0; pointer-events: none; }
+.board.moved .col.open > .col-tab { transition-delay: .07s; }
 .col-tab:hover { background: #ebe9e2; }
 .col-tab .v { writing-mode: vertical-rl; font-weight: 700; font-size: 14px; letter-spacing: -.01em; }
 .col-tab small { font-size: 12px; font-weight: 600; color: var(--ink-3); }
-.col-head { padding: 20px 22px 12px; flex: none; }
+.col-head { position: relative; z-index: 5; padding: 20px 22px 12px; flex: none; } /* above the cards: its menus (sort) open over them. The open animation makes head and body each their own layer, and the body comes later */
 .col-head h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.025em; }
 .col-head h2 small { font-size: 12px; font-weight: 600; color: var(--ink-3); background: var(--card-hi); padding: 1px 8px; border-radius: 99px; letter-spacing: 0; }
 .col-head p { margin: 2px 0 0 16px; font-size: 13px; color: var(--ink-3); }
@@ -406,7 +413,7 @@ a { color: inherit; }
   scrollbar-width: none;
 }
 .col-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
-.kcard { background: var(--card-hi); border-radius: 18px; padding: 15px 17px 13px; cursor: grab; transition: box-shadow .15s, opacity .15s; }
+.kcard { position: relative; background: var(--card-hi); border-radius: 18px; padding: 15px 17px 13px; cursor: grab; transition: box-shadow .15s, opacity .15s; }
 .kcard:hover { box-shadow: 0 6px 20px rgba(30, 25, 10, .07); }
 .kcard.active { box-shadow: 0 0 0 2px var(--ink); }
 .kcard.dragging { opacity: .35; }
@@ -443,7 +450,6 @@ a { color: inherit; }
 .pull { padding: 6px 12px; border-radius: 99px; background: var(--card); font-size: 12.5px; font-weight: 600; flex: none; }
 .pull.now { background: var(--accent); }
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 99px; font-size: 13.5px; font-weight: 600; z-index: 50; }
-@media (max-width: 1100px) { .with-viewer .board-wrap { display: none; } }
 @media (max-width: 640px) { .board-wrap { padding: 10px 12px; } .col { flex-basis: 44px; } .col-tab { width: 44px; } }
 
 /* ---------- desktop ---------- */
@@ -512,7 +518,6 @@ a { color: inherit; }
 .file.media img, .file.media video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .more-files { font-size: 12.5px; font-weight: 600; color: var(--ink-3); }
 .no-files { margin-top: 12px !important; font-size: 12.5px !important; color: var(--ink-3) !important; }
-@media (max-width: 1100px) { .with-viewer .desk-wrap { display: none; } }
 @media (max-width: 640px) { .desk-wrap { padding: 4px 18px 60px; } .reacts { grid-template-columns: 1fr 1fr; } }
 
 /* ---------- wins (done, always visible) ---------- */
@@ -608,7 +613,6 @@ a { color: inherit; }
 /* ---------- library and numbers (v3) ---------- */
 .lib-wrap { flex: 1; min-width: 0; height: 100%; overflow-y: auto; padding: 8px 32px 100px; }
 .with-viewer .lib-wrap { flex: 0 0 min(620px, 46%); }
-@media (max-width: 1100px) { .with-viewer .lib-wrap { display: none; } }
 .lib-inner, .num-inner { max-width: 820px; margin: 0 auto; }
 .lib-search { width: 100%; margin-top: 22px; padding: 14px 20px; border-radius: 99px; border: 0; background: var(--card); font: 500 15px var(--sans); color: var(--ink); outline: none; }
 .lib-search:focus { box-shadow: 0 0 0 2px var(--accent); background: var(--card-hi); }
@@ -1098,3 +1102,60 @@ a { color: inherit; }
 .why-not span { display: block; margin-bottom: 2px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
 .toast.notice { cursor: pointer; max-width: min(560px, calc(100vw - 32px)); text-align: center; background: #1f7a4d; }
 .toast.notice.error { background: #c0392b; }
+
+/* ---------- opening a card: the viewer slides in ---------- */
+/* wide: the list jumps to its final width at once (no resizing in front of the eyes) and only the viewer animates.
+   narrow: the viewer takes the whole width, so the list does not hide at once: it fades and its width closes while the viewer comes in */
+@media (max-width: 1100px) {
+  .feed, .board-wrap, .desk-wrap, .lib-wrap { transition: flex .15s cubic-bezier(.3, 1.2, .5, 1), padding .15s ease, opacity .1s ease, visibility 0s linear 0s; }
+  .with-viewer .feed, .with-viewer .board-wrap, .with-viewer .desk-wrap, .with-viewer .lib-wrap {
+    flex: 0 0 0%; padding-left: 0; padding-right: 0; opacity: 0; overflow: hidden; pointer-events: none; visibility: hidden; transition-delay: 0s, 0s, 0s, .15s;
+  }
+}
+/* wide screen: the list takes its final width at once and the viewer rises from below; narrow screen: the list goes away first (.22s),
+   then the viewer comes in from the right. */
+@keyframes viewer-up { from { opacity: 0; transform: translateY(48px); } to { opacity: 1; transform: none; } }
+@keyframes viewer-in { from { opacity: 0; transform: translateX(48px); } to { opacity: 1; transform: none; } }
+.viewer { animation: viewer-up .18s ease .02s both; }
+@media (max-width: 1100px) { .viewer { animation: viewer-in .16s ease .14s both; } }
+@media (prefers-reduced-motion: reduce) { .feed, .board-wrap, .desk-wrap, .lib-wrap { transition: none !important; } .viewer { animation: none; } }
+
+/* One card per line, with a strip before and one after it (in the flow, not floating). The strips are tinted in the colour of the column
+   the card would go to, faint at rest and stronger on hover, with the name of the column. */
+.col-body, .col.now.open .col-body, .col.routine.open .col-body { grid-template-columns: 1fr; }
+.krow { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+/* the coloured strips stay still under the card; the white card slides off one edge (its margin grows on that side) and shrinks, so the row keeps its width */
+.krow > .kcard { grid-column: 1; grid-row: 1; position: relative; z-index: 1; transition: margin .18s cubic-bezier(.3, 1.2, .5, 1), box-shadow .15s, opacity .15s; }
+/* the card gives up 30px: its left padding stays and the right padding closes (17 -> 10), so the text is 20px narrower and almost never rewraps */
+.krow > .kcard { transition: margin .18s cubic-bezier(.3, 1.2, .5, 1), padding .18s cubic-bezier(.3, 1.2, .5, 1), box-shadow .15s, opacity .15s; }
+.krow[data-side="prev"] > .kcard { margin-left: 30px; padding-right: 10px; }
+.krow[data-side="next"] > .kcard { margin-right: 30px; padding-right: 10px; }
+.k-side { grid-column: 1; grid-row: 1; z-index: 0; width: 48px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 40%, var(--card)); color: var(--ink-2); font-size: 11.5px; font-weight: 700; writing-mode: vertical-rl; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .1s ease, background .15s ease, color .15s ease; }
+/* 30px show, 18px stay under the card, which is why that side is square */
+.k-side.prev { justify-self: start; padding-right: 18px; border-radius: 18px 0 0 18px; }
+.k-side.next { justify-self: end; padding-left: 18px; border-radius: 0 18px 18px 0; }
+.k-side.prev span { transform: rotate(180deg); }
+.krow[data-side="prev"] .k-side.prev, .krow[data-side="next"] .k-side.next, .krow:focus-within .k-side { opacity: 1; pointer-events: auto; }
+.krow:focus-within > .kcard { margin: 0 30px; padding-right: 10px; }
+.k-side:hover { background: color-mix(in srgb, var(--c) 60%, var(--card)); color: var(--ink); }
+@media (hover: none) { .krow > .kcard { margin: 0 30px; padding-right: 10px; } .k-side { opacity: 1; pointer-events: auto; } }
+@media (prefers-reduced-motion: reduce) { .krow > .kcard, .k-side { transition: none; } }
+
+/* the copy of a card that follows the mouse while dragging: solid, no shadow, off screen until the browser takes its picture */
+.kcard.drag-ghost { position: fixed; top: -9999px; left: -9999px; margin: 0; box-shadow: inset 0 0 0 2px var(--ink) !important; opacity: 1 !important; transition: none; pointer-events: none; background: var(--card-hi); }
+/* while a card is being dragged its original stays dimmed in place: the strips under it must not show through */
+.krow:has(.kcard.dragging) .k-side { opacity: 0 !important; transition: none !important; pointer-events: none; }
+
+/* priority: five little bars in the top-right corner, filled from 1 (priority 2) to 5 (priority 13); no row of its own above the title */
+.kcard:not(.routine) h3 { margin-top: 0; }
+.kcard h3.rated { padding-right: 30px; }
+.bars { position: absolute; top: 17px; right: 16px; display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; }
+.bars i { width: 3px; border-radius: 2px; background: var(--line); }
+.bars i:nth-child(1) { height: 4px; } .bars i:nth-child(2) { height: 6px; } .bars i:nth-child(3) { height: 8px; } .bars i:nth-child(4) { height: 10px; } .bars i:nth-child(5) { height: 12px; }
+/* the more value, the hotter: the bars go from yellow to orange to a red-orange, so a 13 lights the whole ramp */
+.bars i.on:nth-child(1) { background: #f4c20d; }
+.bars i.on:nth-child(2) { background: #f5a50b; }
+.bars i.on:nth-child(3) { background: #f48a0a; }
+.bars i.on:nth-child(4) { background: #f2670d; }
+.bars i.on:nth-child(5) { background: #e8451f; }
+.bars.none i { opacity: .55; }

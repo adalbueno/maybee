@@ -1,55 +1,55 @@
 ---
-title: "Day 4: ask for honest feedback"
+title: "Define day 4: an outside reaction"
 type: idea
 stage: next
 owner: both
-kind: Do
-description: "Write the day 4 lesson from this template."
+kind: Define
+description: "Define day 4: how participants get a real reaction from someone else."
 captured: 2026-11-16
 rank: 80
 ---
 
-# Day 4: ask for honest feedback
+# Define day 4: an outside reaction
 
-Template for the day 4 lesson. Keep the structure; write the opening and the "why" in your own voice, with a real fact of yours where the text says so.
+**Previous:** [Define day 3: the first visible piece](Day%203%20%E2%80%94%20show%20the%20first%20piece.md) · **Challenge index:** [Start here](7-day%20challenge%20%E2%80%94%20start%20here.md) · **Next:** [Define day 5: the adjustment](Day%205%20%E2%80%94%20use%20the%20feedback.md)
 
-## Day 4: How I'm asking for a roast
+Day 4 brings in other people. Define how participants get a real reaction: feedback from the group, a test with someone from their audience, a question answered, a first customer.
 
-Today, you'll ask people to roast your work. A roast here is honest feedback on the work, never on the person.
+Start from your transformation sentence ([Define the transformation](Define%20the%20transformation.md)). What happens on this day is whatever moves participants from your starting point to your finish point. The example at the end is only one possible challenge.
 
-A stranger sees what you can't. *(Add one fact of yours here, if you have one.)*
+## Decide
 
-Too often, people ask "What do you think?", get "Looks good!" back, and nothing changes.
+1. Who should react on day 4: the group, a person from the participant's audience, a customer?
+2. What should participants ask, so the answer is useful and not only kind?
 
-**Do the work**
+Your challenge may not be about feedback at all. Use whatever outside reaction your transformation needs: a test, a conversation, a trial run.
 
-1. Take your latest version and what changed since day 3.
-2. Write 2 or 3 specific questions people can answer: what's unclear, what's missing, what isn't needed. No "What do you think?".
+## Write the day brief
 
-**Or use AI:** paste this in the AI coach chat:
+Fill in these lines. They become the daily post you publish and the guide participants follow.
 
-```text
-Day 4. Ask me for my latest version (pasted or described) and what changed since day 3. Suggest 3
-specific questions people could answer about it: what's unclear, what's missing, what isn't needed.
-No vague questions like "What do you think?". Then write a post titled "How I'm" + making it better,
-with the context line, the work and the 2–3 questions I choose.
-```
+- **Participants:** [what they do today, in one sentence]
+- **They post:** [what goes in the post]
+- **Post title:** [a title that names what they did]
+- **Time:** [about 20 minutes of work, 10 to help others]
+- **How they help each other:** [what a helpful reply looks like today]
 
-**Share it**
+**Done when:** a participant could read the brief and do the day without asking you anything.
 
-Post in the daily place, titled "How I'm asking for a roast". A fictional example:
+## Example
 
-> How I'm making my newsletter draft better
-> 
+A challenge where people start a newsletter. Day 4 is an outside reaction: someone else looks at the work and says what they see.
+
+> Is the main point clear?
+>
 > I'm building a newsletter for freelancers. My main difficulty is choosing which topic to start with.
 > 
-> Now, I'd like a roast of the opening: "If you haven't heard back after a few days, a short follow-up can bring your proposal back to the top of the inbox."
-> 
-> 1. Is "after a few days" specific enough?
-> 2. What would you need to know before trying this?
+> Now, I'm asking for feedback on issue one: is the main point clear from the opening?
 
-Tomorrow, you'll choose which feedback to use.
+## Or use AI
 
-✌️
+Paste this in your AI chat to define the day together:
 
-P.S. Giving honest feedback trains you to read your own work like a stranger. Open the daily place and support at least one member.
+```text
+I'm designing a 7-day challenge. Day 4 is about an outside reaction. Ask me for my transformation sentence and my audience, one question at a time. Then help me fill in the day brief: what participants do, what they post, the post title and how they help each other. Keep it small enough for about 30 minutes.
+```

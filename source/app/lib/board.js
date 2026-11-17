@@ -130,12 +130,12 @@ const orderOf = stage => (a, b) => {
   return (stage === 'maybe' ? byPriority : byRecent)(a, b)
 }
 
-export async function board(root, index, { top = 15 } = {}) {
+export async function board(root, index) {
   const cards = await loadCards(root, index)
   const cols = {}
   for (const s of STAGES) {
     const list = cards.filter(c => c.stage === s).sort(orderOf(s))
-    cols[s] = { count: list.length, cards: s === 'maybe' ? list.slice(0, top) : list }
+    cols[s] = { count: list.length, cards: list }
   }
   return { columns: cols }
 }
@@ -165,6 +165,25 @@ export async function setStage(root, rel, stage, expectedMtime) {
   const out = '---\n' + lines.join('\n') + text.slice(fm.end)
   await fsp.writeFile(abs, out)
   return { from, to: stage }
+}
+
+// Clean up a card in Not: the note leaves the board for _to_delete/ (hidden from the app, and still on disk if it was a mistake). Only cards that are in Not.
+export async function deleteCard(root, rel, expectedMtime) {
+  if (!/^ideas\/[^/]+\.md$/.test(rel)) throw new Error('only notes in ideas/')
+  const abs = path.join(root, rel)
+  const st = await fsp.stat(abs)
+  if (expectedMtime && Math.abs(st.mtimeMs - expectedMtime) > 1) {
+    const err = new Error('changed since you opened it'); err.code = 409; throw err
+  }
+  const fm = splitFm(withFrontmatter(await fsp.readFile(abs, 'utf8'), rel))
+  if (!/^stage:\s*not\s*$/m.test(fm.head)) throw new Error('only cards in Not can be deleted')
+  const dir = path.join(root, '_to_delete')
+  await fsp.mkdir(dir, { recursive: true })
+  const base = path.basename(rel, '.md')
+  let name = base + '.md', n = 1
+  while (await fsp.stat(path.join(dir, name)).then(() => true, () => false)) name = `${base} (${++n}).md`
+  await fsp.rename(abs, path.join(dir, name))
+  return { moved: `_to_delete/${name}` }
 }
 
 export async function logChange(root, msg) {

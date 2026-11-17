@@ -11,6 +11,10 @@ import Onboarding from './components/Onboarding.vue'
 import AccessGate from './components/AccessGate.vue'
 import { claude } from './ask.js'
 
+// the logo gives a wiggle on hover and a spin with a bounce on click
+const logoSpin = ref(false)
+let logoTimer = null
+function spinLogo() { logoSpin.value = false; clearTimeout(logoTimer); requestAnimationFrame(() => { logoSpin.value = true; logoTimer = setTimeout(() => { logoSpin.value = false }, 800) }) }
 const items = ref([])
 const next = ref(null)
 const total = ref(0)
@@ -355,7 +359,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
     <Onboarding v-if="showOnboarding" @done="onboardingDone" />
     <header class="top">
       <div class="brand">
-        <img class="mark" :src="logo" alt="" />
+        <img class="mark" :class="{ spin: logoSpin }" :src="logo" alt="" @click="spinLogo" />
         <span class="name">Maybee</span>
         <div v-if="workspaces.length" class="workspace-picker" @click.stop>
           <button class="workspace-select" :aria-expanded="workspaceMenuOpen" aria-haspopup="listbox" @click="workspaceMenuOpen = !workspaceMenuOpen; if (workspaceMenuOpen) refreshWorkspaces()">

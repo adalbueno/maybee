@@ -1,7 +1,7 @@
 <script setup>
 import RoutineSchedule from './RoutineSchedule.vue'
 import { ask, claude } from '../ask.js'
-import { movesFor } from '../stages.js'
+import { sideMove } from '../stages.js'
 import { ref, computed, onMounted, watch } from 'vue'
 const props = defineProps({ changedAt: Number, activePath: String })
 const emit = defineEmits(['open'])
@@ -90,19 +90,29 @@ function autoLabel(r) {
   return ''
 }
 function runAll() { for (const r of rTodo.value) { const st = runState(r); if (st !== 'pending' && st !== 'queued' && st !== 'working') runRoutine(r) } }
-function toggle(key) { openCol.value = key }
+// moved: once the user has opened a column by hand, the next one opens in two steps (the drawer first, then its cards)
+const moved = ref(false)
+function toggle(key) { moved.value = true; openCol.value = key }
 const showBacklog = ref(false)
 const backlog = ref([])
 const q = ref('')
 const toast = ref('')
 
+// the strip colours follow the column dots (style.css .dot.*): background and the text colour that reads on it
+const STAGE = { delete: { bg: 'var(--bad)' }, maybe: { bg: '#c9c4b6' }, next: { bg: '#4a7dff' }, now: { bg: '#f2b705' }, done: { bg: 'var(--good)' }, not: { bg: 'var(--bad)' } }
+const stageName = key => key === 'delete' ? 'Delete' : (COLS.find(c => c.key === key) || {}).label || key
+// the strip at one side of a card: where it would go, and the colour of that column
+// the strip that slides out from under the card is the one on the half the mouse is over
+function pickSide(e) { const r = e.currentTarget.getBoundingClientRect(); e.currentTarget.dataset.side = e.clientX < r.left + r.width / 2 ? 'prev' : 'next' }
+const level = p => [2, 3, 5, 8, 13].indexOf(p) + 1
+const side = (c, dir) => { const m = sideMove(c.stage, dir); return m && { ...m, name: stageName(m.to), bg: STAGE[m.to].bg } }
 const COLS = [
+  { key: 'not', label: 'Not', hint: "Won't do", onlyWhileDragging: true },
   { key: 'maybe', label: 'Maybe', hint: 'Worth a look, by priority' },
   { key: 'next', label: 'Next', hint: 'The short queue' },
   { key: 'now', label: 'Now', hint: 'What we are working on' },
   { key: 'routine', label: 'Routine', hint: 'Recurring work' },
   { key: 'done', label: 'Done', hint: '' },
-  { key: 'not', label: 'Not', hint: "Won't do", onlyWhileDragging: true },
 ]
 const weekAgo = Date.now() - 7 * 86400000
 const wins = computed(() => cols.value ? cols.value.done.cards : [])
@@ -120,7 +130,20 @@ watch(() => props.changedAt, load)
 
 function say(msg) { toast.value = msg; setTimeout(() => { if (toast.value === msg) toast.value = '' }, 2600) }
 
+// Delete asks twice: the first click arms it, the second one (within 4 seconds) moves the note to _to_delete/
+let armed = null, armTimer = null
+async function remove(card) {
+  if (armed !== card.path) { armed = card.path; clearTimeout(armTimer); armTimer = setTimeout(() => { armed = null }, 4000); say('Click Delete again to remove it'); return }
+  armed = null
+  const src = cols.value[card.stage]
+  src.cards = src.cards.filter(c => c.path !== card.path); src.count--
+  const res = await fetch('/api/card/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: card.path, mtime: card.mtime, title: card.title }) })
+  if (!res.ok) { const err = await res.json().catch(() => ({})); say('Could not delete it: ' + (err.error || res.status)) } else say('Deleted (kept in _to_delete/)')
+  load()
+}
+
 async function move(card, stage) {
+  if (card && stage === 'delete') return remove(card)
   if (!card || card.stage === stage) return
   const from = card.stage
   // optimistic
@@ -138,7 +161,17 @@ async function move(card, stage) {
   load()
 }
 
-function onDragStart(card, e) { dragging.value = card; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', card.path) }
+function onDragStart(card, e) {
+  dragging.value = card; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', card.path)
+  // the browser's own drag image is a snapshot of the card with its hover shadow and see-through corners: draw a clean, solid copy instead
+  const el = e.currentTarget, box = el.getBoundingClientRect()
+  const ghost = el.cloneNode(true)
+  ghost.classList.add('drag-ghost'); ghost.classList.remove('dragging', 'active', 'drop-before', 'drop-after')
+  ghost.style.width = box.width + 'px'
+  document.body.appendChild(ghost)
+  e.dataTransfer.setDragImage(ghost, e.clientX - box.left, e.clientY - box.top)
+  setTimeout(() => ghost.remove(), 0)
+}
 function onDragEnd() { dragging.value = null; over.value = null; dropAt.value = null }
 
 // Arrange cards inside Maybe, Next and Now by hand: drop on the upper or lower half of a card.
@@ -226,7 +259,7 @@ async function pull(card, stage) {
 </script>
 
 <template>
-  <div class="board" v-if="cols" @mouseleave="nearNot = false">
+  <div class="board" :class="{ moved }" v-if="cols" @mouseleave="nearNot = false">
     <div class="not-edge" aria-label="Reveal Not column" @mouseenter="nearNot = true"></div>
     <section
       v-for="col in shown" :key="col.key" class="col" :class="[col.key, { open: openCol === col.key, over: over === col.key }]"
@@ -234,12 +267,13 @@ async function pull(card, stage) {
       @mouseenter="col.key === 'not' && (nearNot = true)" @mouseleave="col.key === 'not' && (nearNot = false)"
     >
       <!-- collapsed: a narrow tab -->
-      <button v-if="openCol !== col.key" class="col-tab" @click="toggle(col.key)" :title="'Open ' + col.label">
+      <!-- it stays in the open column too: while the drawer opens the tab is still there, and it fades once the cards appear -->
+      <button class="col-tab" :tabindex="openCol === col.key ? -1 : 0" @click="openCol !== col.key && toggle(col.key)" :title="'Open ' + col.label">
         <span v-if="col.key === 'done'" class="check sm">✓</span><span v-else class="dot" :class="col.key"></span><span class="v">{{ col.label }}</span><small>{{ cols[col.key].count }}</small>
       </button>
 
       <!-- open -->
-      <template v-else>
+      <template v-if="openCol === col.key">
         <header class="col-head">
           <h2><span class="dot" :class="col.key"></span>{{ col.label }}<small>{{ cols[col.key].count }}</small></h2>
           <p>{{ col.hint }}</p>
@@ -317,15 +351,18 @@ async function pull(card, stage) {
               </article>
             </template>
           </div>
+          <div v-for="c in cols[col.key].cards" :key="c.path" class="krow" @mousemove="pickSide" @mouseleave="$event.currentTarget.dataset.side = ''">
+          <!-- moving a card: a strip before and one after, in the colour of the column it goes to (back on the left, on on the right) -->
+          <button v-if="side(c, 'prev')" class="k-side prev" :style="{ '--c': side(c, 'prev').bg }" :title="side(c, 'prev').label" :aria-label="side(c, 'prev').label" @click.stop="move(c, side(c, 'prev').to)"><span>‹ {{ side(c, 'prev').name }}</span></button>
           <article
-            v-for="c in cols[col.key].cards" :key="c.path" class="kcard" :class="{ dragging: dragging && dragging.path === c.path, active: activePath === c.path, 'drop-before': dropAt && dropAt.path === c.path && dropAt.pos === 'before', 'drop-after': dropAt && dropAt.path === c.path && dropAt.pos === 'after' }"
+            class="kcard" :class="{ dragging: dragging && dragging.path === c.path, active: activePath === c.path, 'drop-before': dropAt && dropAt.path === c.path && dropAt.pos === 'before', 'drop-after': dropAt && dropAt.path === c.path && dropAt.pos === 'after' }"
             draggable="true" @dragstart="onDragStart(c, $event)" @dragend="onDragEnd" @dragover="cardOver(c, $event)" @drop="cardDrop(c, $event)" @click="emit('open', { path: c.path, key: c.path })"
           >
-            <div class="k-meta">
-              <span class="tag">{{ c.type === 'task' ? 'Task' : 'Idea' }}</span>
-              <span v-if="c.priority" class="prio" :title="'Priority ' + c.priority + ' (score ' + c.score + ', D170)'">{{ c.priority }}</span>
-            </div>
-            <h3>{{ c.title }}</h3>
+            <!-- priority is a small signal in the corner, not a row of its own: 2 · 3 · 5 · 8 · 13 fill 1 to 5 bars -->
+            <span class="bars" :class="{ none: !c.priority }" :title="c.priority ? 'Priority ' + c.priority + ' (score ' + c.score + ')' : 'Not rated yet'" :aria-label="c.priority ? 'Priority ' + c.priority : 'Not rated yet'">
+              <i v-for="n in 5" :key="n" :class="{ on: n <= level(c.priority) }"></i>
+            </span>
+            <h3 class="rated">{{ c.title }}</h3>
             <p v-if="c.description">{{ c.description }}</p>
             <p v-if="col.key === 'not' && c.whyNot" class="why-not"><span>Why not</span>{{ c.whyNot }}</p>
             <div v-if="col.key === 'now' && c.nextStep" class="next-step">
@@ -341,20 +378,18 @@ async function pull(card, stage) {
               </button>
               <span v-if="c.moreFiles" class="more-files">+{{ c.moreFiles }}</span>
             </div>
-            <div v-if="col.key !== 'routine'" class="k-moves" @click.stop>
-              <button v-if="col.key === 'now'" class="start" :disabled="working(c)" :title="c.nextStep ? 'Ask your assistant to do the next step' : 'Ask your assistant to start working on this'" @click="start(c)">{{ working(c) ? 'Working…' : c.nextStep ? 'Do the next step' : 'Start' }}</button>
-              <button v-for="m in movesFor(c.stage)" :key="m.to" :class="m.primary ? 'primary' : 'sec'" :title="'Move to ' + m.to" @click="move(c, m.to)">{{ m.label }}</button>
+            <div v-if="col.key === 'now'" class="k-moves" @click.stop>
+              <button class="start" :disabled="working(c)" :title="c.nextStep ? 'Ask your assistant to do the next step' : 'Ask your assistant to start working on this'" @click="start(c)">{{ working(c) ? 'Working…' : c.nextStep ? 'Do the next step' : 'Start' }}</button>
             </div>
             <div class="k-foot">
               <span v-if="c.area">{{ c.area }}</span>
             </div>
           </article>
+          <button v-if="side(c, 'next')" class="k-side next" :style="{ '--c': side(c, 'next').bg }" :title="side(c, 'next').label" :aria-label="side(c, 'next').label" @click.stop="move(c, side(c, 'next').to)"><span>{{ side(c, 'next').name }} ›</span></button>
+          </div>
           <div v-if="col.key === 'routine' && !routines.length" class="empty">No routines yet. Ask Maybee to create one.</div>
           <div v-else-if="col.key !== 'routine' && !cols[col.key].cards.length" class="empty">Nothing here. Drag a card onto this column.</div>
         </div>
-        <button v-if="col.key === 'maybe' && cols.maybe.count > cols.maybe.cards.length" class="more-ideas" @click="openBacklog">
-          +{{ cols.maybe.count - cols.maybe.cards.length }} more ideas
-        </button>
         <form v-if="col.key === 'maybe'" class="capture" @submit.prevent="addIdea" @dragover.stop @drop.stop>
           <input v-model="newTitle" maxlength="140" placeholder="Write an idea and press Enter" aria-label="New idea" :disabled="adding" />
         </form>

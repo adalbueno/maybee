@@ -1,55 +1,55 @@
 ---
-title: "Day 5: use the feedback"
+title: "Define day 5: the adjustment"
 type: idea
 stage: next
 owner: both
-kind: Do
-description: "Write the day 5 lesson from this template."
+kind: Define
+description: "Define day 5: the one concrete change participants make from what they learned."
 captured: 2026-11-16
 rank: 90
 ---
 
-# Day 5: use the feedback
+# Define day 5: the adjustment
 
-Template for the day 5 lesson. Keep the structure; write the opening and the "why" in your own voice, with a real fact of yours where the text says so.
+**Previous:** [Define day 4: an outside reaction](Day%204%20%E2%80%94%20ask%20for%20honest%20feedback.md) · **Challenge index:** [Start here](7-day%20challenge%20%E2%80%94%20start%20here.md) · **Next:** [Define day 6: the result](Day%206%20%E2%80%94%20finish%20it.md)
 
-## Day 5: How I'm using the feedback
+Day 5 is where participants change something because of what they learned. Define what the change looks like and how they show it.
 
-Today, you'll choose one change, make it and show the before and after.
+Start from your transformation sentence ([Define the transformation](Define%20the%20transformation.md)). What happens on this day is whatever moves participants from your starting point to your finish point. The example at the end is only one possible challenge.
 
-If you act on one comment, the feedback becomes a decision, and the person who helped sees what their comment did. You don't have to use every suggestion. *(Add one fact of yours here, if you have one.)*
+## Decide
 
-It's easy to collect advice and never act on it. Others try to use all of it and end up with a mess.
+1. What should change between day 4 and day 5: the work, the plan, the audience, the offer?
+2. How do participants show the change, so the group can see it?
 
-**Do the work**
+A week only moves forward if something changes in response to what people learn. Pick the kind of change that fits your transformation.
 
-1. Read the feedback you got on day 4. If there is none, use your own read.
-2. Choose one change and say what it improves.
-3. Make it. Keep the before and the after.
+## Write the day brief
 
-**Or use AI:** paste this in the AI coach chat:
+Fill in these lines. They become the daily post you publish and the guide participants follow.
 
-```text
-Day 5. Ask me for the feedback I got on day 4 (I may have none). Keep the members' feedback separate
-from your own suggestions. Suggest up to 3 changes and what each one improves. Ask which one I'll
-make, and wait until I tell you what I changed. Then write a post titled "How I'm" + the change: the
-context line, before, after, where the idea came from and one question.
-```
+- **Participants:** [what they do today, in one sentence]
+- **They post:** [what goes in the post]
+- **Post title:** [a title that names what they did]
+- **Time:** [about 20 minutes of work, 10 to help others]
+- **How they help each other:** [what a helpful reply looks like today]
 
-**Share it**
+**Done when:** a participant could read the brief and do the day without asking you anything.
 
-Post in the daily place, titled "How I'm using the feedback". A fictional example:
+## Example
 
-> How I'm making my follow-up advice clearer
-> 
+A challenge where people start a newsletter. Day 5 is the adjustment: one concrete change, shown before and after.
+
+> What I changed after feedback
+>
 > I'm building a newsletter for freelancers. My main difficulty is choosing which topic to start with.
 > 
-> Now, I'm using your feedback. Before: "after a few days". After: "after three business days". Someone asked when to follow up, and the first version didn't say.
-> 
-> Is three business days clear, or would you say it differently?
+> Now, I'm rewriting the opening. Before: a long intro. After: one line with the main point.
 
-Tomorrow, you'll finish it.
+## Or use AI
 
-✌️
+Paste this in your AI chat to define the day together:
 
-P.S. Seeing how other people move their projects forward can help you decide what to do with yours. Open the daily place and support at least one member.
+```text
+I'm designing a 7-day challenge. Day 5 is about the adjustment. Ask me for my transformation sentence and my audience, one question at a time. Then help me fill in the day brief: what participants do, what they post, the post title and how they help each other. Keep it small enough for about 30 minutes.
+```
