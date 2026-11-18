@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "build": "node ../../scripts/build-app.mjs"
+    "build": "node ../scripts/build-app.mjs"
   },
   "dependencies": {
     "playwright-core": "1.65.0"

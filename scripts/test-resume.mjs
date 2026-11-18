@@ -9,8 +9,8 @@ const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'maybee-resume-'))
 const data = path.join(temp, 'data'); fs.mkdirSync(data)
 process.env.MAYBEE_DATA_DIR = data
 const root = new URL('..', import.meta.url).pathname
-const scripts = path.join(root, 'source/app/scripts')
-const { commandFor, runPending, preflight } = await import('../source/app/lib/resume.js')
+const scripts = path.join(root, 'app/scripts')
+const { commandFor, runPending, preflight } = await import('../app/lib/resume.js')
 const inbox = path.join(data, 'inbox.json')
 
 // the fake agent: reads the request id from the prompt (its last argument, or the one after -p) and does what MODE says

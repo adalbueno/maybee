@@ -7,7 +7,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const APP = path.join(ROOT, 'source', 'app')
+const APP = path.join(ROOT, 'app')
 const out = path.resolve(process.argv[2] || '')
 const mapsOut = process.argv[3] ? path.resolve(process.argv[3]) : null
 if (!process.argv[2]) { console.error('usage: build-app.mjs <output app dir> [<source maps dir>]'); process.exit(1) }

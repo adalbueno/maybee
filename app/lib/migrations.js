@@ -16,7 +16,7 @@ const migrationsDir = () => firstDir(...around('migrations'))
 // The blank workspace new workspaces start from (the template playbook).
 export const templateDir = () => firstDir(...around('playbooks', 'template', 'workspace'))
 // Copies the package seeds into workspaces. A file in the destination that is identical to a seed was never edited.
-const seedDirs = () => [...new Set([...around('workspaces', 'default'), ...around('playbooks', 'template', 'workspace'), path.join(APP_DIR, '..', '..', 'source', 'playbooks', 'template', 'workspace')])].filter(d => fs.existsSync(d))
+const seedDirs = () => [...new Set([...around('workspaces', 'default'), ...around('playbooks', 'template', 'workspace'), path.join(APP_DIR, '..', 'playbooks', 'template', 'workspace')])].filter(d => fs.existsSync(d))
 
 const rel = (root, abs) => path.relative(root, abs).split(path.sep).join('/')
 

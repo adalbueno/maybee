@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_SRC="$ROOT/source/app"
+APP_SRC="$ROOT/app"
 SKILLS_SRC="$ROOT/source/skills"
 RELEASE_SRC="$ROOT/release"
 BOOTSTRAP_SRC="$ROOT/skill/maybee"
@@ -24,15 +24,15 @@ for skill in "$SKILLS_SRC"/maybee-*; do
   [ -d "$skill" ] && cp -a "$skill" "$STAGE/maybee/skills/"
 done
 mkdir -p "$STAGE/maybee/playbooks"
-cp -a "$ROOT/source/playbooks/template" "$STAGE/maybee/playbooks/"
+cp -a "$ROOT/playbooks/template" "$STAGE/maybee/playbooks/"
 find "$STAGE/maybee" -type d -name '__pycache__' -prune -exec rm -rf {} +
 
 # Playbooks are not part of the package: each one is a separate .zip that people import from the app ("Import playbook").
-for pb in "$ROOT"/source/playbooks/*/; do
+for pb in "$ROOT"/playbooks/*/; do
   name="$(basename "$pb")"
   [ "$name" != template ] && [ -f "$pb/playbook.json" ] || continue
   rm -f "$DIST/playbook-$name.zip"
-  (cd "$ROOT/source/playbooks" && zip -qr "$DIST/playbook-$name.zip" "$name")
+  (cd "$ROOT/playbooks" && zip -qr "$DIST/playbook-$name.zip" "$name")
   printf 'Built %s\n' "$DIST/playbook-$name.zip"
 done
 

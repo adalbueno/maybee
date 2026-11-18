@@ -1,5 +1,5 @@
 dist/
 test-workspace/
-source/app/node_modules/
-source/app/dist/
-source/app/data/
+app/node_modules/
+app/dist/
+app/data/

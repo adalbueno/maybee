@@ -379,7 +379,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
         <span class="name">Maybee</span>
         <div v-if="workspaces.length" class="workspace-picker" @click.stop>
           <button class="workspace-select" :aria-expanded="workspaceMenuOpen" aria-haspopup="listbox" @click="workspaceMenuOpen = !workspaceMenuOpen; if (workspaceMenuOpen) refreshWorkspaces()">
-            <span class="workspace-dot"></span>{{ (workspaces.find(w => w.name === activeWorkspace) || {}).label || activeWorkspace }}<span class="workspace-chevron">⌄</span>
+            <span class="workspace-dot"></span><span class="workspace-label">{{ (workspaces.find(w => w.name === activeWorkspace) || {}).label || activeWorkspace }}</span><span class="workspace-chevron">⌄</span>
           </button>
           <div v-if="workspaceMenuOpen" class="workspace-menu" role="listbox">
             <div class="workspace-menu-label">Workspaces</div>

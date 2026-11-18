@@ -31,7 +31,7 @@ if (process.argv.includes('--detach') && !process.env.MAYBEE_DETACHED) {
 }
 
 const APP_DIR = path.dirname(fileURLToPath(import.meta.url))
-const DEFAULT_ROOT = path.resolve(APP_DIR, '..', '..')
+const DEFAULT_ROOT = path.resolve(APP_DIR, '..')
 // Changes on every start. The page compares it on reconnect: a different one means the server restarted, so the page reloads itself.
 const BOOT_ID = crypto.randomUUID()
 let PORT = Number(process.env.PORT || argValue('--port') || 8780)
@@ -436,7 +436,7 @@ function slugify(text) {
 }
 
 // A new workspace starts as a copy of the workspace/ folder of the "template" playbook
-// (package/playbooks/template; source/playbooks/template in this repository).
+// (package/playbooks/template; playbooks/template in this repository).
 async function copyTemplate(target, title) {
   const template = path.join(APP_DIR, '..', 'playbooks', 'template', 'workspace')
   if (!fs.existsSync(template)) return

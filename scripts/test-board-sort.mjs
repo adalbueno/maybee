@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-const { board, placeCard, ranksOf, restoreRanks } = await import(new URL('../source/app/lib/board.js', import.meta.url).href)
+const { board, placeCard, ranksOf, restoreRanks } = await import(new URL('../app/lib/board.js', import.meta.url).href)
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maybee-sort-'))
 fs.mkdirSync(path.join(root, 'ideas'))

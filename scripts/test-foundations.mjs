@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-const { sections, fillStatus, missingFromTemplate, addMissing } = await import(new URL('../source/app/lib/foundations.js', import.meta.url).href)
+const { sections, fillStatus, missingFromTemplate, addMissing } = await import(new URL('../app/lib/foundations.js', import.meta.url).href)
 
 // a section is filled only by something other than its prompt and an empty bullet
 const list = sections('---\ntitle: x\n---\n# T\n\nintro\n\n## A\n\n_prompt_\n\n-\n\n## B\n\n_prompt_\n\n- real answer\n\n## C\n\n|  |  |\n|---|---|\n')

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-const { setStage, withFrontmatter } = await import(new URL('../source/app/lib/board.js', import.meta.url).href)
-const { setFields } = await import(new URL('../source/app/lib/desktop.js', import.meta.url).href)
+const { setStage, withFrontmatter } = await import(new URL('../app/lib/board.js', import.meta.url).href)
+const { setFields } = await import(new URL('../app/lib/desktop.js', import.meta.url).href)
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maybee-frontmatter-'))
 fs.mkdirSync(path.join(root, 'ideas'))

@@ -107,4 +107,4 @@ MAYBEE_RELEASE_FILE="$(pwd)/dist/maybee-package-<version>.zip" \
   skill/maybee/scripts/install-release.sh --workspace "$(pwd)/test-workspace"
 ```
 
-Use a version number that exists in `dist/`. The build compiles the interface and bundles the server, so it needs Node and npm and installs the app's build dependencies in `source/app/` the first time. Source maps for each build are written to `dist/sourcemaps/<version>/`: keep them, they do not ship.
+Use a version number that exists in `dist/`. The build compiles the interface and bundles the server, so it needs Node and npm and installs the app's build dependencies in `app/` the first time. Source maps for each build are written to `dist/sourcemaps/<version>/`: keep them, they do not ship.

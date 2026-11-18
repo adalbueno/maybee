@@ -5,7 +5,7 @@ APP="$(cd "$(dirname "$0")/.." && pwd)"
 if [ "$(basename "$(dirname "$APP")")" = "package" ]; then
   ROOT="$(cd "$APP/../../.." && pwd)"
 else
-  ROOT="$(cd "$APP/../.." && pwd)"
+  ROOT="$(cd "$APP/.." && pwd)"
 fi
 instance_url() {
   node --input-type=module - "$ROOT" <<'JS'

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-const { plan, apply, moveFiles, checkLinks, findLinks } = await import(new URL('../source/app/lib/migrations.js', import.meta.url).href)
+const { plan, apply, moveFiles, checkLinks, findLinks } = await import(new URL('../app/lib/migrations.js', import.meta.url).href)
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'maybee-migrations-'))
 let n = 0

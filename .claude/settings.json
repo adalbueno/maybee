@@ -3,7 +3,7 @@
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/source/app/scripts/session-start.sh" }
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/app/scripts/session-start.sh" }
         ]
       }
     ]

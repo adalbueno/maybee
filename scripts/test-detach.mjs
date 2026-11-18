@@ -8,7 +8,7 @@ import { spawn, execFileSync } from 'node:child_process'
 import { once } from 'node:events'
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'maybee-detach-'))
-const detachURL = new URL('../source/app/lib/detach.js', import.meta.url).href
+const detachURL = new URL('../app/lib/detach.js', import.meta.url).href
 const pgidOf = pid => Number(execFileSync('ps', ['-o', 'pgid=', '-p', String(pid)], { encoding: 'utf8' }).trim())
 const alive = pid => { try { process.kill(pid, 0); return true } catch { return false } }
 

@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process'
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'maybee-bridge-'))
 process.env.MAYBEE_DATA_DIR = temp
-const { detectAgent, sessionIdFor, registerBridge, readBridge } = await import('../source/app/lib/bridge.js')
+const { detectAgent, sessionIdFor, registerBridge, readBridge } = await import('../app/lib/bridge.js')
 
 assert.equal(sessionIdFor('claude', { CLAUDE_CODE_SESSION_ID: 'c1' }), 'c1')
 assert.equal(sessionIdFor('codex', { CODEX_SESSION_ID: 'x2' }), 'x2')
@@ -28,7 +28,7 @@ assert.deepEqual({ agent: info.agent, sessionId: info.sessionId, cwd: info.cwd }
 assert.equal(readBridge().sessionId, 'abc-123')
 
 // the listener: --agent is not read as the minutes, records the bridge, and fails clearly without a session id
-const listen = new URL('../source/app/scripts/listen.js', import.meta.url).pathname
+const listen = new URL('../app/scripts/listen.js', import.meta.url).pathname
 const env = { ...process.env, MAYBEE_DATA_DIR: temp, CLAUDE_CODE_SESSION_ID: '', CODEX_THREAD_ID: 'run-9', CODEX_SESSION_ID: '' }
 execFileSync('node', [listen, '--agent', 'codex', '0.001'], { env, stdio: 'pipe' })
 assert.equal(readBridge().sessionId, 'run-9')

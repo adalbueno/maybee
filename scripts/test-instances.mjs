@@ -8,7 +8,7 @@ import { once } from 'node:events'
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'maybee-instances-'))
 const children = []
-const moduleURL = new URL('../source/app/lib/instance.js', import.meta.url).href
+const moduleURL = new URL('../app/lib/instance.js', import.meta.url).href
 const fixture = `
 import http from 'node:http';
 import { startInstance, stopInstance } from ${JSON.stringify(moduleURL)};

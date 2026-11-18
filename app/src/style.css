@@ -68,8 +68,8 @@ a { color: inherit; }
 .workspace-select { display: inline-flex; align-items: center; gap: 7px; max-width: 190px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 12px; background: var(--card-hi); color: var(--ink-2); font: 600 12.5px var(--sans); cursor: pointer; box-shadow: 0 1px 2px #1615130a; }
 .workspace-select:hover, .workspace-select[aria-expanded="true"] { border-color: #d7d3c8; background: var(--card); }
 .workspace-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.workspace-chevron { margin-left: 3px; color: var(--ink-3); font-size: 15px; line-height: 10px; }
-.workspace-menu { position: absolute; z-index: 15; top: calc(100% + 9px); right: 0; width: 240px; padding: 8px; border: 1px solid var(--line); border-radius: 16px; background: var(--card-hi); box-shadow: 0 16px 38px #16151322; }
+.workspace-chevron { flex: none; margin-left: 3px; color: var(--ink-3); font-size: 15px; line-height: 10px; }
+.workspace-menu { position: absolute; z-index: 35; top: calc(100% + 9px); left: 0; width: max(100%, 340px); max-width: calc(100vw - 32px); max-height: calc(100vh - 96px); overflow-y: auto; overscroll-behavior: contain; padding: 8px; border: 1px solid var(--line); border-radius: 16px; background: var(--card-hi); box-shadow: 0 16px 38px #16151322; }
 .workspace-menu-label { padding: 5px 9px 8px; color: var(--ink-3); font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
 .workspace-option { width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px; border-radius: 11px; text-align: left; }
 .workspace-option:hover, .workspace-option.selected { background: var(--accent-soft); }
@@ -78,7 +78,9 @@ a { color: inherit; }
 .workspace-option b, .workspace-option small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-option b { font-size: 12.5px; }
 .workspace-option small { margin-top: 1px; color: var(--ink-3); font-size: 10.5px; }
-.workspace-check { margin-left: auto; color: var(--good); font-weight: 800; }
+.workspace-option > span:nth-child(2) { min-width: 0; flex: 1; }
+.workspace-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-check { flex: none; margin-left: auto; color: var(--good); font-weight: 800; }
 .places { display: flex; gap: 26px; flex: none; }
 .place {
   position: relative; padding: 6px 0; font-size: 14px; font-weight: 500; color: var(--ink-3); text-decoration: none;
