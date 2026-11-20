@@ -2,6 +2,14 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.44 · 20 Nov 2026
+
+**Maybee opens in your own browser, and fewer windows appear.**
+
+- **In your own browser:** an app window with Chrome, Edge, Brave or Chromium, a normal tab otherwise, and never a second one.
+- **The Skool check works in the background.** A window appears only when you need to log in, and closes by itself.
+- **Opening Maybee checks again** when the last check is more than 10 minutes old.
+
 ## 0.1.43 · 20 Nov 2026
 
 **One clear AI action per card, quick capture from anywhere on the board, and a bee that celebrates finished work.**
