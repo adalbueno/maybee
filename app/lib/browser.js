@@ -11,7 +11,7 @@
 import fs from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
-import { spawn } from 'node:child_process'
+import { spawn, execFileSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dataPath } from './paths.js'
 
@@ -53,6 +53,41 @@ function systemCandidates() {
     return roots.flatMap(root => rel.map(parts => path.join(root, ...parts)))
   }
   return onPath(['chromium', 'chromium-browser', 'google-chrome-stable', 'google-chrome', 'microsoft-edge-stable', 'brave-browser'])
+}
+
+// ---- the owner's default browser ----------------------------------------------------------------------
+// The app opens in the owner's own browser. When that browser is Chromium-based it opens as an app window
+// (--app: no tabs, no address bar) with the owner's normal profile; otherwise it opens as a normal tab.
+// Returns the executable of the default browser when it is Chromium-based, or null.
+const CHROMIUM_ID = /chrom|brave|edge|vivaldi|opera|helium/i
+function execFromDesktop(id) {
+  const dirs = [process.env.XDG_DATA_HOME || path.join(process.env.HOME || '', '.local/share'), ...(process.env.XDG_DATA_DIRS || '/usr/local/share:/usr/share').split(':')]
+  for (const dir of dirs) {
+    try {
+      const text = fs.readFileSync(path.join(dir, 'applications', id), 'utf8')
+      const exec = (text.match(/^Exec=(\S+)/m) || [])[1]
+      if (!exec) return null
+      if (path.isAbsolute(exec)) return fs.existsSync(exec) ? exec : null
+      return onPath([exec]).find(f => fs.existsSync(f)) || null
+    } catch {}
+  }
+  return null
+}
+export function defaultChromiumBrowser() {
+  const run = (cmd, args) => { try { return execFileSync(cmd, args, { encoding: 'utf8', timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'] }).trim() } catch { return '' } }
+  if (process.platform === 'linux') {
+    let id = run('xdg-settings', ['get', 'default-web-browser'])
+    // a wrapper entry (Omarchy's omarchy-browser.desktop) names the real browser through its own helper
+    if (id && !CHROMIUM_ID.test(id)) id = run('omarchy-cmd-default-browser', []) || id
+    return id && CHROMIUM_ID.test(id) ? execFromDesktop(id) : null
+  }
+  if (process.platform === 'win32') {
+    const out = run('reg', ['query', 'HKCU\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\https\\UserChoice', '/v', 'ProgId'])
+    const progId = (out.match(/ProgId\s+REG_SZ\s+(\S+)/) || [])[1] || ''
+    const want = /^MSEdge/i.test(progId) ? 'msedge.exe' : /^ChromeHTML/i.test(progId) ? 'Chrome' : /^Brave/i.test(progId) ? 'brave.exe' : null
+    return want ? systemCandidates().find(f => f.includes(want) && fs.existsSync(f)) || null : null
+  }
+  return null // macOS: the default browser is not read here; the app opens with `open` in a normal tab
 }
 
 export function findBrowser(bundledPath = null) {

@@ -15,7 +15,7 @@ import { initInbox, readInbox, addRequest, listening, lastHeard, promptFor } fro
 import { readBridge } from './lib/bridge.js'
 import { initSnapshots, snapshot, diffFor } from './lib/snapshots.js'
 import { verifySkool } from './local-skool-verifier.js'
-import { ensureBrowser, holdBrowser } from './lib/browser.js'
+import { ensureBrowser, holdBrowser, defaultChromiumBrowser } from './lib/browser.js'
 import { watchChangelog, stampChangelog } from './lib/changelog-stamp.js'
 import { dataPath, DATA_DIR } from './lib/paths.js'
 import { apply as applyMigrations } from './lib/migrations.js'
@@ -91,12 +91,14 @@ const accessClients = new Set()
 function saveAccessSession(event = null) {
   try {
     fs.mkdirSync(path.dirname(ACCESS_SESSION_FILE), { recursive: true })
-    const previous = fs.existsSync(ACCESS_SESSION_FILE)
-      ? JSON.parse(fs.readFileSync(ACCESS_SESSION_FILE, 'utf8'))
-      : {}
+    // a broken file (two servers from the same folder wrote it at once) starts a fresh history instead of blocking every save
+    let previous = {}
+    try { previous = JSON.parse(fs.readFileSync(ACCESS_SESSION_FILE, 'utf8')) } catch {}
     const history = Array.isArray(previous.history) ? previous.history.slice(-49) : []
     if (event) history.push({ at: new Date().toISOString(), ...event })
-    fs.writeFileSync(ACCESS_SESSION_FILE, JSON.stringify({
+    // written to a temporary file and renamed, so a reader never sees half a file
+    const tmp = `${ACCESS_SESSION_FILE}.${process.pid}.tmp`
+    fs.writeFileSync(tmp, JSON.stringify({
       sessionStartedAt: new Date(accessSession.sessionStartedAt).toISOString(),
       lastAppActivityAt: accessSession.lastAppActivityAt ? new Date(accessSession.lastAppActivityAt).toISOString() : null,
       lastSkoolCheckAt: accessSession.lastSkoolCheckAt ? new Date(accessSession.lastSkoolCheckAt).toISOString() : null,
@@ -107,6 +109,7 @@ function saveAccessSession(event = null) {
       history,
       note: 'Local Maybee access/session audit. No password or browser cookie is stored.',
     }, null, 2))
+    fs.renameSync(tmp, ACCESS_SESSION_FILE)
   } catch (error) {
     console.warn(`Could not write access session audit: ${error.message}`)
   }
@@ -287,7 +290,8 @@ function appUrl() {
   return `${instance?.url || `http://${HOST}:${PORT}`}/${activeWorkspace}/workspace`
 }
 
-// Shows Maybee in the owner's default browser, like any local web app. A tab that is already open (a page
+// Shows Maybee in the owner's default browser: as an app window (--app, no tabs or address bar) when that browser
+// is Chromium-based, otherwise as a normal tab. A tab that is already open (a page
 // connected to the live updates) is enough: no second tab. Right after a tab was asked for it is still loading
 // and not connected yet, so another call within 20 seconds does nothing either.
 let openedAt = 0
@@ -297,7 +301,9 @@ async function openMaybeeWindow() {
   openedAt = Date.now()
   const { spawn } = await import('node:child_process')
   const url = appUrl()
-  const [cmd, args] = process.platform === 'darwin' ? ['open', [url]]
+  const app = defaultChromiumBrowser()
+  const [cmd, args] = app ? [app, [`--app=${url}`]]
+    : process.platform === 'darwin' ? ['open', [url]]
     : process.platform === 'win32' ? ['cmd', ['/c', 'start', '""', url]]
     : ['xdg-open', [url]]
   await new Promise((resolve, reject) => {
