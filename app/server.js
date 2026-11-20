@@ -344,6 +344,16 @@ async function verifyAccess(body = {}) {
   return accessStatus()
 }
 
+// Opening the app (the session hook, or "open the app") checks the membership again, silently and with no window,
+// when the last check is more than 10 minutes old: someone who logged out of Skool, or left the community, is
+// asked to verify again right away instead of at the next 6-hour renewal.
+const RECHECK_ON_OPEN_MS = Number(process.env.MAYBEE_RECHECK_ON_OPEN_MIN || 10) * 60000
+function recheckOnOpen() {
+  if (ACCESS_MODE !== 'skool' || !accessSession.valid || accessVerifying) return
+  if (Date.now() - (accessSession.lastSkoolCheckAt || 0) < RECHECK_ON_OPEN_MS) return
+  verifyAccess({ reason: 'app-opened' }).catch(() => {})
+}
+
 async function runSkoolVerification(reason) {
   const method = 'local-browser'
   try {
@@ -674,6 +684,7 @@ async function main() {
       if (url.pathname === '/api/access/verify' && req.method === 'POST') return sendJSON(res, await verifyAccess(await readBody(req)))
       if (url.pathname === '/api/window/open' && req.method === 'POST') {
         // Used by the SessionStart hook: open Maybee in the default browser, unless a tab of it is already open.
+        recheckOnOpen()
         try { return sendJSON(res, { ok: true, ...(await openMaybeeWindow()) }) } catch (error) { return sendJSON(res, { ok: false, error: error.message }, 500) }
       }
       if (url.pathname === '/api/access/confirm' && req.method === 'POST') return sendJSON(res, confirmAgentBrowser(await readBody(req)))
