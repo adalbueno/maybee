@@ -6,7 +6,7 @@ The newest version is at the top. Maybee keeps this file up to date when you upd
 
 **One clear AI action per card, quick capture from anywhere on the board, and a bee that celebrates finished work.**
 
-- **A friendlier first chat:** your name, then one open question that your assistant starts reading at once.
+- **A new welcome:** a welcome screen, your name and one open question, and how Maybee works while your assistant reads it. With no assistant connected, the board opens directly.
 - **One AI action per column:** Explore this idea, Get it ready to start, Do the next step, What comes next?. It sits on the card's chat bar and turns into Send while you type.
 - **A capture bar under the board.** Write an idea, press Enter, and the new card shows up highlighted in Maybe.
 - **The bee celebrates** when finished work lands in Done. The list behind it shows one short row per card and opens the card with its chat.
