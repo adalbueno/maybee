@@ -9,9 +9,16 @@ import MarkdownIt from 'markdown-it'
 import { ask, claude, refreshInbox } from '../ask.js'
 
 const emit = defineEmits(['done'])
+// Maybee opens on a welcome screen, then the chat asks the name and the story; while the assistant reads the story, the three steps of working together show as cards
+const STEPS3 = [
+  { icon: '💡', title: 'Catch the idea', text: 'Anything you think of goes on your board, in plain words.' },
+  { icon: '🎯', title: 'Pick the next step', text: 'I help you choose what matters now, one small step at a time.' },
+  { icon: '✅', title: 'Get it done', text: 'Your AI assistant does the work with you, and it lands in Done.' },
+]
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 
-const NAME = { key: 'name', say: ['Hi, I’m Maybee. I work with your AI assistant.', 'Together we take your ideas from a first thought all the way to finished work: I keep them in one place, help you pick the next step, and the work gets done with you.', 'First things first: what should I call you?'], hint: 'Your first name' }
+// the welcome screen has already said who Maybee is: two short lines about how it works, then the question
+const NAME = { key: 'name', say: ['Glad you’re here. I work alongside your AI assistant.', 'Let’s create your workspace: the place where your ideas, your board and your work live. Just a couple of quick questions.', 'First things first: what should I call you?'], hint: 'Your first name' }
 const STORY = name => ({ key: 'story', say: [`Nice to meet you, ${name}.`, 'Tell me about what you’re working on: what it is, who it’s for, and where you want it to be in a few weeks.', 'Say it the way you’d tell a friend, as much as you like.'], hint: 'I’m building a course for…' })
 const AUDIENCE = { key: 'audience', say: ['Nice.', 'Who is it for?'], chips: ['Clients', 'Members of my community', 'Readers', 'Just me'], hint: 'Or tell me in your own words' }
 const GOAL = { key: 'goal', say: ['Got it.', 'What matters most in the next few weeks?'], hint: 'Launch the first lesson, finish the draft…' }
@@ -122,6 +129,7 @@ async function finish(extra = null) {
       // an answer at once, then the dots until the reading is back
       if (!reading) reading = refine(null, { quiet: true })
       await say('Love it. Give me a moment to read that.')
+      await showSteps()
       typing.value = true; scrollEnd()
       j = await reading
       typing.value = false
@@ -134,7 +142,8 @@ async function finish(extra = null) {
       for (const k of Object.keys(refined)) if (!refined[k]) delete refined[k]
     }
   }
-  await say('Perfect. Give me a second to set things up…')
+  if (!stepsShown) { await say('Perfect. Give me a second to set up your workspace.'); await showSteps() }
+  else await say('Perfect. Give me a second to set up your workspace…')
   saving.value = true
   try {
     const res = await fetch('/api/setup', {
@@ -147,8 +156,8 @@ async function finish(extra = null) {
     result = data
     saving.value = false
     await say(data.firstCard
-      ? ['Done. Your project is set up.', `I put your goal on the board as your first idea: “${data.firstCard.title}”.`]
-      : ['Done. Your project is set up.'])
+      ? ['Done. Your workspace is ready.', `I put your goal on the board as your first idea: “${data.firstCard.title}”.`]
+      : ['Done. Your workspace is ready.'])
     // with a welcome card, the assistant writes it for this person right away; there is nothing to choose, only one button at the end
     if (data.welcome) await around()
     else { await say(ready()); chips.value = [GO]; mode.value = 'after' }
@@ -207,13 +216,31 @@ async function skip() {
 
 function onKey(e) { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit() } }
 watch(mode, m => { if (m === 'ask') nextTick(() => field.value?.focus()) })
-onMounted(askStep)
+const splash = ref(true) // the welcome screen, until "Nice to meet you"
+function start() { splash.value = false; askStep() }
+// the three steps, once, while the person waits for the assistant (or for the setup, without one)
+let stepsShown = false
+async function showSteps() {
+  if (stepsShown) return
+  stepsShown = true
+  await say('While I do that, here’s how we’ll work together:')
+  msgs.value.push({ id: ++uid, from: 'bee', kind: 'steps' })
+  await scrollEnd()
+  await sleep(reduce ? 0 : 2400)
+}
 onBeforeUnmount(() => { alive = false })
 </script>
 
 <template>
   <div class="onboarding-backdrop">
-    <section class="ob" role="dialog" aria-label="Meet Maybee">
+    <section v-if="splash" class="ob ob-splash" role="dialog" aria-label="Meet Maybee">
+      <div class="ob-splash-glow" aria-hidden="true"></div>
+      <img class="ob-splash-bee" :src="logo" alt="" />
+      <h1>Hi, I’m Maybee.</h1>
+      <p>Your ideas, from a first thought<br />to finished work.</p>
+      <button class="ob-splash-go" @click="start">Nice to meet you</button>
+    </section>
+    <section v-else class="ob" role="dialog" aria-label="Meet Maybee">
       <header>
         <img class="ob-bee" :class="{ leaning: typing || saving }" :src="logo" alt="" />
         <div class="ob-who"><b>Maybee</b><span class="ob-dots" :aria-label="'Question ' + (step + 1) + ' of ' + steps.length"><i v-for="(s, i) in steps" :key="s.key" :class="{ on: i < step || (i === step && mode === 'ask'), done: mode === 'after' || saving }"></i></span></div>
@@ -221,10 +248,19 @@ onBeforeUnmount(() => { alive = false })
       </header>
 
       <div ref="box" class="ob-msgs" aria-live="polite">
-        <div v-for="m in msgs" :key="m.id" class="ob-row" :class="m.from === 'you' ? 'you' : 'ai'">
+        <template v-for="m in msgs" :key="m.id">
+        <div v-if="m.kind === 'steps'" class="ob-steps">
+          <div v-for="(t, i) in STEPS3" :key="t.title" class="ob-step" :style="{ animationDelay: (i * 350) + 'ms' }">
+            <span class="ob-step-icon">{{ t.icon }}</span>
+            <b>{{ t.title }}</b>
+            <p>{{ t.text }}</p>
+          </div>
+        </div>
+        <div v-else class="ob-row" :class="m.from === 'you' ? 'you' : 'ai'">
           <div v-if="m.html" class="md" v-html="m.html"></div>
           <p v-else>{{ m.text }}</p>
         </div>
+        </template>
         <div v-if="typing" class="ob-row ai typing" aria-label="Maybee is writing"><i></i><i></i><i></i></div>
       </div>
 
@@ -290,4 +326,23 @@ header { display: flex; align-items: center; gap: 12px; padding: 18px 22px 14px;
 
 @media (max-width: 640px) { .ob { height: calc(100vh - 24px); border-radius: 22px; } .ob-row { max-width: 92%; } }
 @media (prefers-reduced-motion: reduce) { .ob-bee.leaning, .ob-row, .ob-row.typing i { animation: none; } }
+
+/* the welcome screen, then the steps */
+@keyframes ob-arrive { from { opacity: 0; transform: translate(-60px, 30px) rotate(-25deg) scale(.6); } to { opacity: 1; transform: none; } }
+@keyframes ob-hover { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-6px) rotate(3deg); } }
+.ob-splash { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 10px; padding: 40px 28px; background: var(--dark); color: #fff; }
+.ob-splash-glow { position: absolute; width: 360px; height: 360px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--accent) 45%, transparent), transparent 70%); top: 50%; left: 50%; transform: translate(-50%, -70%); animation: ob-pulse 4s ease-in-out infinite; }
+.ob-splash-bee { position: relative; height: 120px; width: auto; animation: ob-arrive 1s cubic-bezier(.2,.9,.3,1.3) both, ob-hover 3s ease-in-out 1s infinite; }
+.ob-splash h1 { position: relative; margin: 18px 0 0; font-size: 40px; letter-spacing: -.04em; animation: ob-in .5s ease .4s both; }
+.ob-splash > p { position: relative; margin: 0 0 22px; font-size: 18px; line-height: 1.45; color: #ffffffb3; animation: ob-in .5s ease .6s both; }
+.ob-splash-go { position: relative; padding: 14px 30px; border-radius: 99px; background: var(--accent); color: var(--ink); font-size: 16px; font-weight: 700; animation: ob-in .5s ease .8s both; transition: transform .12s ease; }
+.ob-splash-go:hover { transform: scale(1.04); }
+@keyframes ob-pulse { 0%, 100% { opacity: .7; transform: translate(-50%, -70%) scale(1); } 50% { opacity: 1; transform: translate(-50%, -70%) scale(1.1); } }
+.ob-steps { align-self: stretch; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ob-step { display: grid; gap: 4px; align-content: start; padding: 14px; border-radius: 18px; background: var(--card); animation: ob-in .4s ease both; }
+.ob-step-icon { font-size: 24px; line-height: 1; margin-bottom: 4px; }
+.ob-step b { font-size: 14px; letter-spacing: -.01em; }
+.ob-step p { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); }
+@media (max-width: 640px) { .ob-steps { grid-template-columns: 1fr; } .ob-splash h1 { font-size: 32px; } }
+@media (prefers-reduced-motion: reduce) { .ob-splash-glow, .ob-splash-bee, .ob-splash h1, .ob-splash > p, .ob-splash-go, .ob-step { animation: none; } }
 </style>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import logo from './assets/logo.png'
 import FeedCard from './components/FeedCard.vue'
 import Viewer from './components/Viewer.vue'
@@ -9,7 +9,7 @@ import Library from './components/Library.vue'
 import ClaudeTray from './components/ClaudeTray.vue'
 import Onboarding from './components/Onboarding.vue'
 import AccessGate from './components/AccessGate.vue'
-import { claude } from './ask.js'
+import { claude, refreshInbox } from './ask.js'
 
 // the logo gives a wiggle on hover and a spin with a bounce on click
 const logoSpin = ref(false)
@@ -250,10 +250,18 @@ function connect() {
 }
 
 function onKey(e) { if (e.key === 'Escape' && open.value) closeViewer() }
+// the listener usually comes up a few seconds after the app opens: when it does and the first-run chat is still owed, it opens then
+let setupPending = false
+watch(() => claude.listening, on => { if (on && setupPending) { setupPending = false; showOnboarding.value = true } })
 async function loadSetup() {
   try {
     setup.value = await fetch('/api/setup').then(r => r.json())
-    showOnboarding.value = (!setup.value.initialized && !setup.value.skipped) || !!setup.value.needsOnboarding || forceSetup
+    const needed = (!setup.value.initialized && !setup.value.skipped) || !!setup.value.needsOnboarding
+    // the first-run chat needs an assistant to read the answers: with none listening the board opens directly, and the chat
+    // waits for the next load with an assistant (nothing is marked as skipped). ?setup=1 always opens it.
+    if (needed && !forceSetup) await refreshInbox()
+    showOnboarding.value = forceSetup || (needed && claude.listening)
+    setupPending = needed && !showOnboarding.value
   } catch {}
 }
 // A workspace made from outside the page (by your assistant, say) shows up without a reload
