@@ -48,7 +48,7 @@ The launcher, `.maybee/package/start.sh`:
 - stops the previous Maybee process recorded for this workspace;
 - uses port 8780 (or `PORT`), and picks a free one if it is taken;
 - installs a local Node.js runtime and the app's dependencies for this machine, only if they are missing. Everything stays inside `.maybee/`, and nothing is installed globally;
-- starts the app and opens Maybee in a window of its own.
+- starts the app and opens Maybee in a tab of the default browser (no second tab when one is already open).
 
 Then read the server's metadata. It is in the active workspace: take the name from `.maybee/active-workspace.json` (`default` on a fresh install) and read `workspaces/<name>/.maybee/server.json`. Check that its `workspace` is that workspace's folder, and use its `url` for everything you do with the app. The file also holds a private restart `token`. Keep it local: never put it in chat, in a URL or on a website.
 
@@ -89,13 +89,13 @@ Start the bridge **as soon as the app is running**, in the same step as starting
 
 ## Using a browser for a task
 
-When a task needs a web browser (reading a page, filling a form, working in the community), use Maybee's own browser, in a new window. It is the browser the app opened, with the user's Skool login, and it works only while Maybee is unlocked.
+When a task needs a web browser (reading a page, filling a form, working in the community), use Maybee's own browser, in a new window. It is a separate Chromium with the user's Skool login (not the browser the app is in): it starts when a script asks for it, closes by itself a couple of minutes after its last window, and works only while Maybee is unlocked.
 
 1. Write a short Node script outside `.maybee/` (in a scratch folder). It starts with `const { newWindowPage } = await import(process.env.MAYBEE_BROWSER_LIB)` and `const { page, close } = await newWindowPage('https://…')`. `page` is a Playwright page in a window of its own. Do not import Playwright yourself, and do not put the package's path in the script.
 2. Run it as `node .maybee/package/app/scripts/browser.js run <script>`. The command opens the window and sets what the script needs.
 3. Call `close()` when the work is done, unless the user should keep looking at the page. To only show the user a page, run `node .maybee/package/app/scripts/browser.js window <url>`.
 
-Rules: work only in the window you opened and never touch the Maybee app window. Do not read, print or save cookies, passwords or tokens. Reading and drafting are fine; anything that goes out (posting, commenting, messaging, buying) is prepared and waits for the owner's explicit OK in the chat. This does not replace the membership check and cannot be used to pass it. If the user asks you to use their own Chrome instead, use the Claude in Chrome skill.
+Rules: work only in the window you opened and never touch the user's tab with the Maybee app. Do not read, print or save cookies, passwords or tokens. Reading and drafting are fine; anything that goes out (posting, commenting, messaging, buying) is prepared and waits for the owner's explicit OK in the chat. This does not replace the membership check and cannot be used to pass it. If the user asks you to use their own Chrome instead, use the Claude in Chrome skill.
 
 ## Testing this skill
 

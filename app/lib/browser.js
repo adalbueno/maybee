@@ -1,8 +1,10 @@
-// The browser Maybee owns: one Chromium-based window in --app mode that shows the Maybee
-// interface, started with a CDP port on 127.0.0.1 and its own profile (data/skool-profile).
-// The same browser is used to check Skool: the verifier opens one extra window in it, reads the
-// page and closes that window again. It is launched normally (no --enable-automation), so there
-// is no "controlled by automated software" banner and navigator.webdriver stays false.
+// The browser Maybee owns: a Chromium-based browser started with a CDP port on 127.0.0.1 and its own
+// profile (data/skool-profile). It does NOT show the Maybee interface: the app opens in the owner's own
+// browser (server.js). This one starts only when it is needed, with no window of its own: to check Skool
+// (the verifier reads Skool in a hidden target, and opens one window only when the person must log in) and
+// for an agent task that needs a browser (scripts/browser.js opens its own window in it). When it has had
+// no window for a couple of minutes, it is closed. It is launched normally (no --enable-automation), so
+// there is no "controlled by automated software" banner and navigator.webdriver stays false.
 //
 // Order of preference for the executable: MAYBEE_BROWSER_EXECUTABLE, a Chromium-based browser
 // already installed (Chrome, Edge, Brave, Chromium), then the Chromium Playwright downloaded.
@@ -18,6 +20,8 @@ export const PROFILE = dataPath('skool-profile')
 
 let current = null   // { proc, port, browser } while our browser is running
 let launching = null
+let lastUsed = 0     // when ensureBrowser was last called: a browser just started for a hidden read has no page yet
+let heldUntil = 0    // an agent script was just handed the browser and is about to open its window
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -117,7 +121,7 @@ async function adopt(playwright) {
   } catch { return null }
 }
 
-async function launch(startUrl) {
+async function launch() {
   const playwright = await loadPlaywright()
   const existing = await adopt(playwright)
   if (existing) return existing
@@ -136,7 +140,8 @@ async function launch(startUrl) {
     `--user-data-dir=${PROFILE}`,
     '--no-first-run',
     '--no-default-browser-check',
-    `--app=${startUrl || 'about:blank'}`,
+    // no window at start: the verifier and the agent scripts open the windows they need
+    '--no-startup-window',
   ], { stdio: 'ignore' })
   let exited = false
   proc.once('exit', () => { exited = true; if (current && current.proc === proc) current = null })
@@ -155,38 +160,30 @@ async function launch(startUrl) {
   return { proc, port, browser }
 }
 
-/** The running Maybee browser, started on `startUrl` if it was not running yet. */
-export function ensureBrowser(startUrl) {
+/** The running Maybee browser, started (with no window) if it was not running yet. */
+export function ensureBrowser() {
+  lastUsed = Date.now()
   if (alive(current)) return Promise.resolve(current)
-  if (!launching) launching = launch(startUrl).then(c => { current = c; return c }).finally(() => { launching = null })
+  if (!launching) launching = launch().then(c => { current = c; return c }).finally(() => { launching = null })
   return launching
 }
 
-let opening = Promise.resolve()
-
-/** Shows the Maybee interface: starts the window, or brings the existing one to the front.
- *  Calls are serialized and never add a second window while one for Maybee (or one still loading) exists. */
-export function openAppWindow(url) {
-  const run = opening.then(() => showWindow(url))
-  opening = run.catch(() => {})
-  return run
+/** Closes Maybee's browser when it has no window left (and was not just asked for). Safe to call any time. */
+export async function closeBrowserIfIdle(graceMs = 0) {
+  const c = current
+  if (!alive(c) || launching || Date.now() < heldUntil || Date.now() - lastUsed < graceMs) return false
+  const pages = c.browser.contexts().flatMap(context => context.pages())
+  if (pages.length) return false
+  current = null
+  try { const cdp = await c.browser.newBrowserCDPSession(); await cdp.send('Browser.close') } catch {}
+  try { if (c.proc.exitCode === null) c.proc.kill() } catch {}
+  try { fs.rmSync(MARKER, { force: true }) } catch {}
+  return true
 }
+// an agent's window closed, a login window closed: the browser goes away after two quiet minutes
+setInterval(() => { closeBrowserIfIdle(2 * 60000).catch(() => {}) }, 60000).unref()
 
-async function showWindow(url) {
-  const wasRunning = alive(current)
-  const c = await ensureBrowser(url)
-  if (wasRunning) {
-    const origin = new URL(url).origin
-    const pages = c.browser.contexts().flatMap(context => context.pages())
-    // A window that is still loading its first URL shows about:blank: it is the Maybee window, not a new one to add.
-    const page = pages.find(p => p.url().startsWith(origin)) || pages.find(p => p.url() === 'about:blank' || p.url() === '')
-    if (page) await page.bringToFront().catch(() => {})
-    else {
-      const fresh = await c.browser.contexts()[0].newPage()
-      await fresh.goto(url).catch(() => {})
-    }
-  }
-  return c
-}
+/** Keeps the browser for a while even with no window: an agent script got its address and opens a window next. */
+export function holdBrowser(ms = 30000) { heldUntil = Math.max(heldUntil, Date.now() + ms) }
 
 export function browserRunning() { return alive(current) }

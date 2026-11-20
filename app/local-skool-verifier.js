@@ -12,7 +12,7 @@
 // Flow: open browser -> if logged out, the window stays on Skool so the person can
 // log in (once; the profile keeps the login) -> as soon as the membership shows up
 // the browser is closed. Closing the window or hitting the timeout cancels.
-import { ensureBrowser, PROFILE } from './lib/browser.js'
+import { ensureBrowser, closeBrowserIfIdle, PROFILE } from './lib/browser.js'
 
 const TARGET = process.env.MAYBEE_SKOOL_URL || 'https://www.skool.com/how-i-9301/about'
 const TARGET_URL = new URL(TARGET)
@@ -90,12 +90,12 @@ async function readHidden(handle) {
  * Resolves { state, member, details, url } where state is one of
  * 'member' | 'not-member' | 'needs-login' | 'closed' | 'timeout'. Throws on setup errors.
  */
-export function verifySkool({ onPhase = () => {}, appUrl = null, allowWindow = true, hiddenFirst = true } = {}) {
+export function verifySkool({ onPhase = () => {}, allowWindow = true, hiddenFirst = true } = {}) {
   if (running) return running
   running = (async () => {
     onPhase('opening-browser')
-    // The Maybee window itself is the browser (lib/browser.js); Skool gets one extra window in it.
-    const handle = await ensureBrowser(appUrl)
+    // Maybee's own browser (lib/browser.js) starts now with no window; Skool gets a window only for a login.
+    const handle = await ensureBrowser()
     onPhase('checking')
     let quick = null
     // The silent kind reads Skool without a window and never opens one; the button skips this and opens Skool at once.
@@ -143,11 +143,11 @@ export function verifySkool({ onPhase = () => {}, appUrl = null, allowWindow = t
       }
       return { state: 'timeout', member: null, details: 'Verification timed out before the membership was confirmed.', url: lastUrl }
     } finally {
-      // Only the Skool window closes; the Maybee window stays.
       await page.close().catch(() => {})
     }
   })()
-  return running.finally(() => { running = null })
+  // when the check is over and no agent window is open, the browser goes away too
+  return running.finally(() => { running = null; closeBrowserIfIdle().catch(() => {}) })
 }
 
 export function verifierProfile() { return PROFILE }

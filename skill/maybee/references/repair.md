@@ -15,7 +15,7 @@ When a Maybee command, the app or the bridge fails, fix it yourself before you h
 | `requires an installed app`, or a Codex run ends "without an answer" on Windows | Codex from the Microsoft Store cannot run commands when the bridge starts it | The bridge retries once by itself. If it still fails: install the standalone Codex (`npm install -g @openai/codex`), and start the listener again with `MAYBEE_AGENT_BIN` set to that `codex` when the Store one comes first on the PATH. |
 | `Codex cannot write its own folder`, `read-only file system` | The command ran inside Codex's sandbox | Run it again outside the sandbox (ask the user for that permission). |
 | `No Chromium-based browser found` | No Chrome, Edge, Brave or Chromium on the machine | Ask the user to install one, or set `MAYBEE_BROWSER_EXECUTABLE` to the browser's program. |
-| `The Maybee browser did not start` | Another window is using Maybee's browser profile | Ask the user to close the Maybee browser windows, then try again. |
+| `The Maybee browser did not start` | Another Chromium is using Maybee's browser profile (often a window left over from an older version, where the app had its own window) | Ask the user to close the Maybee browser windows (not their own browser), then try again. |
 | The app does not come up, or its port is taken | A Maybee app from an earlier run is still alive | `maybee.sh restart`. |
 | The app says Not listening | The bridge stopped (Claude: the Monitor timed out) | Start the listener again, as install.md says for your agent. |
 

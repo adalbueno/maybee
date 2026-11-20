@@ -15,7 +15,7 @@ import { initInbox, readInbox, addRequest, listening, lastHeard, promptFor } fro
 import { readBridge } from './lib/bridge.js'
 import { initSnapshots, snapshot, diffFor } from './lib/snapshots.js'
 import { verifySkool } from './local-skool-verifier.js'
-import { openAppWindow, ensureBrowser } from './lib/browser.js'
+import { ensureBrowser, holdBrowser } from './lib/browser.js'
 import { watchChangelog, stampChangelog } from './lib/changelog-stamp.js'
 import { dataPath, DATA_DIR } from './lib/paths.js'
 import { apply as applyMigrations } from './lib/migrations.js'
@@ -287,19 +287,25 @@ function appUrl() {
   return `${instance?.url || `http://${HOST}:${PORT}`}/${activeWorkspace}/workspace`
 }
 
-// Shows Maybee in its own browser window (lib/browser.js: Chromium-based, --app mode, the same
-// browser that checks Skool). With no such browser installed it falls back to the default one.
+// Shows Maybee in the owner's default browser, like any local web app. A tab that is already open (a page
+// connected to the live updates) is enough: no second tab. Right after a tab was asked for it is still loading
+// and not connected yet, so another call within 20 seconds does nothing either.
+let openedAt = 0
 async function openMaybeeWindow() {
-  try {
-    await openAppWindow(appUrl())
-  } catch (error) {
-    // Only when there is no Chromium-based browser at all. Any other failure (a slow start, a profile in use)
-    // must not open a second window in the default browser on top of the one that is starting.
-    if (!/No Chromium-based browser/.test(error?.message || '')) return
-    const { spawn } = await import('node:child_process')
-    const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
-    spawn(cmd, [appUrl()], { detached: true, stdio: 'ignore' }).unref()
-  }
+  if (clients.size) return { opened: false, reason: 'already-open' }
+  if (Date.now() - openedAt < 20000) return { opened: false, reason: 'opening' }
+  openedAt = Date.now()
+  const { spawn } = await import('node:child_process')
+  const url = appUrl()
+  const [cmd, args] = process.platform === 'darwin' ? ['open', [url]]
+    : process.platform === 'win32' ? ['cmd', ['/c', 'start', '""', url]]
+    : ['xdg-open', [url]]
+  await new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true })
+    child.once('error', reject)
+    child.once('spawn', () => { child.unref(); resolve() })
+  })
+  return { opened: true }
 }
 
 function openMaybeeAfterAccess() {
@@ -336,7 +342,6 @@ async function runSkoolVerification(reason) {
   const method = 'local-browser'
   try {
     const result = await verifySkool({
-      appUrl: appUrl(),
       allowWindow: reason === 'manual', // only a click opens a window, and it opens Skool at once
       hiddenFirst: reason !== 'manual',
       onPhase: phase => { if (accessVerifying) { accessVerifying.phase = phase; broadcastAccess() } },
@@ -662,8 +667,8 @@ async function main() {
       }
       if (url.pathname === '/api/access/verify' && req.method === 'POST') return sendJSON(res, await verifyAccess(await readBody(req)))
       if (url.pathname === '/api/window/open' && req.method === 'POST') {
-        // Used by the SessionStart hook: show the Maybee window (or bring it to the front).
-        try { await openMaybeeWindow(); return sendJSON(res, { ok: true }) } catch (error) { return sendJSON(res, { ok: false, error: error.message }, 500) }
+        // Used by the SessionStart hook: open Maybee in the default browser, unless a tab of it is already open.
+        try { return sendJSON(res, { ok: true, ...(await openMaybeeWindow()) }) } catch (error) { return sendJSON(res, { ok: false, error: error.message }, 500) }
       }
       if (url.pathname === '/api/access/confirm' && req.method === 'POST') return sendJSON(res, confirmAgentBrowser(await readBody(req)))
       if (url.pathname === '/api/session/heartbeat' && req.method === 'POST') return sendJSON(res, await heartbeat())
@@ -673,7 +678,8 @@ async function main() {
       // Behind the membership check like every /api/ call.
       if (url.pathname === '/api/browser' && req.method === 'GET') {
         try {
-          const c = await ensureBrowser(appUrl())
+          const c = await ensureBrowser()
+          holdBrowser() // the script opens its window right after; until then the browser has none
           return sendJSON(res, { ok: true, endpoint: `http://127.0.0.1:${c.port}` })
         } catch (error) { return sendJSON(res, { ok: false, error: error.message }, 500) }
       }
@@ -965,7 +971,7 @@ async function main() {
   {
     const url = `http://${HOST}:${PORT}`
     console.log(`Maybee is open at ${url}  (Ctrl+C to stop)`)
-    // Show Maybee in its own window at once (never in the default browser); --no-open skips it.
+    // Show Maybee in the default browser at once; --no-open skips it.
     if (!process.argv.includes('--no-open')) openMaybeeWindow().catch(() => {})
   }
 }

@@ -28,8 +28,8 @@ try {
 } catch { process.exit(1); }
 JS
 }
-# Maybee shows itself in its own browser window (it is also the browser that checks Skool); ask the
-# server to open it. Without that browser the server falls back to the default one.
+# Maybee shows itself in the default browser; ask the server to open it. It opens no second tab when
+# one is already open.
 open_window() {
   (nohup curl -fsS -X POST --max-time 30 "$1/api/window/open" > /dev/null 2>&1 < /dev/null &) > /dev/null 2>&1 < /dev/null
 }
@@ -45,7 +45,7 @@ elif [ -d "$APP/node_modules" ]; then
     [ -n "$url" ] && break
     sleep 0.5
   done
-  # The server opens its own window when it starts, so no second request here.
+  # The server opens the app in the default browser when it starts, so no second request here.
   status="started and opened at $url"
   [ -n "$url" ] || status="startup not confirmed; inspect $ROOT/.maybee/data/server.log"
 else
