@@ -38,10 +38,13 @@ if (process.argv.includes('--detach') && !process.env.MAYBEE_DETACHED) {
 // `listener.pid` says that a listener is running, for maybee.sh status and stop. Two resume listeners would answer a request twice.
 const pidFile = path.join(data, 'listener.pid')
 const alive = pid => { try { process.kill(pid, 0); return true } catch { return false } }
+// A PID alone can lie: on Windows a dead listener's PID is soon given to another program, so "alive" says yes for a stranger.
+// A running listener writes the heartbeat every 2 seconds, so a heartbeat older than 10 seconds means the old one is gone.
+const beating = () => { try { return Date.now() - Number(fs.readFileSync(beat, 'utf8')) < 10000 } catch { return false } }
 if (resume) {
   try {
     const old = JSON.parse(fs.readFileSync(pidFile, 'utf8'))
-    if (old.pid !== process.pid && old.mode === 'resume' && alive(old.pid)) { console.error(`A resume listener is already running (pid ${old.pid}, ${old.agent}). Stop it first: maybee.sh stop`); process.exit(1) }
+    if (old.pid !== process.pid && old.mode === 'resume' && alive(old.pid) && beating()) { console.error(`A resume listener is already running (pid ${old.pid}, ${old.agent}). Stop it first: maybee.sh stop`); process.exit(1) }
   } catch {}
 }
 // Record which agent and session this is. Asked for with --agent, a failure stops the listener; otherwise it is best effort.

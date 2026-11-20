@@ -66,11 +66,17 @@ app_url() {
   "$NODE" -e 'fetch(process.argv[1],{signal:AbortSignal.timeout(2000)}).then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))' "$url" && echo "$url"
 }
 
+# A listener runs when its PID is a listen.js process, or when its heartbeat is fresh: on Windows (Git Bash) kill and ps do not
+# see native PIDs, and a dead listener's PID is soon given to another program. The heartbeat (data/listening, every 2 s) is the
+# same test listen.js uses, so status, stop and listen always agree.
+heartbeat_fresh() { "$NODE" -e 'try{process.exit(Date.now()-Number(require("fs").readFileSync(process.argv[1],"utf8"))<10000?0:1)}catch{process.exit(1)}' "$DATA/listening"; }
 listener_pid() {
   local f="$DATA/listener.pid" pid
   [ -f "$f" ] || return 1
   pid="$(json_field "$f" pid)"
-  [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && ps -p "$pid" -o args= 2>/dev/null | grep -q 'listen\.js' && echo "$pid"
+  [ -n "$pid" ] || return 1
+  if kill -0 "$pid" 2>/dev/null && ps -p "$pid" -o args= 2>/dev/null | grep -q 'listen\.js'; then echo "$pid"; return 0; fi
+  heartbeat_fresh && echo "$pid"
 }
 
 start_app() {
@@ -104,7 +110,8 @@ start_listener() {
 
 stop_listener() {
   local pid
-  if pid="$(listener_pid)"; then kill "$pid" 2>/dev/null; echo "listener: stopped (pid $pid)"; else echo "listener: not running"; rm -f "$DATA/listener.pid"; fi
+  # on Windows (Git Bash) kill cannot reach a native PID: taskkill can
+  if pid="$(listener_pid)"; then { kill "$pid" 2>/dev/null || { command -v taskkill >/dev/null 2>&1 && taskkill //PID "$pid" //T //F >/dev/null 2>&1; }; }; rm -f "$DATA/listener.pid" "$DATA/listening"; echo "listener: stopped (pid $pid)"; else echo "listener: not running"; rm -f "$DATA/listener.pid"; fi
 }
 stop_app() {
   local f url token; f="$(server_file)"

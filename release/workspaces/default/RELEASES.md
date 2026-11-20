@@ -2,6 +2,17 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.43 · 20 Nov 2026
+
+**One clear AI action per card, quick capture from anywhere on the board, and a bee that celebrates finished work.**
+
+- **A friendlier first chat:** your name, then one open question that your assistant starts reading at once.
+- **One AI action per column:** Explore this idea, Get it ready to start, Do the next step, What comes next?. It sits on the card's chat bar and turns into Send while you type.
+- **A capture bar under the board.** Write an idea, press Enter, and the new card shows up highlighted in Maybe.
+- **The bee celebrates** when finished work lands in Done. The list behind it shows one short row per card and opens the card with its chat.
+- **Fewer windows on the membership check:** only the button opens Skool.
+- **Maybee repairs itself** when something fails, and prepares a filled-in GitHub report for what it cannot fix. Windows fixes for the listener and Codex from the Microsoft Store.
+
 ## 0.1.42 · 17 Nov 2026
 
 **The bee introduces itself, the tour is new, and routines have a place of their own.**

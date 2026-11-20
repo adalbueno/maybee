@@ -88,9 +88,9 @@ async function readHidden(handle) {
  * Opens a browser on Skool and resolves when the membership is known.
  * onPhase('opening-browser' | 'checking' | 'waiting-login') lets the UI update.
  * Resolves { state, member, details, url } where state is one of
- * 'member' | 'not-member' | 'closed' | 'timeout'. Throws on setup errors.
+ * 'member' | 'not-member' | 'needs-login' | 'closed' | 'timeout'. Throws on setup errors.
  */
-export function verifySkool({ onPhase = () => {}, appUrl = null } = {}) {
+export function verifySkool({ onPhase = () => {}, appUrl = null, allowWindow = true, hiddenFirst = true } = {}) {
   if (running) return running
   running = (async () => {
     onPhase('opening-browser')
@@ -98,10 +98,14 @@ export function verifySkool({ onPhase = () => {}, appUrl = null } = {}) {
     const handle = await ensureBrowser(appUrl)
     onPhase('checking')
     let quick = null
-    try { quick = await readHidden(handle) } catch {}
+    // The silent kind reads Skool without a window and never opens one; the button skips this and opens Skool at once.
+    if (hiddenFirst) { try { quick = await readHidden(handle) } catch {} }
     if (quick && quick.loggedIn && quick.pathname.startsWith(GROUP_PATH)) return resultFor(quick, TARGET_URL.origin + quick.pathname)
 
-    // Not logged in (or unreadable): show one window on Skool so the person can log in.
+    // Not logged in (or unreadable). A background renewal never opens a window by itself: it says a login is needed,
+    // and the person starts the check with the button.
+    if (!allowWindow) return { state: 'needs-login', member: null, details: '', url: '' }
+    // Otherwise show one window on Skool so the person can log in.
     const context = handle.browser.contexts()[0]
     const page = await context.newPage()
     try {

@@ -3,3 +3,7 @@ test-workspace/
 app/node_modules/
 app/dist/
 app/data/
+
+# Local app data and personal workspaces in the repository root
+/.maybee/
+/workspaces/

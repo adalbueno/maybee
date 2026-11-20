@@ -11,13 +11,16 @@ import { updateBridge } from './bridge.js'
 // MAYBEE_AGENT_BIN replaces the program name (tests use a fake agent).
 // With `fork`, Codex starts a new session from the registered one instead of resuming it (needed when the session is open in a
 // window: a resume then fails with "active writer"). After a fork the app goes on in the fork (bridge.forkId).
-export function commandFor(bridge, prompt, { dataDir, fork = false } = {}) {
+// `plainExec`: the Codex from the Microsoft Store runs commands through a launcher ("unified exec") that only works inside the
+// installed app; started by the listener it rejects every command. Turning that feature off makes Codex start commands itself.
+export function commandFor(bridge, prompt, { dataDir, fork = false, plainExec = false } = {}) {
   const bin = process.env.MAYBEE_AGENT_BIN
   if (bridge.agent === 'codex') {
     // A resumed run is read-only by default (checked with Codex 0.169.0): let it edit the project folder, and write
     // the answer into Maybee's own data folder, which sits outside it. Approvals and the sandbox are never skipped.
     const roots = JSON.stringify(dataDir ? [dataDir] : [])
-    return { bin: bin || 'codex', args: ['exec', fork ? 'fork' : 'resume', '--json', '--skip-git-repo-check', '-c', 'sandbox_mode="workspace-write"', '-c', 'sandbox_workspace_write.writable_roots=' + roots, fork ? bridge.sessionId : (bridge.forkId || bridge.sessionId), prompt] }
+    const extra = plainExec ? ['-c', 'features.unified_exec=false'] : []
+    return { bin: bin || 'codex', args: ['exec', fork ? 'fork' : 'resume', '--json', '--skip-git-repo-check', '-c', 'sandbox_mode="workspace-write"', '-c', 'sandbox_workspace_write.writable_roots=' + roots, ...extra, fork ? bridge.sessionId : (bridge.forkId || bridge.sessionId), prompt] }
   }
   if (bridge.agent === 'claude') {
     // Headless, so nothing can ask for a permission: allow reading, editing and the node scripts of the bridge, no more.
@@ -37,6 +40,8 @@ export function preflight(bridge, env = process.env) {
   }
 }
 
+const STORE_HINT = 'Codex could not run any command: the Codex from the Microsoft Store only runs commands inside its own app. Install the standalone Codex (npm install -g @openai/codex) and start the listener again.'
+const isDone = (file, id) => { const r = read(file).find(x => x.id === id); return !!r && r.status === 'done' }
 const read = file => { try { return JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return [] } }
 // Always read fresh and write at once: the agent's own scripts write the same file while it runs.
 function update(file, id, fields) {
@@ -68,20 +73,29 @@ export async function runPending({ inbox, bridge, dataDir, scriptsDir, timeoutMs
   for (const r of pending) {
     update(inbox, r.id, { status: 'working' })
     log(`Request ${r.id} (${r.action}) goes to ${bridge.agent}, session ${bridge.sessionId}`)
-    const { bin, args } = commandFor(bridge, requestLine(r, scriptsDir), { dataDir })
+    const { bin, args } = commandFor(bridge, requestLine(r, scriptsDir), { dataDir, plainExec: !!bridge.plainExec })
     const cwd = bridge.cwd || process.cwd()
     let out = await runProcess({ bin, args, cwd, timeoutMs })
     if (bridge.agent === 'codex' && out.code !== 0 && !bridge.forkId && /active writer/i.test(out.all)) {
       // the session is open in a window: go on in a fork of it, and stay in that fork for the next requests
       log(`Session ${bridge.sessionId} is open in a window, so this request goes to a fork of it`)
-      const f = commandFor(bridge, requestLine(r, scriptsDir), { dataDir, fork: true })
+      const f = commandFor(bridge, requestLine(r, scriptsDir), { dataDir, fork: true, plainExec: !!bridge.plainExec })
       out = await runProcess({ bin: f.bin, args: f.args, cwd, timeoutMs })
       const id = /"type":"thread\.started","thread_id":"([^"]+)"/.exec(out.all)
       if (id) { bridge.forkId = id[1]; updateBridge({ forkId: id[1] }); log(`The app now goes on in the fork ${id[1]}`) }
     }
+    // Store Codex on Windows: every command was rejected, so the run could not even answer. Try once more with plain exec,
+    // in the session the app goes on in now (the fork when there is one), and remember it for the next requests.
+    const STORE = /requires an installed app/i
+    if (bridge.agent === 'codex' && !bridge.plainExec && STORE.test(out.all) && !isDone(inbox, r.id)) {
+      log('Codex could not run commands (Microsoft Store launcher), so this request runs again with unified exec turned off')
+      bridge.plainExec = true; updateBridge({ plainExec: true })
+      const p = commandFor(bridge, requestLine(r, scriptsDir), { dataDir, plainExec: true })
+      out = await runProcess({ bin: p.bin, args: p.args, cwd, timeoutMs })
+    }
     const now = read(inbox).find(x => x.id === r.id)
     if (now && now.status !== 'done') {
-      const why = out.error ? `Could not start ${bin}: ${out.error}` : out.timedOut ? `The ${bridge.agent} run took longer than ${Math.round(timeoutMs / 60000)} min and was stopped.` : `The ${bridge.agent} run ended without an answer (exit code ${out.code}).${out.stderr ? ' ' + out.stderr : ''}${/read-only file system/i.test(out.all) ? ' ' + SANDBOX_HINT : ''}`
+      const why = out.error ? `Could not start ${bin}: ${out.error}` : out.timedOut ? `The ${bridge.agent} run took longer than ${Math.round(timeoutMs / 60000)} min and was stopped.` : `The ${bridge.agent} run ended without an answer (exit code ${out.code}).${out.stderr ? ' ' + out.stderr : ''}${/read-only file system/i.test(out.all) ? ' ' + SANDBOX_HINT : ''}${STORE.test(out.all) ? ' ' + STORE_HINT : ''}`
       update(inbox, r.id, { status: 'done', reply: why, doneAt: new Date().toISOString() })
       log(why)
     }

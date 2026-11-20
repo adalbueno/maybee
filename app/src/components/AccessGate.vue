@@ -39,18 +39,20 @@ async function load() {
     if (status.value.valid) finish(status.value)
   } catch (e) { if (!status.value) error.value = e.message }
 }
-async function verify() {
+let silentRun = false // the automatic check on open: if it cannot confirm, the button is enough, no message
+async function verify(silent = false) {
+  silentRun = silent === true
   checking.value = true; error.value = ''; startClock()
   try {
     if (status.value?.mode === 'agent-browser') {
       if (!opened.value) window.open(status.value.verificationTarget, '_blank', 'noopener,noreferrer')
       opened.value = true
     }
-    const res = await fetch('/api/access/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'available-browser' }) })
+    const res = await fetch('/api/access/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'available-browser', reason: silent === true ? 'auto-silent' : 'manual' }) })
     status.value = await jsonResponse(res)
     if (status.value.valid) finish(status.value)
     else if (status.value.mode === 'agent-browser') error.value = 'Leave the How I tab open. Log in if needed, then ask Claude/Codex to check again. This screen will unlock automatically after confirmation.'
-    else if (!status.value.verifying) error.value = status.value.details
+    else if (!status.value.verifying && !silentRun) error.value = status.value.details
   } catch (e) { error.value = e.message }
   finally { checking.value = false }
 }
@@ -66,7 +68,8 @@ async function onAccessEvent(event) {
   const data = JSON.parse(event.data)
   await load()
   // A check that just ended without unlocking: show why (not a member, window closed, timeout…).
-  if (wasVerifying && !data.verifying && !status.value?.valid) error.value = status.value?.details || ''
+  if (wasVerifying && !data.verifying && !status.value?.valid) error.value = silentRun ? '' : (status.value?.details || '')
+  if (!data.verifying && wasVerifying) silentRun = false
   if (data.verifying) { error.value = ''; startClock() }
   if (!data.verifying && !status.value?.valid) checkStartedAt = 0
   wasVerifying = !!data.verifying
@@ -74,12 +77,12 @@ async function onAccessEvent(event) {
 // The app starts locked. The member explicitly starts the local browser check
 // with the button; after a failed attempt the same button is the retry path.
 onMounted(() => {
-  // The window opens at once and the check starts by itself (no click needed): it runs without a
-  // window, and a Skool window only appears when the person has to log in. Not after the browser failed to
-  // start: the button is the retry then, so a window that fails to start can never open the next one.
+  // The check starts by itself, but only the silent kind: no window ever opens without a click. If it cannot
+  // confirm (not logged in, unreadable page) the button is what is left, and the click may open the Skool window.
+  // Not after a failure either: a browser that failed to start is retried only by the button.
   load().then(() => {
     const s = status.value
-    if (s && !s.valid && !s.verifying && !s.lastErrorAt && s.mode !== 'agent-browser') verify()
+    if (s && !s.valid && !s.verifying && !s.lastErrorAt && s.mode !== 'agent-browser') verify(true)
   })
   accessEvents = new EventSource('/api/access/events')
   accessEvents.onmessage = onAccessEvent
@@ -94,7 +97,7 @@ onUnmounted(() => accessEvents?.close())
       <p class="onboarding-kicker">Session access</p>
       <h1>Verify your How I membership.</h1>
       <p v-if="status?.mode === 'agent-browser'" class="onboarding-intro">Maybee opens How I in the browser already available to Claude or Codex. If Skool asks you to log in, do it there; Maybee will unlock after the browser confirms your membership.</p>
-      <p v-else class="onboarding-intro">Maybee opens a small browser window on Skool to confirm that you are a member of How I. If Skool asks you to log in, do it there (only the first time); the window closes by itself and Maybee unlocks.</p>
+      <p v-else class="onboarding-intro">Maybee first checks your How I membership in the background, without opening anything. If it cannot confirm, click Verify membership: a small Skool window opens so you can log in (only the first time), then it closes by itself and Maybee unlocks.</p>
       <div class="access-rule"><b>Required every session</b><span>Without a successful check, the app stays locked.</span></div>
       <p v-if="error && !verifying" class="onboarding-error">{{ error }}</p>
       <button class="onboarding-next access-button" :disabled="verifying" :aria-busy="verifying" @click="verify"><span v-if="verifying && !confirmed" class="access-spinner" aria-hidden="true"></span>{{ buttonText }}</button>

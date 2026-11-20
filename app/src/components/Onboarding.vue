@@ -1,6 +1,8 @@
 <script setup>
-// First run: Maybee introduces itself and asks four things in a short chat. The questions are a script, so they work
-// before any assistant is connected; the assistant only comes in at the end, for the first step on the first card.
+// First run: Maybee introduces itself, asks the person's name, then one open question that lets them tell the whole story.
+// With an assistant listening, that story goes to it at once and Maybee answers right away while it reads. With no assistant the
+// questions stay a script: who it is for and the goal are asked one by one instead. The writing voice is not asked here: it is
+// filled later, on About, when it matters.
 import logo from '../assets/logo.png'
 import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import MarkdownIt from 'markdown-it'
@@ -9,22 +11,21 @@ import { ask, claude, refreshInbox } from '../ask.js'
 const emit = defineEmits(['done'])
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 
-const STEPS = [
-  { key: 'purpose', say: ['Hi, I’m Maybee.', 'I turn your ideas into things you actually finish: I keep them in one place, help you pick the next step, and work through it with you.', 'Four quick questions and I’m set up.', 'What are you working on right now?'], hint: 'A newsletter, a course, my studio…' },
-  { key: 'audience', say: ['Nice.', 'Who is it for?'], chips: ['Clients', 'Members of my community', 'Readers', 'Just me'], hint: 'Or tell me in your own words' },
-  { key: 'goal', say: ['Got it.', 'What matters most in the next few weeks?'], hint: 'Launch the first lesson, finish the draft…' },
-  { key: 'voice', say: ['Last one.', 'How should your writing sound?'], chips: ['Direct', 'Warm', 'Playful', 'Technical'], hint: 'Or describe it in your own words' },
-]
+const NAME = { key: 'name', say: ['Hi, I’m Maybee. I work with your AI assistant.', 'Together we take your ideas from a first thought all the way to finished work: I keep them in one place, help you pick the next step, and the work gets done with you.', 'First things first: what should I call you?'], hint: 'Your first name' }
+const STORY = name => ({ key: 'story', say: [`Nice to meet you, ${name}.`, 'Tell me about what you’re working on: what it is, who it’s for, and where you want it to be in a few weeks.', 'Say it the way you’d tell a friend, as much as you like.'], hint: 'I’m building a course for…' })
+const AUDIENCE = { key: 'audience', say: ['Nice.', 'Who is it for?'], chips: ['Clients', 'Members of my community', 'Readers', 'Just me'], hint: 'Or tell me in your own words' }
+const GOAL = { key: 'goal', say: ['Got it.', 'What matters most in the next few weeks?'], hint: 'Launch the first lesson, finish the draft…' }
+const steps = ref([NAME, STORY('')]) // after the story, without an assistant, who it is for and the goal are added
 const PREFERENCES = 'Be concise and practical. Ask before publishing or sending anything outside the workspace.'
-// Before the project is made the assistant reads the four answers once. It either asks ONE question about what is too vague,
-// or hands the project back in good words (a short name, a concrete goal, the voice). With no session connected, or no answer
-// in about 40 seconds, the answers are used as they are.
-const READ_ANSWERS = (a, extra) => 'This is Maybee’s first-run chat. A person has just answered four questions about their project. Use their own words and their language, and do not invent facts about them.\n\n'
-  + `What are you working on right now? ${a.purpose}\nWho is it for? ${a.audience}\nWhat matters most in the next few weeks? ${a.goal}\nHow should your writing sound? ${a.voice}\n`
+// The assistant reads the story once. It either asks ONE question about what is too vague, or hands the project back in good
+// words (a short name, who it is for, a concrete goal). With no session connected, or no answer in about 40 seconds, the
+// answers are used as they are.
+const READ_ANSWERS = (a, extra) => 'This is Maybee’s first-run chat. A person has just told Maybee their name and what they are working on. Use their own words and their language, and do not invent facts about them.\n\n'
+  + `Their name: ${a.name}\nWhat they are working on, who it is for and where they want it to be in a few weeks, in their words: ${a.story}\n`
   + (extra ? `\nYou asked them: ${extra.q}\nThey answered: ${extra.a}\n\nThis is the last round, so do not ask again.\n` : '')
   + '\nReply with one JSON object and nothing else. '
   + (extra ? '' : 'If something essential is too vague to build their project on (what exactly they offer, who exactly it is for, how they would know the goal is reached), ask ONE short question in their language: {"ask":"..."}. ')
-  + 'Otherwise reply {"projectName":"2 to 5 words","purpose":"1 or 2 sentences","audience":"who, concretely","goal":"one concrete goal for the next weeks","voice":"2 or 3 sentences describing how they write"}. If this request is more than two minutes old, ignore it and reply {"expired":true}.'
+  + 'Otherwise reply {"projectName":"2 to 5 words","purpose":"1 or 2 sentences","audience":"who, concretely","goal":"one concrete goal for the next weeks","language":"the language they wrote in, in English (for example Portuguese)"}. If this request is more than two minutes old, ignore it and reply {"expired":true}.'
 const clean = (v, n) => typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, n) : ''
 
 // The assistant rewrites the welcome card for this person. The card keeps its place on the board (its front matter stays); only the body is theirs.
@@ -68,7 +69,7 @@ async function say(lines) {
 const youSaid = text => { msgs.value.push({ id: ++uid, from: 'you', text }); scrollEnd() }
 
 async function askStep() {
-  const s = STEPS[step.value]
+  const s = steps.value[step.value]
   mode.value = 'bot'; chips.value = []
   await say(s.say)
   if (!alive) return
@@ -81,24 +82,32 @@ async function submit(text = input.value) {
   input.value = ''; chips.value = []; mode.value = 'bot'
   youSaid(text)
   if (followup.value) { const q = followup.value; followup.value = ''; return finish({ q, a: text }) }
-  answers[STEPS[step.value].key] = text
-  if (step.value < STEPS.length - 1) { step.value++; await askStep() } else await finish()
+  const key = steps.value[step.value].key
+  answers[key] = text
+  if (key === 'name') { answers.name = text.slice(0, 60); steps.value = [NAME, STORY(answers.name)] }
+  // after the story: an assistant starts reading it now; without one, the questions stay a script
+  if (key === 'story') {
+    if (claude.listening) reading = refine(null, { quiet: true })
+    else steps.value = [NAME, steps.value[1], AUDIENCE, GOAL]
+  }
+  if (step.value < steps.value.length - 1) { step.value++; await askStep() } else await finish()
 }
 
 // "A newsletter about cooking. Weekly." -> "A newsletter about cooking"
 const nameFrom = t => { const n = t.split(/[.\n;:—–]|\s-\s/)[0].trim().replace(/\s+/g, ' ').slice(0, 60); return n ? n[0].toUpperCase() + n.slice(1) : 'My Maybee project' }
 
-async function refine(extra) {
+let reading = null // the assistant reading the story, started the moment it is sent
+async function refine(extra, { quiet = false } = {}) {
   const res = await ask({ action: 'Request', text: READ_ANSWERS(answers, extra), title: 'First-run chat', quiet: true }).catch(() => null)
   const id = res?.request?.id
-  typing.value = true; scrollEnd()
+  if (!quiet) { typing.value = true; scrollEnd() }
   let reply = null
   for (let i = 0; i < 27 && alive && id && reply === null; i++) {
     await sleep(1500); await refreshInbox()
     const item = claude.items.find(x => x.id === id)
     if (item && item.status === 'done') reply = item.reply || ''
   }
-  typing.value = false
+  if (!quiet) typing.value = false
   if (!reply) return null
   try { return JSON.parse(reply.slice(reply.indexOf('{'), reply.lastIndexOf('}') + 1)) } catch { return null }
 }
@@ -106,14 +115,22 @@ async function refine(extra) {
 let refined = null
 async function finish(extra = null) {
   error.value = ''
-  if (!refined && claude.listening) {
-    await say(extra ? 'Thanks, that helps.' : 'One moment, let me read everything you told me.')
-    const j = await refine(extra)
+  if (!refined && (reading || claude.listening)) {
+    let j
+    if (extra) { await say('Thanks, that helps.'); j = await refine(extra) }
+    else {
+      // an answer at once, then the dots until the reading is back
+      if (!reading) reading = refine(null, { quiet: true })
+      await say('Love it. Give me a moment to read that.')
+      typing.value = true; scrollEnd()
+      j = await reading
+      typing.value = false
+    }
     if (!alive) return
     const question = j && !extra ? clean(j.ask, 300) : ''
     if (question) { followup.value = question; await say(question); mode.value = 'ask'; return }
     if (j && clean(j.projectName, 80)) {
-      refined = { projectName: clean(j.projectName, 80), purpose: clean(j.purpose, 600), audience: clean(j.audience, 400), goal: clean(j.goal, 300), voice: clean(j.voice, 600) }
+      refined = { projectName: clean(j.projectName, 80), purpose: clean(j.purpose, 600), audience: clean(j.audience, 400), goal: clean(j.goal, 300), language: clean(j.language, 40) }
       for (const k of Object.keys(refined)) if (!refined[k]) delete refined[k]
     }
   }
@@ -122,7 +139,8 @@ async function finish(extra = null) {
   try {
     const res = await fetch('/api/setup', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...answers, projectName: nameFrom(answers.purpose), ...(refined || {}), preferences: PREFERENCES, language: 'English', firstCard: true }),
+      // without an assistant the story is the purpose and, when no goal was asked, the goal too
+      body: JSON.stringify({ purpose: answers.story, goal: answers.goal || answers.story, audience: answers.audience, ownerName: answers.name, projectName: nameFrom(answers.story), preferences: PREFERENCES, language: 'English', ...(refined || {}), firstCard: true }),
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Could not set up the project')
@@ -198,7 +216,7 @@ onBeforeUnmount(() => { alive = false })
     <section class="ob" role="dialog" aria-label="Meet Maybee">
       <header>
         <img class="ob-bee" :class="{ leaning: typing || saving }" :src="logo" alt="" />
-        <div class="ob-who"><b>Maybee</b><span class="ob-dots" :aria-label="'Question ' + (step + 1) + ' of ' + STEPS.length"><i v-for="(s, i) in STEPS" :key="s.key" :class="{ on: i < step || (i === step && mode === 'ask'), done: mode === 'after' || saving }"></i></span></div>
+        <div class="ob-who"><b>Maybee</b><span class="ob-dots" :aria-label="'Question ' + (step + 1) + ' of ' + steps.length"><i v-for="(s, i) in steps" :key="s.key" :class="{ on: i < step || (i === step && mode === 'ask'), done: mode === 'after' || saving }"></i></span></div>
         <button class="ob-skip" :disabled="saving" @click="skip">Skip for now</button>
       </header>
 
@@ -216,7 +234,7 @@ onBeforeUnmount(() => { alive = false })
       <p v-if="error" class="onboarding-error ob-error">{{ error }}</p>
       <form v-if="mode !== 'after'" class="ob-compose" @submit.prevent="submit()">
         <textarea ref="field" v-model="input" rows="1" maxlength="2000" :disabled="mode !== 'ask'"
-          :placeholder="mode === 'ask' ? (followup ? 'Your answer…' : STEPS[step].hint) : 'Maybee is writing…'" @keydown="onKey"></textarea>
+          :placeholder="mode === 'ask' ? (followup ? 'Your answer…' : steps[step].hint) : 'Maybee is writing…'" @keydown="onKey"></textarea>
         <button class="ob-send" :disabled="mode !== 'ask' || !input.trim()" title="Send (Enter)">Send</button>
       </form>
     </section>

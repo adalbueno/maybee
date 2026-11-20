@@ -30,6 +30,13 @@ const props = defineProps({
   floating: Boolean,
   linkFiles: Boolean,
   quick: { type: Boolean, default: true },
+  // openAt: a time stamp; each new one opens the conversation (the bee's list opens a card with its chat showing)
+  openAt: { type: Number, default: 0 },
+  // inline: sits in the page's flow instead of floating over it (the board's capture row)
+  inline: Boolean,
+  // submit: the text goes to this function instead of the AI (the board saves it as a card straight away); it returns true when done.
+  // There is no conversation then: the bee is only a mark and nothing opens.
+  submit: Function,
 })
 const emit = defineEmits(['settled', 'open'])
 function onMsgClick(e) {
@@ -47,6 +54,15 @@ const field = ref(null)
 let timer = null
 let doneIds = null // ids already done at the last look; a new one means the AI finished something
 
+// The card's one AI action for its column (stages.js) sits in the bar itself, so it is visible without opening anything.
+// It shares one slot with Send: an empty field shows the action, typing turns it into Send. Both are drawn in the same cell,
+// so the slot keeps the width of the wider one and nothing in the bar moves when it switches. Actions that are done once (explore, get ready) leave the bar once they were asked for this note; "Do the next step" stays.
+const ONCE = { 'Explore this idea': ['Explore this idea', 'Help me explore this idea'], 'Get it ready to start': ['Get it ready to start'], 'What comes next?': ['What comes next?', 'What should come next?'] }
+const action = computed(() => {
+  const a = props.quick && !props.submit ? (quickFor(props.stage)[0] || '') : ''
+  if (a && ONCE[a] && items.value.some(i => ONCE[a].includes(i.action))) return ''
+  return a
+})
 const replies = computed(() => items.value.filter(i => i.reply).length)
 const pending = computed(() => items.value.filter(i => i.status !== 'done').length)
 const unread = computed(() => !open.value && replies.value > seen.value)
@@ -67,11 +83,13 @@ async function load() {
   } catch {}
 }
 const scrollEnd = () => nextTick(() => box.value?.scrollTo({ top: box.value.scrollHeight }))
-onMounted(() => { load(); timer = setInterval(load, 3000) })
+onMounted(() => { if (props.submit) return; load(); timer = setInterval(load, 3000) })
 onBeforeUnmount(() => clearInterval(timer))
+watch(() => props.openAt, n => { if (n && !props.submit) load().then(() => toggle(true)) }, { immediate: true })
 watch(() => props.path, () => { items.value = []; doneIds = null; open.value = false; load() })
 
 function toggle(force) {
+  if (props.submit) return // capture only: there is no conversation to show
   open.value = typeof force === 'boolean' ? force : !open.value
   if (open.value) { seen.value = replies.value; scrollEnd() }
 }
@@ -94,6 +112,14 @@ function grow() {
 }
 async function send(action = 'Request', extra = text.value) {
   if (sending.value || (action === 'Request' && !extra.trim())) return
+  if (props.submit) {
+    sending.value = true
+    let ok = false
+    try { ok = await props.submit(extra.trim()) } finally { sending.value = false }
+    if (ok) { text.value = ''; nextTick(grow) }
+    nextTick(() => field.value?.focus())
+    return
+  }
   sending.value = true
   toggle(true)
   try { await ask({ action, text: action === 'Request' ? extra.trim() : '', path: props.path, title: props.title, quiet: true }) } finally { sending.value = false }
@@ -112,7 +138,7 @@ function onDockKey(e) {
 </script>
 
 <template>
-  <div class="nchat-dock" :class="{ floating }" @click.stop @keydown="onDockKey">
+  <div class="nchat-dock" :class="{ floating, inline }" @click.stop @keydown="onDockKey">
     <section class="nchat" :class="{ open }">
       <div v-if="open" class="panel">
         <header>
@@ -128,16 +154,17 @@ function onDockKey(e) {
             <div v-else-if="state(i)" class="ai pending"><p>{{ state(i) }}</p></div>
           </template>
         </div>
-        <div v-if="quick" class="quick">
-          <button v-for="q in quickFor(stage)" :key="q" :disabled="sending" @click="send(q)">{{ q }}</button>
-        </div>
       </div>
       <div class="compose">
-        <button class="mark" :class="beeNow" :title="open ? 'Hide the conversation' : 'Show the conversation'" @click="toggle()">
+        <span v-if="submit" class="mark" :class="beeNow" aria-hidden="true"><Bee :state="beeNow" :height="14" /></span>
+        <button v-else class="mark" :class="beeNow" :title="open ? 'Hide the conversation' : 'Show the conversation'" @click="toggle()">
           <Bee :state="beeNow" :height="14" /><small v-if="pending">{{ pending }}</small><em v-else-if="unread"></em>
         </button>
         <textarea ref="field" v-model="text" rows="1" :placeholder="placeholder" @keydown="onKey" @input="grow" @focus="items.length && !open && replies > seen && toggle(true)"></textarea>
-        <button class="send" :disabled="!text.trim() || sending" @click="send()" title="Send (Enter)">Send</button>
+        <div class="slot">
+          <button v-if="action" class="send primary" :class="{ off: text.trim() }" :disabled="sending" :tabindex="text.trim() ? -1 : 0" :aria-hidden="!!text.trim()" @click="send(action)" :title="'Ask Maybee: ' + action">{{ action }}</button>
+          <button class="send" :class="{ off: action && !text.trim() }" :disabled="!text.trim() || sending" :aria-hidden="!!(action && !text.trim())" @click="send()" title="Send (Enter)">Send</button>
+        </div>
       </div>
     </section>
   </div>
@@ -146,12 +173,15 @@ function onDockKey(e) {
 <style scoped>
 .nchat-dock { position: absolute; left: 0; right: 0; bottom: 16px; z-index: 20; padding: 0 24px; pointer-events: none; display: flex; justify-content: center; }
 .nchat-dock.floating { position: fixed; }
+/* inline keeps only the one-line bar in the flow; the open conversation (and a longer text) grows upwards over what is above, never pushing it */
+.nchat-dock.inline { position: relative; bottom: auto; padding: 0; height: 50px; pointer-events: auto; }
+.nchat-dock.inline .nchat { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); }
 /* The About page's chat is fixed to the window. With a card open beside the page it keeps to the page's own side, so it never covers the card's chat bar;
    on a narrow window, where the card takes the whole width, it steps aside for the card's chat. */
 .with-viewer .nchat-dock.floating { right: auto; width: var(--list-pane); }
 @media (max-width: 1100px) { .with-viewer .nchat-dock.floating { display: none; } }
-.nchat { pointer-events: auto; width: min(720px, 100%); background: var(--card-hi); border-radius: 24px; box-shadow: 0 14px 40px rgba(20, 15, 5, .16), 0 0 0 1px var(--line); display: flex; flex-direction: column; overflow: hidden; }
-.panel { display: flex; flex-direction: column; gap: 10px; padding: 14px 14px 4px; border-bottom: 1px solid var(--line); }
+.nchat { pointer-events: auto; width: min(720px, 100%); background: var(--card-hi); border-radius: 24px; box-shadow: 0 14px 40px rgba(20, 15, 5, .18), 0 0 0 1px color-mix(in srgb, var(--ink) 14%, transparent); display: flex; flex-direction: column; overflow: hidden; }
+.panel { display: flex; flex-direction: column; gap: 10px; padding: 14px 14px 12px; border-bottom: 1px solid var(--line); }
 header { display: flex; align-items: center; gap: 12px; font-size: 13px; }
 header b { flex: 1; }
 .live { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: 12px; }
@@ -161,7 +191,7 @@ header b { flex: 1; }
 .msgs { display: flex; flex-direction: column; gap: 8px; max-height: min(42vh, 380px); overflow-y: auto; padding: 2px; }
 .msgs p { margin: 0; white-space: pre-wrap; line-height: 1.5; font-size: 14px; }
 .msgs small { display: block; margin-top: 3px; font-size: 11px; color: var(--ink-3); }
-.msgs .empty { color: var(--ink-3); font-size: 13px; }
+.msgs .empty { color: var(--ink-3); font-size: 13px; border: 0; padding: 4px 2px; text-align: left; } /* a line, not the board's dashed drop box */
 .you, .ai { max-width: 86%; padding: 9px 13px; border-radius: 16px; }
 .you { align-self: flex-end; background: var(--ink); color: #fff; border-bottom-right-radius: 5px; }
 .you small { color: color-mix(in srgb, #fff 60%, transparent); text-align: right; }
@@ -181,15 +211,17 @@ header b { flex: 1; }
 .md :deep(a) { color: inherit; text-decoration: underline; }
 .md :deep(a.filelink) { font-size: 12.5px; padding: 1px 6px; border-radius: 5px; background: var(--accent); text-decoration: none; font-weight: 600; }
 .ai.pending p { color: var(--ink-3); font-style: italic; }
-.quick { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 8px; }
-.quick button { padding: 5px 11px; border-radius: 99px; background: var(--card); font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
-.quick button:hover:not(:disabled) { background: var(--accent); color: var(--ink); }
 .compose { display: flex; gap: 8px; align-items: flex-end; padding: 8px 8px 8px 10px; }
 .compose textarea { flex: 1; border: 0; background: transparent; padding: 8px 4px; font: 500 14px/1.5 var(--sans); resize: none; outline: none; max-height: 120px; color: var(--ink); }
 .mark { position: relative; flex: none; width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(circle, #f4f2ec 0%, #b3afa4 100%); display: grid; place-items: center; margin: 0; }
 .mark small { position: absolute; top: -4px; right: -4px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 99px; background: var(--accent); color: var(--ink); font-size: 10.5px; font-weight: 700; display: grid; place-items: center; }
 .mark em { position: absolute; top: -1px; right: -1px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--card-hi); }
 .send { flex: none; padding: 8px 16px; border-radius: 99px; background: var(--ink); color: #fff; font-size: 13px; font-weight: 600; }
-.send:disabled, .quick button:disabled { opacity: .4; cursor: default; }
+.slot { flex: none; display: grid; }
+.slot > .send { grid-area: 1 / 1; white-space: nowrap; }
+.slot > .send.off { visibility: hidden; }
+.send.primary { background: var(--accent); color: var(--ink); }
+.send.primary:hover:not(:disabled) { filter: brightness(.95); }
+.send:disabled { opacity: .4; cursor: default; }
 @media (max-width: 640px) { .nchat-dock { padding: 0 12px; bottom: 10px; } }
 </style>

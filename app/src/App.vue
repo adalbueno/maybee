@@ -370,7 +370,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
 </script>
 
 <template>
-  <div class="shell" :class="{ 'with-viewer': open }" @click="workspaceMenuOpen = false">
+  <div class="shell" :class="{ 'with-viewer': open, onboarding: showOnboarding }" @click="workspaceMenuOpen = false">
     <AccessGate v-if="!accessReady" @verified="accessVerified" />
     <Onboarding v-if="showOnboarding" @done="onboardingDone" />
     <header class="top">

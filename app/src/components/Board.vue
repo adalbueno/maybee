@@ -1,6 +1,7 @@
 <script setup>
 import { ask, claude } from '../ask.js'
 import { sideMove } from '../stages.js'
+import NoteChat from './NoteChat.vue'
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 const props = defineProps({ changedAt: Number, activePath: String })
 const emit = defineEmits(['open'])
@@ -249,19 +250,20 @@ async function undoSort() {
 }
 if (typeof window !== 'undefined') window.addEventListener('click', () => { sortOpen.value = false })
 
-// Quick capture at the bottom of Maybe: the title is the whole idea, Enter adds it at the top
-const newTitle = ref('')
-const adding = ref(false)
-async function addIdea() {
-  const title = newTitle.value.trim()
-  if (!title || adding.value) return
-  adding.value = true
-  try {
-    const res = await fetch('/api/card', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title }) })
-    const out = await res.json().catch(() => ({}))
-    if (res.ok) { newTitle.value = ''; say('Added to Maybe'); await load() }
-    else say(out.error || 'Could not add it')
-  } finally { adding.value = false }
+// Quick capture: a row of its own under the whole board, not part of a column. The title is the whole idea, Enter adds it at the top of Maybe.
+// It looks like the chat on About (NoteChat), but saves the card itself, with or without an assistant listening.
+// Then the board goes to the new card and marks it for a moment, so it is clear where it went; the cursor stays in the field for the next idea.
+const fresh = ref(null) // the card just added: highlighted for a moment
+let freshTimer = null
+async function addIdea(title) {
+  if (!title) return false
+  const res = await fetch('/api/card', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: title.slice(0, 140) }) })
+  const out = await res.json().catch(() => ({}))
+  if (!res.ok) { say(out.error || 'Could not add it'); return false }
+  await load()
+  fresh.value = out.path; clearTimeout(freshTimer); freshTimer = setTimeout(() => { fresh.value = null }, 2400)
+  reveal(out.path)
+  return true
 }
 function onDrop(stage) {
   if (rDrag.value) { const r = rDrag.value; rEnd(); if (stage === 'not') routineToNot(r); else if (stage !== 'routine') routineToCard(r, stage); return } // a routine goes to Not, or back to any column as a regular card
@@ -287,7 +289,8 @@ async function pull(card, stage) {
 </script>
 
 <template>
-  <div class="board" :class="{ moved }" v-if="cols" @mouseleave="nearNot = false; nearRoutine = false">
+  <div class="board-shell" v-if="cols">
+  <div class="board" :class="{ moved }" @mouseleave="nearNot = false; nearRoutine = false">
     <div class="not-edge" aria-label="Reveal Not column" @mouseenter="nearNot = true"></div>
     <!-- the Routine column waits at the right edge; a yellow dot with a number says there are routines to run today -->
     <div v-if="hasRoutines && openCol !== 'routine'" class="routine-edge" :aria-label="rTodo.length ? rTodo.length + ' routines to run today' : 'Reveal Routine column'" @mouseenter="nearRoutine = true">
@@ -333,7 +336,7 @@ async function pull(card, stage) {
           <!-- moving a card: a strip before and one after, in the colour of the column it goes to (back on the left, on on the right) -->
           <button v-if="side(c, 'prev')" class="k-side prev" :style="{ '--c': side(c, 'prev').bg }" :title="side(c, 'prev').label" :aria-label="side(c, 'prev').label" @click.stop="move(c, side(c, 'prev').to)"><span>‹ {{ side(c, 'prev').name }}</span></button>
           <article
-            class="kcard" :data-path="c.path" :class="{ dragging: dragging && dragging.path === c.path, active: activePath === c.path, 'drop-before': dropAt && dropAt.path === c.path && dropAt.pos === 'before', 'drop-after': dropAt && dropAt.path === c.path && dropAt.pos === 'after' }"
+            class="kcard" :data-path="c.path" :class="{ dragging: dragging && dragging.path === c.path, active: activePath === c.path, fresh: fresh === c.path, 'drop-before': dropAt && dropAt.path === c.path && dropAt.pos === 'before', 'drop-after': dropAt && dropAt.path === c.path && dropAt.pos === 'after' }"
             draggable="true" @dragstart="onDragStart(c, $event)" @dragend="onDragEnd" @dragover="cardOver(c, $event)" @drop="cardDrop(c, $event)" @click="emit('open', { path: c.path, key: c.path })"
           >
             <!-- priority is a small signal in the corner, not a row of its own: 2 · 3 · 5 · 8 · 13 fill 1 to 5 bars -->
@@ -365,11 +368,12 @@ async function pull(card, stage) {
           <div v-if="col.key === 'routine' && !routines.length" class="empty">No routines yet. Ask Maybee to create one.</div>
           <div v-else-if="col.key !== 'routine' && !cols[col.key].cards.length" class="empty">Nothing here. Drag a card onto this column.</div>
         </div>
-        <form v-if="col.key === 'maybe'" class="capture" @submit.prevent="addIdea" @dragover.stop @drop.stop>
-          <input v-model="newTitle" maxlength="140" placeholder="Write an idea and press Enter" aria-label="New idea" :disabled="adding" />
-        </form>
       </template>
     </section>
+  </div>
+
+    <!-- quick capture for the whole board: a row under all the columns, only the field -->
+    <NoteChat class="capture" path="@board" title="Board" inline :quick="false" :submit="addIdea" placeholder="Write an idea and press Enter. It goes to Maybe." />
 
     <!-- every maybe idea, searchable -->
     <div v-if="showBacklog" class="sheet-wrap" @click.self="showBacklog = false">

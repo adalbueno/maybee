@@ -21,14 +21,14 @@ export function sideMove(stage, dir) {
   return { to, label: m ? m.label : 'Move to ' + to }
 }
 
-// Quick asks for the AI, by column: explore in Maybe, test and refine in Next, carry out in Now.
-// "Do the next step" is one the bridge knows by name; the others are plain requests about the note.
+// One AI action per column, each leaving the card ready for the next one: Maybe is explored, Next is made ready to start, Now moves.
+// The bridge knows each by name (lib/prompt.js); anything else goes through the free-text field. Not has no action.
 export const QUICK = {
-  maybe: ['Help me explore this idea', 'Who is this for, and why now?', 'What is the smallest first step?'],
-  next: ['Look for gaps in this', 'Help me refine this', 'Is this ready to start?'],
-  now: ['Do the next step', 'What is blocking this?', 'What should the next step be?'],
-  done: ['Summarize what was done', 'What should come next?'],
-  not: ['Why did I say no to this?', 'Should I reconsider this?'],
+  maybe: ['Explore this idea'],
+  next: ['Get it ready to start'],
+  now: ['Do the next step'],
+  done: ['What comes next?'],
+  not: [],
 }
 export const GENERIC_QUICK = ['Review this', 'What should change here?']
-export const quickFor = stage => QUICK[stage] || GENERIC_QUICK
+export const quickFor = stage => QUICK[stage] ?? GENERIC_QUICK

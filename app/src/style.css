@@ -29,6 +29,8 @@ a { color: inherit; }
 
 /* ---------- first-run onboarding ---------- */
 .onboarding-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; background: color-mix(in srgb, var(--dark) 42%, transparent); }
+/* during the first-run chat the only chat is Maybee's: the board's capture bar and the other chat bars step away */
+.shell.onboarding .nchat-dock { display: none; }
 .onboarding-card { width: min(560px, 100%); padding: 38px; border-radius: 28px; background: var(--card-hi); box-shadow: 0 24px 80px #16151333; }
 .onboarding-mark { height: 44px; width: auto; display: block; }
 .onboarding-kicker { margin: 22px 0 7px; color: var(--ink-3); font-size: 13px; font-weight: 600; }
@@ -382,7 +384,8 @@ a { color: inherit; }
 /* ---------- board (accordion: one column open at a time) ---------- */
 .board-wrap { flex: 1; min-width: 0; height: 100%; overflow: hidden; padding: 14px 24px 24px; }
 .with-viewer .board-wrap { flex: 0 0 var(--list-pane); }
-.board { display: flex; gap: 10px; height: 100%; position: relative; }
+.board-shell { display: flex; flex-direction: column; gap: 10px; height: 100%; }
+.board { display: flex; gap: 10px; flex: 1; min-height: 0; position: relative; }
 .not-edge { position: absolute; z-index: 4; top: 0; left: -10px; width: 22px; height: 100%; }
 .not-edge::after { content: ''; position: absolute; top: 50%; left: 5px; width: 3px; height: 48px; border-radius: 99px; background: var(--line); opacity: .7; transform: translateY(-50%); transition: height .18s, background .18s; }
 .not-edge:hover::after { height: 72px; background: var(--bad); }
@@ -596,20 +599,29 @@ a { color: inherit; }
 .k-ask { margin-left: auto; }
 .rhythm-ask { margin-top: 14px; }
 
-.tray { position: relative; }
+.tray { position: relative; display: flex; align-items: center; gap: 6px; }
 .tray-btn { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--ink-2); padding: 8px 11px; border-radius: 99px; background: var(--card); }
 .tray-btn small { background: var(--accent); color: var(--ink); border-radius: 99px; padding: 0 6px; font-size: 11px; }
 .tray-pop { position: absolute; right: 0; top: calc(100% + 10px); z-index: 30; width: 340px; max-height: 70vh; overflow-y: auto; background: var(--card-hi); border-radius: 20px; padding: 14px; box-shadow: 0 20px 50px rgba(20, 15, 5, .18), 0 0 0 1px var(--line); }
-.tray-state { margin: 0 0 10px; font-size: 13px; color: var(--ink-2); line-height: 1.5; }
-.tray-state .who { display: block; margin-top: 3px; font-size: 12px; font-weight: 600; color: var(--ink-2); }
-.tray-empty { font-size: 13px; color: var(--ink-3); padding: 6px 0; }
-.req { padding: 10px 12px; border-radius: 14px; background: var(--card); margin-top: 6px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
-.req-top { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--ink-3); }
-.req .st { font-weight: 700; }
-.req.done .st { color: var(--good); }
-.req.working .st { color: #b88a00; }
-.req a { font-size: 12px; color: var(--ink-2); cursor: pointer; text-decoration: underline; text-decoration-color: var(--accent); }
-.req .reply { margin: 4px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--card-hi); color: var(--ink); line-height: 1.5; }
+.tray-state { display: flex; align-items: center; gap: 7px; margin: 0 2px 8px; font-size: 13px; color: var(--ink-2); }
+.tray-state i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); flex: none; }
+.tray-state.on i { background: var(--good); }
+.tray-state .who { font-size: 12px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tray-help { margin: 0 2px 10px; font-size: 12.5px; line-height: 1.5; color: var(--ink-3); }
+.tray-empty { font-size: 13px; color: var(--ink-3); padding: 6px 2px; }
+/* the list reads like a log: thin rows split by a line, no boxes inside boxes */
+.req { display: flex; gap: 9px; width: 100%; padding: 9px 4px; border-top: 1px solid var(--line); border-radius: 0; font-size: 12.5px; text-align: left; }
+.req:hover { background: var(--card); }
+.req .st { flex: none; width: 16px; height: 16px; margin-top: 1px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 800; color: #fff; background: var(--ink-3); }
+.req.done .st { background: var(--good); }
+.req.working .st { background: var(--accent); animation: req-pulse 1.4s ease-in-out infinite; }
+@keyframes req-pulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .req.working .st { animation: none; } }
+.req-main { flex: 1; min-width: 0; display: block; }
+.req-top { display: flex; align-items: baseline; gap: 8px; }
+.req-top b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--ink); }
+.req .when { flex: none; font-size: 11px; color: var(--ink-3); }
+.req .ask { display: block; margin-top: 1px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- edit ---------- */
 .edit-btn { cursor: pointer; }
@@ -997,10 +1009,11 @@ a { color: inherit; }
 .live-editor .cm-embed-block.missing { opacity: .6; font-size: .9em; }
 
 /* Board: quick capture and hand ordering */
-.capture { flex: none; padding: 10px 14px 14px; }
-.capture input { width: 100%; box-sizing: border-box; border: 0; border-radius: 14px; background: var(--card-hi); padding: 12px 15px; font: inherit; font-size: 14px; color: var(--ink); outline: none; }
-.capture input::placeholder { color: var(--ink-3); }
-.capture input:focus { box-shadow: 0 0 0 2px var(--accent); }
+.capture { flex: none; }
+.board-shell .toast { bottom: 92px; } /* above the capture row, not over it */
+.kcard.fresh { animation: card-fresh 2.4s ease-out; }
+@keyframes card-fresh { 0%, 40% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .kcard.fresh { animation: none; box-shadow: 0 0 0 3px var(--accent); } }
 .sort-btn { margin: 6px 0 0 16px; padding: 0; font-size: 12px; font-weight: 600; color: var(--ink-3); text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .sort-btn:hover { color: var(--ink); }
 .kcard.drop-before { box-shadow: 0 -3px 0 0 var(--accent); }

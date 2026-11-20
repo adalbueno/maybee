@@ -337,6 +337,8 @@ async function runSkoolVerification(reason) {
   try {
     const result = await verifySkool({
       appUrl: appUrl(),
+      allowWindow: reason === 'manual', // only a click opens a window, and it opens Skool at once
+      hiddenFirst: reason !== 'manual',
       onPhase: phase => { if (accessVerifying) { accessVerifying.phase = phase; broadcastAccess() } },
     })
     const now = Date.now()
@@ -459,13 +461,14 @@ async function initializeProject(body) {
   const preferences = cleanAnswer(body.preferences, 'Keep the system simple, concrete and useful.')
   const voice = cleanAnswer(body.voice, 'Clear, direct and human.')
   const language = cleanAnswer(body.language, 'English')
+  const ownerName = typeof body.ownerName === 'string' ? body.ownerName.replace(/\s+/g, ' ').trim().slice(0, 60) : ''
   const now = new Date().toISOString().slice(0, 10)
   for (const dir of ONBOARDING_DIRS) await fsp.mkdir(path.join(ROOT, dir), { recursive: true })
   const files = {
     'PROJECT.md': `---\ntitle: ${projectName}\nlanguage: ${language}\ncreated: ${now}\n---\n\n# ${projectName}\n\n## Purpose\n${purpose}\n\n## Who this is for\n${audience}\n\n## Current goal\n${goal}\n\nThis project is operated through Maybee. Project facts belong here and in the linked folders; the app reads this workspace locally.\n`,
     'STATE.md': `---\ntitle: ${projectName} — state\nupdated: ${now}\nby: Maybee onboarding\n---\n\n# State\n\n## Focus\n- ${goal}\n\n## Next\n- Decide the smallest useful next action.\n`,
     'DASHBOARD.md': `# ${projectName}\n\n- [Project](PROJECT.md)\n- [State](STATE.md)\n- [Decisions](decisions/README.md)\n- [Ideas](ideas/README.md)\n- [Changelog](logs/CHANGELOG.md)\n`,
-    'owner/preferences.md': `---\ntitle: Preferences\nsource: Maybee onboarding\n---\n\n# Preferences\n\n${preferences}\n`,
+    'owner/preferences.md': `---\ntitle: Preferences\nsource: Maybee onboarding\n---\n\n# Preferences\n\n${ownerName ? `Call the owner ${ownerName}.\n\n` : ''}${preferences}\n`,
     'knowledge/brand/voice.md': `---\ntitle: Voice\nsource: Maybee onboarding\n---\n\n# Voice\n\n${voice}\n`,
     'knowledge/README.md': '# Knowledge\n\nFacts, references and lessons that belong to this project.\n',
     'decisions/README.md': '# Decisions\n\nOne file per decision, named YYYY-MM-DD-short-title.md. No decisions have been recorded yet.\n',
