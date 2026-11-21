@@ -2,6 +2,12 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.46 · 21 Nov 2026
+
+**The work shows on the card.**
+
+- **What your assistant makes for a card** goes in the note under Work: images, videos, PDFs and pages show inside the note, other files as links.
+
 ## 0.1.45 · 21 Nov 2026
 
 **Maybee comes with How I Premium, and the membership screen is new.**
