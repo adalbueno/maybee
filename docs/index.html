@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Maybee · From maybe to done</title>
+<meta name="description" content="Maybee keeps every idea on one board, helps you pick the next step and lets an AI agent do the work with you. It comes with How I Premium, the accountability club for solopreneurs." />
+<meta property="og:title" content="Maybee · From maybe to done" />
+<meta property="og:description" content="Every idea on one board, a clear next step, and an AI agent that does the work with you. Comes with How I Premium." />
+<meta property="og:image" content="img/board-now.webp" />
+<link rel="icon" href="img/bee.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --dark: #1b1a17; --darker: #131210; --ink: #161513; --page: #fbfaf7;
+  --accent: #ffd60a; --text: #ffffffe6; --text-2: #ffffffb3; --text-3: #ffffff73; --line: #ffffff14; --tile: #ffffff0d;
+  --maybe: #c9c4b6; --next: #4a7dff; --now: #f2b705; --done: #2f9e5b; --not: #e0503a;
+  --sans: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--darker); color: var(--text); font: 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+img { display: block; max-width: 100%; height: auto; }
+.wrap { width: min(1120px, 100% - 32px); margin: 0 auto; }
+
+/* nav */
+nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--darker) 82%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+nav .wrap { display: flex; align-items: center; gap: 16px; height: 64px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 19px; letter-spacing: -.02em; text-decoration: none; }
+.brand img { height: 30px; width: auto; }
+nav .links { display: flex; gap: 22px; margin-left: auto; font-size: 14px; font-weight: 600; color: var(--text-2); }
+nav .links a { text-decoration: none; }
+nav .links a:hover { color: var(--accent); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 26px; border-radius: 99px; background: var(--accent); color: var(--ink); font-weight: 700; font-size: 16px; text-decoration: none; transition: transform .12s ease, background .12s ease; }
+.btn:hover { transform: scale(1.03); }
+.btn.sm { padding: 9px 18px; font-size: 14px; }
+.btn.ghost { background: #ffffff14; color: #fff; }
+
+/* hero */
+.hero { position: relative; overflow: hidden; text-align: center; padding: 72px 0 0; }
+.glow { position: absolute; width: 640px; height: 640px; left: 50%; top: -260px; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--accent) 38%, transparent), transparent 70%); pointer-events: none; animation: pulse 5s ease-in-out infinite; }
+.hero > .wrap { position: relative; }
+.bee { height: 104px; width: auto; margin: 0 auto; animation: arrive 1s cubic-bezier(.2,.9,.3,1.3) both, hover 3s ease-in-out 1s infinite; }
+.kicker { margin: 20px 0 0; font-size: 13px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+h1 { margin: 10px auto 0; max-width: 820px; font-size: clamp(40px, 7vw, 76px); line-height: 1.02; letter-spacing: -.045em; font-weight: 800; }
+.lead { margin: 20px auto 0; max-width: 640px; font-size: clamp(17px, 2.2vw, 20px); line-height: 1.5; color: var(--text-2); }
+.ctas { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 32px; }
+.note { margin: 14px 0 0; font-size: 13.5px; color: var(--text-3); }
+.shot { margin: 56px auto 0; border-radius: 22px; overflow: hidden; box-shadow: 0 40px 120px #000a, 0 0 0 1px var(--line); background: var(--page); }
+.hero .shot { width: min(1040px, 100%); border-radius: 22px 22px 0 0; margin-bottom: -1px; }
+
+/* sections */
+section { padding: 96px 0; }
+.sec-head { text-align: center; max-width: 720px; margin: 0 auto; }
+h2 { margin: 10px 0 0; font-size: clamp(30px, 4.6vw, 48px); line-height: 1.08; letter-spacing: -.04em; font-weight: 800; }
+.sec-head p { margin: 16px 0 0; font-size: 18px; color: var(--text-2); }
+
+.problem { background: var(--dark); }
+.pains { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 48px; }
+.pain { padding: 24px; border-radius: 20px; background: var(--tile); border: 1px solid var(--line); }
+.pain span { font-size: 28px; }
+.pain b { display: block; margin-top: 10px; font-size: 17px; letter-spacing: -.01em; }
+.pain p { margin: 6px 0 0; font-size: 14.5px; color: var(--text-2); }
+
+/* the flow */
+.flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 36px; }
+.stage { display: inline-flex; align-items: center; gap: 9px; padding: 10px 18px; border-radius: 99px; background: var(--tile); border: 1px solid var(--line); font-weight: 700; }
+.stage i { width: 10px; height: 10px; border-radius: 50%; }
+.arrow { color: var(--text-3); font-weight: 700; }
+
+.step { display: grid; grid-template-columns: 1fr 1.35fr; gap: 56px; align-items: center; margin-top: 88px; }
+.step.flip { grid-template-columns: 1.35fr 1fr; }
+.step.flip .copy { order: 2; }
+.tag { display: inline-flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--text-2); }
+.tag i { width: 10px; height: 10px; border-radius: 50%; }
+.step h3 { margin: 12px 0 0; font-size: clamp(26px, 3.4vw, 36px); line-height: 1.1; letter-spacing: -.035em; }
+.step p { margin: 14px 0 0; font-size: 17px; color: var(--text-2); }
+.step ul { margin: 18px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.step li { display: flex; gap: 10px; font-size: 15px; color: var(--text); }
+.step li::before { content: "✓"; color: var(--accent); font-weight: 800; }
+.step .shot { margin: 0; border-radius: 18px; }
+
+/* agent */
+.agent { background: var(--dark); }
+.feats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 48px; }
+.feat { padding: 26px; border-radius: 20px; background: var(--tile); border: 1px solid var(--line); }
+.feat > span:first-child { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 16%, transparent); font-size: 22px; }
+.feat b { display: block; margin-top: 14px; font-size: 18px; letter-spacing: -.01em; }
+.feat p { margin: 6px 0 0; font-size: 15px; color: var(--text-2); }
+.demo-btn { display: inline-flex; width: auto; height: auto; white-space: nowrap; margin-top: 14px; padding: 8px 16px; border-radius: 99px; background: var(--accent); color: var(--ink); font-size: 13px; font-weight: 700; }
+
+.agent-shot { margin: 48px auto 0; max-width: 1040px; }
+.agent-shot .shot { margin: 0; }
+.agent-shot figcaption { margin: 14px auto 0; max-width: 720px; text-align: center; font-size: 14.5px; color: var(--text-2); }
+.agent-shot figcaption b { color: var(--text); }
+#brain .step li { display: block; padding-left: 26px; text-indent: -26px; }
+#brain .step li::before { display: inline-block; width: 26px; text-indent: 0; }
+#brain .step li b { color: var(--accent); font-weight: 700; }
+.privacy { background: var(--dark); }
+
+/* maybee -> how i */
+.bridge { display: grid; grid-template-columns: 1fr auto 1fr; align-items: stretch; gap: 18px; margin-top: 52px; }
+.side { padding: 30px; border-radius: 24px; background: var(--tile); border: 1px solid var(--line); }
+.side.howi { background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 14%, transparent), var(--tile) 60%); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+.side small { font-size: 12.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); }
+.side h3 { margin: 8px 0 0; font-size: 26px; letter-spacing: -.03em; display: flex; align-items: center; gap: 10px; }
+.side h3 img { height: 30px; width: auto; }
+.side p { margin: 10px 0 0; color: var(--text-2); }
+.side ul { margin: 16px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 15px; }
+.bridge .to { display: grid; place-items: center; font-size: 30px; color: var(--accent); font-weight: 800; }
+
+.plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 56px; }
+.plan { display: flex; flex-direction: column; padding: 28px; border-radius: 24px; background: var(--tile); border: 1px solid var(--line); }
+.plan.best { background: var(--dark); border: 2px solid var(--accent); position: relative; }
+.plan.best::before { content: "Includes Maybee"; position: absolute; top: -13px; left: 28px; padding: 3px 12px; border-radius: 99px; background: var(--accent); color: var(--ink); font-size: 12px; font-weight: 800; }
+.plan h4 { margin: 0; font-size: 22px; letter-spacing: -.02em; }
+.plan > p { margin: 6px 0 0; font-size: 14.5px; color: var(--text-2); }
+.plan ul { margin: 18px 0 22px; padding: 0; list-style: none; display: grid; align-content: start; gap: 9px; font-size: 14.5px; flex: 1; }
+.plan li { display: flex; gap: 10px; }
+.plan li::before { content: "✓"; color: var(--accent); font-weight: 800; }
+.plan li.muted { color: var(--text-3); }
+.plan li.muted::before { content: "–"; color: var(--text-3); }
+.plan .btn { width: 100%; }
+
+/* faq */
+.faq { max-width: 760px; margin: 44px auto 0; display: grid; gap: 10px; }
+details { padding: 18px 22px; border-radius: 18px; background: var(--tile); border: 1px solid var(--line); }
+summary { cursor: pointer; font-weight: 700; font-size: 16.5px; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; color: var(--accent); font-size: 22px; line-height: 1; }
+details[open] summary::after { content: "–"; }
+details p { margin: 10px 0 0; color: var(--text-2); font-size: 15.5px; }
+
+/* final */
+.final { position: relative; overflow: hidden; text-align: center; background: var(--dark); }
+.final .glow { top: auto; bottom: -380px; }
+.final .wrap { position: relative; }
+.final .bee { height: 84px; animation: hover 3s ease-in-out infinite; }
+footer { padding: 32px 0 44px; text-align: center; font-size: 13.5px; color: var(--text-3); border-top: 1px solid var(--line); }
+footer a { color: var(--text-2); }
+
+@keyframes arrive { from { opacity: 0; transform: translate(-60px, 30px) rotate(-25deg) scale(.6); } to { opacity: 1; transform: none; } }
+@keyframes hover { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-7px) rotate(3deg); } }
+@keyframes pulse { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
+.reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
+.reveal.in { opacity: 1; transform: none; }
+
+@media (max-width: 900px) {
+  .step, .step.flip { grid-template-columns: 1fr; gap: 28px; margin-top: 64px; }
+  .step.flip .copy { order: 0; }
+  .pains, .feats, .plans { grid-template-columns: 1fr; }
+  .bridge { grid-template-columns: 1fr; }
+  .bridge .to { transform: rotate(90deg); }
+  nav .links { display: none; }
+  nav .btn { margin-left: auto; }
+  section { padding: 72px 0; }
+  .hero { padding-top: 48px; }
+}
+@media (prefers-reduced-motion: reduce) { .bee, .glow { animation: none; } .reveal { opacity: 1; transform: none; transition: none; } html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="img/bee.png" alt="" />Maybee</a>
+    <div class="links">
+      <a href="#how">How it works</a>
+      <a href="#agent">The agent</a>
+      <a href="#brain">Second brain</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#howi">How I</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <a class="btn sm" href="https://www.skool.com/how-i-9301/plans">Get Maybee</a>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="glow" aria-hidden="true"></div>
+  <div class="wrap">
+    <img class="bee" src="img/bee.png" alt="Maybee, the bee" />
+    <p class="kicker">From maybe to done</p>
+    <h1>Your ideas, from a first thought to finished work.</h1>
+    <p class="lead">Maybee keeps every idea on one board, helps you pick the next step and lets an AI agent do the work with you. It comes with How I Premium, the accountability club for solopreneurs.</p>
+    <div class="ctas">
+      <a class="btn" href="https://www.skool.com/how-i-9301/plans">Get Maybee with How I Premium</a>
+      <a class="btn ghost" href="#how">See how it works</a>
+    </div>
+    <p class="note">Runs on your computer · Your ideas stay in your own files</p>
+    <div class="shot"><img src="img/board-now.webp" width="1800" height="1125" alt="The Maybee board with the Now column open: two cards, each with its next step and a Do the next step button" /></div>
+  </div>
+</header>
+
+<section class="problem">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <p class="kicker">The problem</p>
+      <h2>Ideas are easy. Finishing them is the hard part.</h2>
+    </div>
+    <div class="pains">
+      <div class="pain reveal"><span>🗂️</span><b>Ideas everywhere</b><p>Notes app, chats, a doc from last month. The good ones get lost with the rest.</p></div>
+      <div class="pain reveal"><span>🌀</span><b>Too many at once</b><p>Ten things started, nothing finished, and no idea which one matters most.</p></div>
+      <div class="pain reveal"><span>🧱</span><b>Stuck on the first step</b><p>You know what you want. You just don’t know what to do today to get there.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <p class="kicker">How it works</p>
+      <h2>One board. Four columns. Every idea moves toward done.</h2>
+      <p>The board is the whole method: catch the idea, choose it, work on it, finish it.</p>
+    </div>
+    <div class="flow reveal" aria-label="Maybe, then Next, then Now, then Done">
+      <span class="stage"><i style="background:var(--maybe)"></i>Maybe</span><span class="arrow">→</span>
+      <span class="stage"><i style="background:var(--next)"></i>Next</span><span class="arrow">→</span>
+      <span class="stage"><i style="background:var(--now)"></i>Now</span><span class="arrow">→</span>
+      <span class="stage"><i style="background:var(--done)"></i>Done</span>
+    </div>
+
+    <div class="step reveal">
+      <div class="copy">
+        <span class="tag"><i style="background:var(--maybe)"></i>Maybe</span>
+        <h3>Catch every idea in one place.</h3>
+        <p>Type it in the bar at the bottom and press Enter. It lands in Maybe, where nothing is a commitment yet.</p>
+        <ul>
+          <li>Rate an idea in a few taps and the best ones rise to the top</li>
+          <li>Ideas you decide against go to Not, with the reason why</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="img/board-maybe.webp" width="1800" height="1125" loading="lazy" alt="The Maybe column with six ideas sorted by priority" /></div>
+    </div>
+
+    <div class="step flip reveal">
+      <div class="copy">
+        <span class="tag"><i style="background:var(--next)"></i>Next</span>
+        <h3>Choose what comes next.</h3>
+        <p>Pull a few ideas into Next. That’s your short list: what you will work on once there’s room.</p>
+        <ul>
+          <li>Drag cards to put them in order</li>
+          <li>Move a card with one click, back or forward</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="img/board-next.webp" width="1800" height="1125" loading="lazy" alt="The Next column with three cards" /></div>
+    </div>
+
+    <div class="step reveal">
+      <div class="copy">
+        <span class="tag"><i style="background:var(--now)"></i>Now</span>
+        <h3>Always know the next step.</h3>
+        <p>Every card in Now has one clear next step, so you always know what to do today. When it’s done, Maybee helps you pick the one after.</p>
+        <ul>
+          <li>Only a couple of things in Now at a time</li>
+          <li>Open a card to see the whole note, its history and its settings</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="img/card-open.webp" width="1800" height="1125" loading="lazy" alt="A card opened next to the board, with Mark done and a chat to ask Maybee" /></div>
+    </div>
+
+    <div class="step flip reveal">
+      <div class="copy">
+        <span class="tag"><i style="background:var(--done)"></i>Done</span>
+        <h3>Finish, and see it.</h3>
+        <p>Mark done and the bee celebrates. Done keeps everything you finished, so on a slow week you can see how far you came.</p>
+      </div>
+      <div class="shot"><img src="img/board-done.webp" width="1800" height="1125" loading="lazy" alt="The Done column with three finished cards" /></div>
+    </div>
+  </div>
+</section>
+
+<section class="agent" id="agent">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <p class="kicker">The agent</p>
+      <h2>Click <span style="color:var(--accent)">Do the next step</span>. An agent does the work with you.</h2>
+      <p>Maybee works with the AI assistant on your computer. It reads the card, does the step and leaves the result on the card for you to look at.</p>
+    </div>
+    <figure class="agent-shot reveal">
+      <div class="shot"><img src="img/card-chat.webp" width="1800" height="1125" loading="lazy" alt="A card after Do the next step: the agent's reply in the card's chat, the two files it wrote linked on the card, and a new next step" /></div>
+      <figcaption><b>A real run.</b> One click on “Do the next step”: the agent wrote the welcome email and issue #1, linked both files on the card, and set the next step.</figcaption>
+    </figure>
+    <div class="feats">
+      <div class="feat reveal"><span>⚡</span><b>One click per step</b><p>Drafts, research, outlines, files: the agent works on the step on the card and tells you when it’s ready.</p><span class="demo-btn">Do the next step</span></div>
+      <div class="feat reveal"><span>🔁</span><b>Routines that run on their own</b><p>Things you do every day or week run by themselves, and their results show up on the board.</p></div>
+      <div class="feat reveal"><span>🔒</span><b>Your files, your computer</b><p>Maybee runs on your machine. Every idea is a plain text file in a folder you own, readable with or without Maybee.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="brain">
+  <div class="wrap">
+    <div class="step reveal" style="margin-top:0">
+      <div class="copy">
+        <p class="kicker">Your second brain</p>
+        <h3 style="font-size:clamp(30px,4.6vw,48px);letter-spacing:-.04em">A second brain, powered by AI.</h3>
+        <p>Maybee isn’t only a board. Next to your ideas it keeps what your project knows: who you serve, how you sound, what you decided and who you work with. Everything is searchable in the Vault.</p>
+        <ul>
+          <li><b>Knowledge:</b> your audience, your offer, your voice</li>
+          <li><b>Decisions:</b> what you chose and why, so you don’t decide twice</li>
+          <li><b>People:</b> clients, partners and what you know about them</li>
+          <li><b>Outputs:</b> everything the agent made for you</li>
+        </ul>
+        <p>The agent reads your knowledge before it writes anything, so a draft sounds like you and speaks to the right person. The more you add, the better it gets.</p>
+      </div>
+      <div class="shot"><img src="img/vault.webp" width="1800" height="1125" loading="lazy" alt="The Vault: every file of the project by type, with search, knowledge notes, a decision and a client" /></div>
+    </div>
+  </div>
+</section>
+
+<section class="privacy" id="privacy">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <p class="kicker">Private by design</p>
+      <h2>Your ideas live on your computer. Not in our cloud.</h2>
+      <p>There is no Maybee cloud and no Maybee account. Your second brain is a folder on your machine, and it stays yours.</p>
+    </div>
+    <div class="feats">
+      <div class="feat reveal"><span>💻</span><b>Runs on your computer</b><p>Maybee is an app on your own machine. Your board and notes never go to a Maybee server, because there isn’t one.</p></div>
+      <div class="feat reveal"><span>📄</span><b>Plain files you own</b><p>Every idea and note is a Markdown file in a folder you choose. Open it in any editor, back it up, sync it, or take it with you.</p></div>
+      <div class="feat reveal"><span>🔑</span><b>Only your plan is checked</b><p>The one thing Maybee looks up online is whether you’re on How I Premium, on Skool. Your password and e-mail are not stored.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="howi">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <p class="kicker">Maybee → How I</p>
+      <h2>Maybee helps you do the work. How I makes sure you finish.</h2>
+      <p>Tools alone don’t keep you going. People do. That’s why Maybee comes with How I, the accountability club for solopreneurs.</p>
+    </div>
+    <div class="bridge reveal">
+      <div class="side">
+        <small>The tool</small>
+        <h3><img src="img/bee.png" alt="" />Maybee</h3>
+        <p>Your ideas on one board, the next step always clear, and an agent that works on it with you.</p>
+        <ul>
+          <li>🗂️ Every idea on one board, from maybe to done</li>
+          <li>👣 Always a clear next step</li>
+          <li>⚡ An agent that does the step with one click</li>
+        </ul>
+      </div>
+      <div class="to" aria-hidden="true">→</div>
+      <div class="side howi">
+        <small>The people</small>
+        <h3>How I</h3>
+        <p>Solopreneurs building too, who see your next move, challenge it and celebrate when it’s done.</p>
+        <ul>
+          <li>💬 Honest feedback from people, not only AI</li>
+          <li>🌍 Fresh eyes from other fields</li>
+          <li>🫶 Accountability without guilt or shame</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="plans">
+      <div class="plan reveal">
+        <h4>Free</h4>
+        <p>Join the club.</p>
+        <ul>
+          <li>Access to the accountability club</li>
+          <li>Honest feedback from people, not only AI</li>
+          <li>People who celebrate your wins</li>
+          <li class="muted">Maybee app</li>
+        </ul>
+        <a class="btn ghost" href="https://www.skool.com/how-i-9301/about">Join for free</a>
+      </div>
+      <div class="plan best reveal">
+        <h4>Premium</h4>
+        <p>The club plus Maybee.</p>
+        <ul>
+          <li>Everything in Free</li>
+          <li>Maybee app: every idea on one board, from maybe to done</li>
+          <li>AI agent that works on your ideas with one click</li>
+          <li>Routines that run on their own every day</li>
+        </ul>
+        <a class="btn" href="https://www.skool.com/how-i-9301/plans">Get Premium</a>
+      </div>
+      <div class="plan reveal">
+        <h4>VIP</h4>
+        <p>Premium plus a person in your corner.</p>
+        <ul>
+          <li>Everything in Premium</li>
+          <li>Monthly 1-1 accountability call with Adal</li>
+          <li>Async support between calls</li>
+        </ul>
+        <a class="btn ghost" href="https://www.skool.com/how-i-9301/plans">Get VIP</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="problem" id="faq">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <p class="kicker">Questions</p>
+      <h2>Good to know</h2>
+    </div>
+    <div class="faq">
+      <details class="reveal"><summary>How do I get Maybee?</summary><p>Join How I on Premium or VIP. The install steps are inside the community. After you install it, sign in to Skool once: Maybee checks your plan and opens.</p></details>
+      <details class="reveal"><summary>Where are my ideas stored?</summary><p>On your computer, as plain text files in a folder you own. Maybee itself only talks to Skool, to check your How I plan. When the agent works on a card, your AI assistant reads it under its own terms.</p></details>
+      <details class="reveal"><summary>What does the agent need?</summary><p>An AI assistant running on your computer, such as Claude. Maybee sends it the card and the next step, and the assistant does the work in your folder.</p></details>
+      <details class="reveal"><summary>Is it only for business ideas?</summary><p>No. Anything you want to move from “maybe” to “done” fits: a side project, a course, content, a personal goal.</p></details>
+      <details class="reveal"><summary>What happens if I leave Premium?</summary><p>Maybee stops opening, but your ideas stay where they always were: in your files, readable with any text editor.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="glow" aria-hidden="true"></div>
+  <div class="wrap">
+    <img class="bee" src="img/bee.png" alt="" />
+    <h2>Turn your maybes into done.</h2>
+    <p class="lead">Maybee and the How I club, together in How I Premium.</p>
+    <div class="ctas"><a class="btn" href="https://www.skool.com/how-i-9301/plans">Get Maybee with How I Premium</a></div>
+    <p class="note">⚡ Access is unlocked instantly.</p>
+  </div>
+</section>
+
+<footer>Made by <a href="https://www.skool.com/how-i-9301/about">Adal Bueno</a> · Maybee comes with How I Premium</footer>
+
+<script>
+  // fade sections in as they scroll into view; without IntersectionObserver everything simply shows
+  const els = document.querySelectorAll('.reveal')
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target) } }), { rootMargin: '0px 0px -8% 0px' })
+    els.forEach(el => io.observe(el))
+  } else els.forEach(el => el.classList.add('in'))
+</script>
+</body>
+</html>
