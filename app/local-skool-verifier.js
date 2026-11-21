@@ -19,6 +19,10 @@ const TARGET_URL = new URL(TARGET)
 const GROUP_PATH = '/' + (TARGET_URL.pathname.split('/').filter(Boolean)[0] || '')
 const TIMEOUT_MS = Number(process.env.MAYBEE_VERIFY_TIMEOUT_MIN || 5) * 60000
 const POLL_MS = 2000
+// Maybee comes with the paid plans. Skool keeps a member's plan in member.metadata.mmbp ({"tier":"premium"}),
+// and admins and the owner have no plan, so they pass by role.
+const ALLOWED_TIERS = (process.env.MAYBEE_SKOOL_TIERS || 'premium,vip').split(',').map(t => t.trim().toLowerCase()).filter(Boolean)
+const STAFF_ROLE = /^(owner|admin|group-admin|group-owner)$/i
 let running = null
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -32,11 +36,14 @@ function readSkoolState() {
     const pageProps = JSON.parse(el.textContent).props.pageProps
     const self = pageProps.self
     const member = self && self.member
+    // Only the plan's name leaves the page, never the amount paid.
+    let tier = null
+    try { tier = (member && member.metadata && member.metadata.mmbp && JSON.parse(member.metadata.mmbp).tier) || null } catch {}
     return {
       loggedIn: !!self,
       pathname: location.pathname,
       groupId: (pageProps.currentGroup && pageProps.currentGroup.id) || null,
-      member: member ? { userId: member.userId || null, groupId: member.groupId || null, role: member.role || null, approvedAt: member.approvedAt || null } : null,
+      member: member ? { userId: member.userId || null, groupId: member.groupId || null, role: member.role || null, approvedAt: member.approvedAt || null, tier: tier ? String(tier).toLowerCase() : null } : null,
     }
   } catch { return null }
 }
@@ -46,9 +53,12 @@ const looksLikeAuthPage = url => /\/(login|sign-?in|signup|sign-?up|auth)(\/|\?|
 function resultFor(state, lastUrl) {
   const m = state.member
   const isMember = !!(m && m.groupId && m.groupId === state.groupId && m.approvedAt)
-  return isMember
-    ? { state: 'member', member: m, details: `Membership confirmed at ${lastUrl} (role: ${m.role || 'member'}).`, url: lastUrl }
-    : { state: 'not-member', member: null, details: 'You are logged in to Skool, but this account is not a member of the How I community.', url: lastUrl }
+  if (!isMember) return { state: 'not-member', member: null, details: 'You are logged in to Skool, but this account is not a member of the How I community.', url: lastUrl }
+  const staff = STAFF_ROLE.test(m.role || '')
+  if (!staff && !ALLOWED_TIERS.includes(m.tier || '')) {
+    return { state: 'not-premium', member: null, details: `This account is in How I on the ${m.tier || 'free'} plan. Maybee comes with How I Premium.`, url: lastUrl }
+  }
+  return { state: 'member', member: m, details: `Membership confirmed at ${lastUrl} (${staff ? 'role: ' + m.role : 'plan: ' + m.tier}).`, url: lastUrl }
 }
 
 // First attempt, with no window at all: Skool is loaded in a hidden browser target (it has no tab
@@ -88,7 +98,7 @@ async function readHidden(handle) {
  * Opens a browser on Skool and resolves when the membership is known.
  * onPhase('opening-browser' | 'checking' | 'waiting-login') lets the UI update.
  * Resolves { state, member, details, url } where state is one of
- * 'member' | 'not-member' | 'needs-login' | 'closed' | 'timeout'. Throws on setup errors.
+ * 'member' | 'not-member' | 'not-premium' | 'needs-login' | 'closed' | 'timeout'. Throws on setup errors.
  */
 export function verifySkool({ onPhase = () => {}, allowWindow = true, hiddenFirst = true } = {}) {
   if (running) return running
@@ -151,3 +161,5 @@ export function verifySkool({ onPhase = () => {}, allowWindow = true, hiddenFirs
 }
 
 export function verifierProfile() { return PROFILE }
+
+export { resultFor, readSkoolState } // for tests

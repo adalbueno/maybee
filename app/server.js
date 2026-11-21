@@ -278,6 +278,7 @@ function accessStatus() {
     idleAfterMs: ACCESS_IDLE_MS,
     method: accessSession.method,
     details: accessSession.details,
+    result: accessSession.result || null, // the last check's outcome: member, not-member, not-premium, needs-login, closed, timeout
     mode: ACCESS_MODE,
     verifying: !!accessVerifying,
     phase: accessVerifying ? accessVerifying.phase : null,
@@ -370,8 +371,8 @@ async function runSkoolVerification(reason) {
       ...accessSession, valid: ok, member: ok, community: 'How I', checkedAt: now,
       lastSkoolCheckAt: ok ? now : accessSession.lastSkoolCheckAt, lastAppActivityAt: now,
       expiresAt: ok ? now + ACCESS_RECHECK_MS : now, method, details: result.details, url: result.url,
-      lastErrorAt: 0,
-      membership: ok ? { userId: m.userId, groupId: m.groupId, role: m.role, approvedAt: m.approvedAt } : null,
+      result: result.state, lastErrorAt: 0,
+      membership: ok ? { userId: m.userId, groupId: m.groupId, role: m.role, tier: m.tier || null, approvedAt: m.approvedAt } : null,
     }
     saveAccessSession({ type: ok ? 'access-verified' : 'access-denied', method, reason, result: result.state })
     if (ok) openMaybeeAfterAccess()
@@ -432,9 +433,18 @@ const GENERIC = {
   'STATE.md': /Choose one project to move forward|Write the focus of this workspace here\./,
   'owner/preferences.md': /No preferences recorded yet/,
 }
+// "Skip for now" holds until Maybee starts again: the next run asks again while PROJECT.md still has the packaged text,
+// at most SKIP_LIMIT times, then the skip holds for good (the chat can still be opened with ?setup=1).
+const SERVER_RUN = `${process.pid}-${Date.now()}`
+const SKIP_LIMIT = 3
+const skipFile = () => path.join(ROOT, '.maybee', 'onboarding-skipped.json')
+function readSkip() {
+  try { const d = JSON.parse(fs.readFileSync(skipFile(), 'utf8')); return { count: Number(d.count) || 1, run: d.run || null } } catch { return null }
+}
 function setupStatus() {
   const has = rel => fs.existsSync(path.join(ROOT, rel))
-  const skipped = has('.maybee/onboarding-skipped.json')
+  const skip = readSkip()
+  const skipped = !!skip && (skip.run === SERVER_RUN || skip.count >= SKIP_LIMIT)
   const onboarded = has('.maybee/onboarded.json')
   let needsOnboarding = false
   try { needsOnboarding = !skipped && !onboarded && GENERIC['PROJECT.md'].test(fs.readFileSync(path.join(ROOT, 'PROJECT.md'), 'utf8')) } catch {}
@@ -689,6 +699,17 @@ async function main() {
       }
       if (url.pathname === '/api/access/confirm' && req.method === 'POST') return sendJSON(res, confirmAgentBrowser(await readBody(req)))
       if (url.pathname === '/api/session/heartbeat' && req.method === 'POST') return sendJSON(res, await heartbeat())
+      // The board behind the membership lock: the active workspace's cards, read-only and only what a card shows
+      // (no note bodies, no files), so the app is already there while the person verifies. Nothing can be changed.
+      if (url.pathname === '/api/board/preview' && req.method === 'GET') {
+        const b = await board(ROOT, getIndex())
+        const columns = {}
+        for (const [stage, col] of Object.entries(b.columns)) {
+          columns[stage] = { count: col.count, cards: col.cards.slice(0, 30).map(c => ({ path: c.path, title: c.title, description: c.description, priority: c.priority, score: c.score, nextStep: c.nextStep, whyNot: c.whyNot })) }
+        }
+        columns.routine = { count: 0, cards: [] }
+        return sendJSON(res, { columns })
+      }
       if (url.pathname.startsWith('/api/') && !accessSession.valid) return sendJSON(res, { error: 'Skool membership must be verified for this session.', access: accessStatus() }, 403)
       if (url.pathname.startsWith('/api/')) touchAppActivity(url.pathname)
       // The control address of Maybee's own browser, for an agent that needs a browser for a task (scripts/browser.js).
@@ -728,7 +749,8 @@ async function main() {
       if (url.pathname === '/api/setup' && req.method === 'GET') return sendJSON(res, setupStatus())
       if (url.pathname === '/api/setup/skip' && req.method === 'POST') {
         fs.mkdirSync(path.join(ROOT, '.maybee'), { recursive: true })
-        fs.writeFileSync(path.join(ROOT, '.maybee', 'onboarding-skipped.json'), JSON.stringify({ skippedAt: new Date().toISOString() }, null, 2))
+        const prev = readSkip()
+        fs.writeFileSync(skipFile(), JSON.stringify({ skippedAt: new Date().toISOString(), count: (prev?.count || 0) + 1, run: SERVER_RUN }, null, 2))
         return sendJSON(res, setupStatus())
       }
       if (url.pathname === '/api/setup' && req.method === 'POST') {

@@ -344,5 +344,8 @@ header { display: flex; align-items: center; gap: 12px; padding: 18px 22px 14px;
 .ob-step b { font-size: 14px; letter-spacing: -.01em; }
 .ob-step p { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); }
 @media (max-width: 640px) { .ob-steps { grid-template-columns: 1fr; } .ob-splash h1 { font-size: 32px; } }
+/* short windows: the welcome keeps its button in view */
+@media (max-height: 760px) { .ob-splash { padding: 24px 24px; gap: 6px; } .ob-splash-bee { height: 80px; } .ob-splash h1 { margin-top: 10px; font-size: 32px; } .ob-splash > p { margin-bottom: 14px; font-size: 16px; } .ob-splash-glow { width: 280px; height: 280px; } }
+@media (max-height: 560px) { .ob-splash-bee { height: 56px; } .ob-splash h1 { font-size: 26px; } }
 @media (prefers-reduced-motion: reduce) { .ob-splash-glow, .ob-splash-bee, .ob-splash h1, .ob-splash > p, .ob-splash-go, .ob-step { animation: none; } }
 </style>

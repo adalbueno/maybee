@@ -30,7 +30,9 @@ const lastChange = ref(0)
 const filter = ref('all')
 const setup = ref(null)
 // ?setup=1 opens the onboarding; read at load, before the page rewrites its own address
-const forceSetup = new URLSearchParams(location.search).get('setup') === '1'
+let forceSetup = new URLSearchParams(location.search).get('setup') === '1' // used once: switching workspace must not reopen it
+// ?gate=1 (or ?gate=not-member) shows the membership screen as a preview: no check runs, nothing unlocks
+const previewGate = new URLSearchParams(location.search).get('gate')
 const showOnboarding = ref(false)
 const access = ref(null)
 const accessReady = ref(false)
@@ -262,6 +264,7 @@ async function loadSetup() {
     if (needed && !forceSetup) await refreshInbox()
     showOnboarding.value = forceSetup || (needed && claude.listening)
     setupPending = needed && !showOnboarding.value
+    forceSetup = false
   } catch {}
 }
 // A workspace made from outside the page (by your assistant, say) shows up without a reload
@@ -379,7 +382,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
 
 <template>
   <div class="shell" :class="{ 'with-viewer': open, onboarding: showOnboarding }" @click="workspaceMenuOpen = false">
-    <AccessGate v-if="!accessReady" @verified="accessVerified" />
+    <AccessGate v-if="!accessReady || previewGate" :preview="previewGate" @verified="accessVerified" />
     <Onboarding v-if="showOnboarding" @done="onboardingDone" />
     <header class="top">
       <div class="brand">
@@ -426,7 +429,11 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
     </header>
 
 
-    <div v-if="accessReady" class="body">
+    <!-- behind the membership lock: the board, read-only, so the app is already there -->
+    <div v-if="!accessReady || previewGate" class="body" inert aria-hidden="true">
+      <main class="board-wrap"><Board preview /></main>
+    </div>
+    <div v-else class="body">
       <main v-if="place === 'workspace'" class="board-wrap">
         <Board ref="board" :changed-at="lastChange" :active-path="open && open.path" @open="openItem" />
       </main>

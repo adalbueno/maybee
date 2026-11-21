@@ -3,7 +3,8 @@ import { ask, claude } from '../ask.js'
 import { sideMove } from '../stages.js'
 import NoteChat from './NoteChat.vue'
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-const props = defineProps({ changedAt: Number, activePath: String })
+// preview: the board behind the membership lock, read-only, from /api/board/preview (the active workspace's cards).
+const props = defineProps({ changedAt: Number, activePath: String, preview: Boolean })
 const emit = defineEmits(['open'])
 
 const cols = ref(null)
@@ -131,6 +132,14 @@ const routineLabel = r => ({ working: 'Running…', queued: 'In line', pending: 
 const routineLine = r => runState(r) === 'working' ? 'Running now…' : runState(r) === 'queued' ? 'In line' : r.done ? 'Done today' : [r.recurring, r.at && 'at ' + r.at].filter(Boolean).join(' · ')
 
 async function load() {
+  if (props.preview) {
+    const empty = Object.fromEntries(COLS.map(c => [c.key, { count: 0, cards: [] }]))
+    const res = await fetch('/api/board/preview').then(r => r.ok ? r.json() : null).catch(() => null)
+    cols.value = { ...empty, ...(res?.columns || {}) }
+    // Now when there is something in it, then Next; with nothing else, Maybe, where a first idea goes
+    openCol.value = ['now', 'next'].find(k => cols.value[k].cards.length) || 'maybe'
+    return
+  }
   const res = await fetch('/api/board').then(r => r.json())
   cols.value = res.columns
   routines.value = res.routinesToday || []
