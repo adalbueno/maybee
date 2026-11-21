@@ -65,6 +65,9 @@ h2 { margin: 10px 0 0; font-size: clamp(30px, 4.6vw, 48px); line-height: 1.08; l
 .pain b { display: block; margin-top: 10px; font-size: 17px; letter-spacing: -.01em; }
 .pain p { margin: 6px 0 0; font-size: 14.5px; color: var(--text-2); }
 
+.demo { margin: 44px auto 0; max-width: 1040px; }
+.demo video { display: block; width: 100%; height: auto; border-radius: 22px; background: #131210; box-shadow: 0 40px 120px #000a, 0 0 0 1px var(--line); }
+.demo figcaption { margin-top: 12px; text-align: center; font-size: 14px; color: var(--text-3); }
 /* the flow */
 .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 36px; }
 .stage { display: inline-flex; align-items: center; gap: 9px; padding: 10px 18px; border-radius: 99px; background: var(--tile); border: 1px solid var(--line); font-weight: 700; }
@@ -216,6 +219,12 @@ footer a { color: var(--text-2); }
       <h2>One board. Four columns. Every idea moves toward done.</h2>
       <p>The board is the whole method: catch the idea, choose it, work on it, finish it.</p>
     </div>
+    <figure class="demo reveal">
+      <video controls playsinline preload="metadata" poster="video/maybee-how-it-works-poster.jpg" width="1920" height="1080">
+        <source src="video/maybee-how-it-works.mp4" type="video/mp4">
+      </video>
+      <figcaption>20 seconds, in Adal's voice: an idea goes in, the agent does the next step.</figcaption>
+    </figure>
     <div class="flow reveal" aria-label="Maybe, then Next, then Now, then Done">
       <span class="stage"><i style="background:var(--maybe)"></i>Maybe</span><span class="arrow">→</span>
       <span class="stage"><i style="background:var(--next)"></i>Next</span><span class="arrow">→</span>
