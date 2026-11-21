@@ -83,8 +83,9 @@ A routine that is `auto` runs on its own only while an agent is connected. Witho
 2. Don't invent facts. Facts in a card come from the user, from the workspace's files, or from what you just did.
 3. Keep the card's links: the line under the frontmatter points back to the dashboard and the overview.
 4. Add one line to `logs/CHANGELOG.md` for each change, in the form `- YYYY-MM-DD HH:MM: what changed (ideas/Card title.md)`, with the local date and time now (the time is optional, but the **Changes** tab shows it when it is there). The app shows these lines in each card's **Changes** tab and in the feed.
-5. External actions, such as publishing or sending something, wait for the user's explicit OK. A card that asks for one still needs it.
-6. The installed program in `.maybee/package/` is read-only. Never edit it, even to fix a card problem: change the card instead.
+5. Show the work on the card. When you make something for a card (an image, a video, a PDF, a page, a document), save it in `outputs/` and add it to the note under a `## Work` heading: an image, video, PDF or HTML page as an embed alone on its own line, `![what it is](../outputs/file.png)`, so it shows right in the note; any other file as a link, `[what it is](../outputs/file.md)`, with a few words on what it is. Newest first. The card on the board also lists these files.
+6. External actions, such as publishing or sending something, wait for the user's explicit OK. A card that asks for one still needs it.
+7. The installed program in `.maybee/package/` is read-only. Never edit it, even to fix a card problem: change the card instead.
 
 ## A minimal card
 
