@@ -2,6 +2,14 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.45 · 21 Nov 2026
+
+**Maybee comes with How I Premium, and the membership screen is new.**
+
+- **How I Premium:** Premium and VIP members open Maybee; the free plan gets an Upgrade to Premium button.
+- **A new membership screen,** with your board already showing behind it, read-only.
+- **The welcome comes back** the next time Maybee opens if you skipped it and the workspace still has its starting text, up to three times.
+
 ## 0.1.44 · 20 Nov 2026
 
 **Maybee opens in your own browser, and fewer windows appear.**
