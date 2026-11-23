@@ -2,6 +2,16 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.49 · 23 Nov 2026
+
+**A Brain you can ask, and an Inbox like mail.**
+
+- **Brain** replaces the Vault: the project, its state and its dashboard on top, the folders below; ask it questions or tell it what to change in the chat.
+- **Move, rename and delete** files in the Brain: drag onto a folder or use ⋯; every link follows; deleted files go to the trash, with Undo.
+- **About is gone**: its parts live in the Brain, the Inbox and the board.
+- **Inbox**: two boxes, Needs you and For you (one line per card, unread in bold, the card's column as a tag), and a chat to answer and approve.
+- **Every place slides like the board**: the Inbox and the Brain's folders open and close as columns.
+
 ## 0.1.48 · 23 Nov 2026
 
 **A tidier Vault.**

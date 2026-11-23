@@ -99,9 +99,9 @@ h2 { margin: 10px 0 0; font-size: clamp(30px, 4.6vw, 48px); line-height: 1.08; l
 .agent-shot .shot { margin: 0; }
 .agent-shot figcaption { margin: 14px auto 0; max-width: 720px; text-align: center; font-size: 14.5px; color: var(--text-2); }
 .agent-shot figcaption b { color: var(--text); }
-#brain .step li { display: block; padding-left: 26px; text-indent: -26px; }
-#brain .step li::before { display: inline-block; width: 26px; text-indent: 0; }
-#brain .step li b { color: var(--accent); font-weight: 700; }
+#brain .step li, #inbox .step li { display: block; padding-left: 26px; text-indent: -26px; }
+#brain .step li::before, #inbox .step li::before { display: inline-block; width: 26px; text-indent: 0; }
+#brain .step li b, #inbox .step li b { color: var(--accent); font-weight: 700; }
 .privacy { background: var(--dark); }
 
 /* maybee -> how i */
@@ -301,22 +301,41 @@ footer a { color: var(--text-2); }
   </div>
 </section>
 
+<section id="inbox">
+  <div class="wrap">
+    <div class="step reveal" style="margin-top:0">
+      <div class="copy">
+        <p class="kicker">Your inbox</p>
+        <h3 style="font-size:clamp(30px,4.6vw,48px);letter-spacing:-.04em">What needs you, and what’s ready for you.</h3>
+        <p>When the agent needs your OK, it asks in <b>Needs you</b>. When it finishes something, it lands in <b>For you</b>, one line per card, like mail.</p>
+        <ul>
+          <li><b>Needs you:</b> approve a script, pick a name, answer a question</li>
+          <li><b>For you:</b> drafts, emails and files, with the card they came from</li>
+          <li><b>A chat at the bottom:</b> answer and approve without leaving the inbox</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="img/inbox-needs.webp" width="1800" height="1125" loading="lazy" alt="The Inbox with Needs you open: approve the intro video script, and pick three clients to ask for a testimonial" /></div>
+    </div>
+  </div>
+</section>
+
 <section id="brain">
   <div class="wrap">
     <div class="step reveal" style="margin-top:0">
       <div class="copy">
         <p class="kicker">Your second brain</p>
         <h3 style="font-size:clamp(30px,4.6vw,48px);letter-spacing:-.04em">A second brain, powered by AI.</h3>
-        <p>Maybee isn’t only a board. Next to your ideas it keeps what your project knows: who you serve, how you sound, what you decided and who you work with. Everything is searchable in the Vault.</p>
+        <p>Maybee isn’t only a board. Next to your ideas it keeps what your project knows: who you serve, how you sound, what you decided and who you work with. It all lives in the Brain: browse it folder by folder, search it, or just ask it.</p>
         <ul>
           <li><b>Knowledge:</b> your audience, your offer, your voice</li>
           <li><b>Decisions:</b> what you chose and why, so you don’t decide twice</li>
           <li><b>People:</b> clients, partners and what you know about them</li>
-          <li><b>Outputs:</b> everything the agent made for you</li>
+          <li><b>Work:</b> everything the agent made for you</li>
         </ul>
+        <p>Ask the Brain a question and it answers from your files, with links. Tell it to change your goal or your voice and it updates the right file. Move or rename a file and every link to it follows.</p>
         <p>The agent reads your knowledge before it writes anything, so a draft sounds like you and speaks to the right person. The more you add, the better it gets.</p>
       </div>
-      <div class="shot"><img src="img/vault.webp" width="1800" height="1125" loading="lazy" alt="The Vault: every file of the project by type, with search, knowledge notes, a decision and a client" /></div>
+      <div class="shot"><img src="img/brain.webp" width="1800" height="1125" loading="lazy" alt="The Brain: the project, its state and its dashboard on top, then the folders: cards, knowledge, work, people, decisions" /></div>
     </div>
   </div>
 </section>
