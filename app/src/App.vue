@@ -463,7 +463,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
         <Board ref="board" :changed-at="lastChange" :active-path="open && open.path" @open="openItem" />
       </main>
       <main v-else-if="place === 'vault'" class="board-wrap vault-wrap">
-        <Library :changed-at="lastChange" :active-path="open && open.path" @open="openItem" />
+        <Library :workspace="(workspaces.find(w => w.name === activeWorkspace) || {}).label || activeWorkspace" :changed-at="lastChange" :active-path="open && open.path" @open="openItem" />
       </main>
       <main v-else-if="place === 'overview'" class="lib-wrap">
         <StatePanel :changed-at="lastChange" @open="openItem" @go="go" />

@@ -3,7 +3,7 @@
 // Title, path and description filter in the browser; "inside the files" asks the server.
 import { ref, computed, watch, onMounted } from 'vue'
 import logo from '../assets/logo.png'
-const props = defineProps({ changedAt: Number, activePath: String })
+const props = defineProps({ changedAt: Number, activePath: String, workspace: String })
 const emit = defineEmits(['open'])
 
 const items = ref([])
@@ -38,16 +38,18 @@ function folderOf(dir) {
   files.sort((a, b) => (a.date && b.date ? a.date.localeCompare(b.date) : 0) || b.time - a.time)
   return { dirs: [...dirs.values()].sort((a, b) => b.count - a.count), files }
 }
+// the root is the workspace itself, under its own name
+const home = computed(() => props.workspace || 'Vault')
 // the open folder (the big card) and the closed columns on its left: Home, then each folder on the way
 const path = computed(() => {
   const ok = []
   for (const d of trail.value) { const f = folderOf(d); if (!f.dirs.length && !f.files.length) break; ok.push(d) }
   return ok
 })
-const current = computed(() => { const dir = path.value[path.value.length - 1] || ''; return { dir, name: dir ? label(dir) : 'Vault', ...folderOf(dir) } })
+const current = computed(() => { const dir = path.value[path.value.length - 1] || ''; return { dir, name: dir ? label(dir) : home.value, ...folderOf(dir) } })
 const tabs = computed(() => {
   const count = d => { const f = folderOf(d); return f.dirs.reduce((n, x) => n + x.count, 0) + f.files.length }
-  return [{ dir: '', name: 'Vault', level: 0, count: items.value.length, here: !path.value.length }]
+  return [{ dir: '', name: home.value, level: 0, count: items.value.length, here: !path.value.length }]
     .concat(path.value.slice(0, -1).map((d, i) => ({ dir: d, name: label(d), level: i + 1, count: count(d) })))
 })
 function openDir(p) { trail.value = path.value.concat(p) }
@@ -141,10 +143,10 @@ const titleOf = p => (items.value.find(x => x.path === p) || { title: p.split('/
   <div class="vault-shell">
     <!-- Folders: the open folder is one big card of cards; the folders above it close into columns on the left, like the board's -->
     <div class="vbrowse">
-      <button v-for="(t, i) in tabs" :key="t.dir || 'home'" class="vtab" :class="{ home: !t.dir, here: t.here }" :title="t.here ? 'You are here' : 'Back to ' + t.name" @click="goTo(t.level)">
+      <button v-for="(t, i) in tabs" :key="t.dir || 'home'" class="vtab" :class="{ home: !t.dir, here: t.here }" :title="t.here ? t.name : 'Back to ' + t.name" @click="goTo(t.level)">
         <img v-if="!t.dir" :src="logo" class="vlogo" alt="" />
         <span v-else class="vfold"></span>
-        <span class="v">{{ t.name }}</span>
+        <span v-if="t.dir" class="v">{{ t.name }}</span>
         <small>{{ t.count }}</small>
       </button>
       <section class="vbig">
@@ -236,7 +238,7 @@ const titleOf = p => (items.value.find(x => x.path === p) || { title: p.split('/
 .vtab.here { cursor: default; }
 .vtab .v { writing-mode: vertical-rl; font-weight: 700; font-size: 14px; letter-spacing: -.01em; }
 .vtab small { font-size: 12px; font-weight: 600; color: var(--ink-3); }
-.vlogo { width: 26px; height: 26px; object-fit: contain; }
+.vlogo { width: 18px; height: 18px; object-fit: contain; }
 .vfold { width: 16px; height: 12px; border-radius: 3px; background: var(--accent); }
 /* the open folder: one big card of cards */
 .vbig { flex: 1; min-width: 0; overflow-y: auto; background: var(--card); border-radius: 28px; padding: 20px 20px 22px; }
