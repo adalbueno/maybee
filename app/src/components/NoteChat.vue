@@ -150,7 +150,7 @@ function onDockKey(e) {
           <p v-if="!items.length" class="empty">{{ empty }}</p>
           <template v-for="i in items" :key="i.id">
             <div class="you"><p>{{ label(i) }}</p><small>{{ clock(i.at) }}</small></div>
-            <div v-if="i.reply" class="ai"><div class="md" v-html="html(i.reply)"></div><small>Maybee</small></div>
+            <div v-if="i.reply" class="ai"><div class="md" v-html="html(i.reply)"></div><div v-if="i.outputs && i.outputs.length" class="outs"><a v-for="o in i.outputs" :key="o.path" href="#" class="out" :data-open="o.path" :title="o.path">{{ o.title }}</a></div><small>Maybee</small></div>
             <div v-else-if="state(i)" class="ai pending"><p>{{ state(i) }}</p></div>
           </template>
         </div>
@@ -197,6 +197,11 @@ header b { flex: 1; }
 .you small { color: color-mix(in srgb, #fff 60%, transparent); text-align: right; }
 .ai { align-self: flex-start; background: var(--card); border-bottom-left-radius: 5px; }
 .md { font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
+/* The files a request made, under its reply: each one opens the file (they are also on the card, under Work). */
+.outs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.out { font-size: 12.5px; padding: 3px 9px; border-radius: 999px; background: var(--page); border: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+.out::before { content: '📄 '; }
+.out:hover { border-color: currentColor; }
 .md :deep(> :first-child) { margin-top: 0; }
 .md :deep(> :last-child) { margin-bottom: 0; }
 .md :deep(p) { margin: 0 0 .7em; white-space: normal; }

@@ -33,14 +33,35 @@ export async function startInstance(server, root, preferredPort, host) {
   }
   const port = server.address().port
   const info = { workspace: root, pid: process.pid, port, url: `http://${host}:${port}`, token, startedAt: new Date().toISOString() }
+  writeInfo(file, info)
+  current = file
+  process.on('exit', () => removeIfOurs(current, token))
+  return info
+}
+
+let current = null
+function writeInfo(file, info) {
   const temp = `${file}.${process.pid}.tmp`
   fs.writeFileSync(temp, JSON.stringify(info, null, 2), { mode: 0o600 })
   fs.renameSync(temp, file)
-  process.on('exit', () => {
-    try {
-      if (JSON.parse(fs.readFileSync(file, 'utf8')).token === token) fs.unlinkSync(file)
-    } catch {}
-  })
+}
+function removeIfOurs(file, token) {
+  try {
+    if (file && JSON.parse(fs.readFileSync(file, 'utf8')).token === token) fs.unlinkSync(file)
+  } catch {}
+}
+
+// Switching workspace moves the instance file with it: the scripts and the session hook look for it in the
+// active workspace (.maybee/server.json), so a running app must be found there, not where it started.
+export function moveInstance(info, root) {
+  if (!info || info.workspace === root) return info
+  const dir = path.join(root, '.maybee')
+  fs.mkdirSync(dir, { recursive: true })
+  const file = path.join(dir, 'server.json')
+  removeIfOurs(current, info.token)
+  info.workspace = root
+  writeInfo(file, info)
+  current = file
   return info
 }
 

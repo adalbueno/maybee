@@ -555,7 +555,10 @@ export async function library() {
       const n = await loadNote(f.rel)
       if (!n) continue
       const desc = typeof n.fm.description === 'string' ? n.fm.description : ''
-      items.push({ path: f.rel, ext: f.ext, time: f.mtime, kind: libKind(f.rel, kindOf(f.rel, n.fm)), title: n.title, fmTitle: typeof n.fm.title === 'string' ? n.fm.title : '', desc: desc.length > 200 ? desc.slice(0, 200).replace(/\s+\S*$/, '') + '…' : desc, status: n.fm.status || n.fm.stage || null })
+      const fmDate = n.fm.scheduled || n.fm.published || n.fm.date
+      const fileDate = /(^|\/)(\d{4}-\d{2}-\d{2})[^/]*$/.exec(f.rel)
+      const date = fmDate ? String(fmDate instanceof Date ? fmDate.toISOString() : fmDate).slice(0, 10) : fileDate ? fileDate[2] : null // the date the note is about (a post's day), for the Folders view
+      items.push({ path: f.rel, ext: f.ext, time: f.mtime, kind: libKind(f.rel, kindOf(f.rel, n.fm)), title: n.title, date, fmTitle: typeof n.fm.title === 'string' ? n.fm.title : '', desc: desc.length > 200 ? desc.slice(0, 200).replace(/\s+\S*$/, '') + '…' : desc, status: n.fm.status || n.fm.stage || null })
     } else {
       items.push({ path: f.rel, ext: f.ext, time: f.mtime, kind: libKind(f.rel, kindOf(f.rel, {})), title: path.basename(f.rel), media: VIDEO.has(f.ext) ? 'video' : 'image' })
     }

@@ -477,6 +477,6 @@ const updated = computed(() => note.value && note.value.mtime
         </template>
       </template>
     </div>
-    <NoteChat v-if="note && !note.error && note.ext === '.md' && (!editing || inline)" :key="'chat:' + note.path" :path="note.path" :title="note.title" :open-at="target.chat || 0" :stage="isIdeaNote && note.frontmatter.type !== 'routine' ? String(note.frontmatter.stage || 'maybe') : ''" @settled="load(true)" />
+    <NoteChat v-if="note && !note.error && note.ext === '.md' && (!editing || inline)" :key="'chat:' + note.path" :path="note.path" :title="note.title" :open-at="target.chat || 0" :stage="isIdeaNote && note.frontmatter.type !== 'routine' ? String(note.frontmatter.stage || 'maybe') : ''" @settled="load(true)" @open="p => emit('open', { path: p })" />
   </aside>
 </template>

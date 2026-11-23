@@ -543,6 +543,12 @@ a { color: inherit; }
 .file.media { width: 74px; height: 74px; }
 .file.media img, .file.media video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .more-files { font-size: 12.5px; font-weight: 600; color: var(--ink-3); }
+/* Cards outside Now list their files smaller, so the work shows without making the card tall. */
+.files.compact { gap: 6px; margin-top: 10px; }
+.files.compact .file { border-radius: 10px; font-size: 11.5px; }
+.files.compact .file .doc { padding: 4px 9px; max-width: 180px; }
+.files.compact .file.media { width: 40px; height: 40px; }
+.files.compact .more-files { font-size: 11.5px; }
 .no-files { margin-top: 12px !important; font-size: 12.5px !important; color: var(--ink-3) !important; }
 @media (max-width: 640px) { .desk-wrap { padding: 4px 18px 60px; } .reacts { grid-template-columns: 1fr 1fr; } }
 
@@ -1113,3 +1119,10 @@ a { color: inherit; }
 .bars i.on:nth-child(4) { background: #f2670d; }
 .bars i.on:nth-child(5) { background: #e8451f; }
 .bars.none i { opacity: .55; }
+
+/* A card's work on the board: how many files, as a small pill, and "New" when one arrived since the card was last opened. */
+.work-sig { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 3px 10px; border-radius: 999px; background: var(--page); border: 1px solid var(--line); font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.work-sig.unseen { color: var(--ink); border-color: #f5c84b; background: #fff6d6; }
+.work-sig .new { font-size: 10.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #8a5a00; }
+.col.now.open .work-sig { margin-top: 14px; font-size: 13px; }
+.back-ready { margin-top: 26px; font-size: 13.5px; }

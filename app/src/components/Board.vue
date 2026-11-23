@@ -23,6 +23,22 @@ function runState(r) {
   return req ? req.status : null
 }
 // Start: the assistant works on a Now card. With a next step it does that; without one it picks the first step itself.
+// Work seen: when each card was last opened, against its newest file (per viewer, in this browser).
+// The first time, everything already there counts as seen, so only what arrives after shows a dot.
+const SEEN_KEY = 'maybee.workSeen'
+const workSeen = ref((() => { try { return JSON.parse(localStorage.getItem(SEEN_KEY) || 'null') } catch { return null } })())
+const unseen = c => !!workSeen.value && c.newest > (workSeen.value[c.path] || 0)
+function markSeen(paths) {
+  const all = cols.value ? Object.values(cols.value).flatMap(col => col.cards || []) : []
+  const next = { ...(workSeen.value || {}) }
+  let changed = !workSeen.value
+  for (const c of all) if ((!workSeen.value || paths.includes(c.path)) && c.newest && next[c.path] !== c.newest) { next[c.path] = c.newest; changed = true }
+  if (!changed || !all.length) return
+  workSeen.value = next
+  try { localStorage.setItem(SEEN_KEY, JSON.stringify(next)) } catch {}
+}
+// the open card counts as seen, also when a new file lands while it is open
+watch([() => props.activePath, cols], () => markSeen(props.activePath ? [props.activePath] : []), { deep: false })
 const working = c => [...claude.items].some(i => i.path === c.path && ['Work on this now', 'Do the next step'].includes(i.action) && ['pending', 'queued', 'working'].includes(i.status))
 const start = c => ask({ action: c.nextStep ? 'Do the next step' : 'Work on this now', path: c.path, title: c.title })
 const runRoutine = r => ask({ action: 'Run routine', path: r.path, title: r.full || r.title })
@@ -358,15 +374,9 @@ async function pull(card, stage) {
             <div v-if="col.key === 'now' && c.nextStep" class="next-step">
               <span>Next step</span>{{ c.nextStep }}
             </div>
-            <div v-if="col.key === 'now' && c.files && c.files.length" class="files" @click.stop>
-              <button v-for="f in c.files" :key="f.path" class="file" :class="{ media: f.media }" @click="emit('open', { path: f.path })" :title="f.path">
-                <template v-if="f.media">
-                  <video v-if="f.video" :src="'/raw?path=' + encodeURIComponent(f.path) + '#t=0.5'" preload="metadata" muted></video>
-                  <img v-else :src="'/raw?path=' + encodeURIComponent(f.path)" loading="lazy" />
-                </template>
-                <span v-else class="doc">{{ f.name }}</span>
-              </button>
-              <span v-if="c.moreFiles" class="more-files">+{{ c.moreFiles }}</span>
+            <!-- the work is inside the card (its Work section): here only how many files, and a dot for one not seen yet -->
+            <div v-if="c.fileCount" class="work-sig" :class="{ unseen: unseen(c) }" :title="c.fileCount + (c.fileCount === 1 ? ' file' : ' files') + ' in Work' + (unseen(c) ? ', something new since you last opened it' : '')">
+              <span v-if="unseen(c)" class="new">New</span>{{ c.fileCount }} {{ c.fileCount === 1 ? 'file' : 'files' }}
             </div>
             <div v-if="col.key === 'now'" class="k-moves" @click.stop>
               <button class="start" :disabled="working(c)" :title="c.nextStep ? 'Ask your assistant to do the next step' : 'Ask your assistant to start working on this'" @click="start(c)">{{ working(c) ? 'Working…' : c.nextStep ? 'Do the next step' : 'Start' }}</button>

@@ -2,7 +2,7 @@
 // The .md files are the only source of truth. This server never deletes, moves or renames files, except for a card in Not that you delete: that note moves to _to_delete/.
 import { importZip } from './lib/playbooks.js'
 import http from 'node:http'
-import { startInstance, stopInstance } from './lib/instance.js'
+import { startInstance, stopInstance, moveInstance } from './lib/instance.js'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
@@ -10,9 +10,10 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildIndex, feed, numbers, library, search, readNote, resolveName, statFile, isHidden, allPaths, getIndex } from './lib/project.js'
 import { board, backlog, setStage, deleteCard, logChange, createCard, placeCard, topOfColumn, restoreRanks, ranksOf, ORDER_NAMES } from './lib/board.js'
-import { desktop, setFields, dayKey, nowCards, routinesOn, overviewState, resolveWaiting } from './lib/desktop.js'
+import { desktop, setFields, dayKey, nowCards, withFiles, routinesOn, overviewState, resolveWaiting } from './lib/desktop.js'
 import { initInbox, readInbox, addRequest, listening, lastHeard, promptFor } from './lib/inbox.js'
 import { readBridge } from './lib/bridge.js'
+import { ready } from './lib/ready.js'
 import { initSnapshots, snapshot, diffFor } from './lib/snapshots.js'
 import { verifySkool } from './local-skool-verifier.js'
 import { ensureBrowser, holdBrowser, defaultChromiumBrowser } from './lib/browser.js'
@@ -205,6 +206,7 @@ async function switchWorkspace(name) {
   await initSnapshots(ROOT, APP_DIR, allPaths('.md'))
   watcher?.close()
   watcher = watch()
+  try { moveInstance(instance, ROOT) } catch {}
   try {
     fs.mkdirSync(path.join(BASE_ROOT, '.maybee'), { recursive: true })
     fs.writeFileSync(path.join(BASE_ROOT, '.maybee', 'active-workspace.json'), JSON.stringify({ name: activeWorkspace }, null, 2))
@@ -296,8 +298,11 @@ function appUrl() {
 // connected to the live updates) is enough: no second tab. Right after a tab was asked for it is still loading
 // and not connected yet, so another call within 20 seconds does nothing either.
 let openedAt = 0
+// A page is open when it listens to the live updates or, still behind the membership lock, to the access events
+// (/api/events answers 403 until access is verified, so a locked page is only in accessClients).
+function pageOpen() { return clients.size > 0 || accessClients.size > 0 }
 async function openMaybeeWindow() {
-  if (clients.size) return { opened: false, reason: 'already-open' }
+  if (pageOpen()) return { opened: false, reason: 'already-open' }
   if (Date.now() - openedAt < 20000) return { opened: false, reason: 'opening' }
   openedAt = Date.now()
   const { spawn } = await import('node:child_process')
@@ -319,7 +324,7 @@ function openMaybeeAfterAccess() {
   // If the UI is already connected, its access gate will unlock in place. When
   // a skill/CLI performs the first check before opening a browser, open one
   // only after membership succeeds.
-  if (clients.size || process.env.MAYBEE_OPEN_AFTER_ACCESS === '0') return
+  if (pageOpen() || process.env.MAYBEE_OPEN_AFTER_ACCESS === '0') return
   openMaybeeWindow().catch(() => {})
 }
 
@@ -757,6 +762,7 @@ async function main() {
         const body = await readBody(req)
         return sendJSON(res, await initializeProject(body))
       }
+      if (url.pathname === '/api/ready') return sendJSON(res, ready(ROOT, seen))
       if (url.pathname === '/api/feed') {
         const out = await feed(ROOT, { all: q.all === '1', before: q.before ? Number(q.before) : null })
         markRead(out.items)
@@ -778,8 +784,12 @@ async function main() {
       }
       if (url.pathname === '/api/board') {
         const b = await board(ROOT, getIndex())
-        const withFiles = await nowCards(ROOT, getIndex())
-        b.columns.now.cards = b.columns.now.cards.map(c => ({ ...c, ...(withFiles.find(w => w.path === c.path) || {}) }))
+        // Every card lists what was made for it: a card in Now shows up to 6 of the files it links to (as before);
+        // the other columns show up to 3, only from the note's "## Work" list, so a header link is not taken for work.
+        for (const [key, col] of Object.entries(b.columns)) {
+          if (!Array.isArray(col.cards) || !col.cards.length) continue
+          await withFiles(ROOT, getIndex(), col.cards, key === 'now' ? 6 : 3, key !== 'now')
+        }
         // Routines have their own board column; the Desktop still shows today's due state.
         const d = await desktop(ROOT, getIndex(), APP_DIR, seen)
         b.routinesToday = d.rhythm.due.filter(r => !r.skipped).sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title))

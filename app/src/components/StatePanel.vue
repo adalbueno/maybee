@@ -76,7 +76,7 @@ const arc = p => `${(RING * p.filled) / p.total} ${RING}`
 const sub = f => f.desc || dateOf(f)
 const PLACES = [
   { key: 'workspace', name: 'Workspace', text: 'The board: what is in Maybe, Next, Now and Done, and the routines of the day.' },
-  { key: 'activity', name: 'Activity', text: 'What changed lately, newest first.' },
+  { key: 'inbox', name: 'Inbox', text: 'What Maybee made for you and what waits for your OK.' },
   { key: 'vault', name: 'Vault', text: 'Every file of the project, with search.' },
 ]
 // the files that hold the project's memory: its brief and state, who it is for, what it offers, how it sounds,
@@ -192,7 +192,7 @@ async function resolveItem(item, destination) {
     </section>
 
     <section class="brief-block">
-      <div class="block-head"><div><span class="eyebrow">Latest movement</span><h2>Recent changes</h2></div><button class="source-link" @click="emit('go', 'activity')">See all</button></div>
+      <div class="block-head"><div><span class="eyebrow">Latest movement</span><h2>Recent changes</h2></div><button class="source-link" @click="emit('go', 'inbox')">See all</button></div>
       <div v-if="st.changes.length" class="timeline changes">
         <button v-for="(change, i) in st.changes.slice(0, 5)" :key="change.date + i" @click="open(change.path)">
           <span>{{ dayLabel(change.date) }}</span><div><p>{{ cleanChange(change.text) }}</p></div>

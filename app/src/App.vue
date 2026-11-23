@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import logo from './assets/logo.png'
 import FeedCard from './components/FeedCard.vue'
+import ReadyFeed from './components/ReadyFeed.vue'
 import Viewer from './components/Viewer.vue'
 import Board from './components/Board.vue'
 import StatePanel from './components/StatePanel.vue'
@@ -39,11 +40,11 @@ const accessReady = ref(false)
 const workspaces = ref([])
 const activeWorkspace = ref('default')
 const workspaceMenuOpen = ref(false)
-// D254: routes. /overview · /workspace · /activity · /vault (D260, D261: renamed from /numbers, /desktop, /feed, /library; the old names still work), plus ?note=<path>&tab=<settings|changes> for a note.
+// D254: routes. /overview · /workspace · /inbox · /vault (D260, D261: renamed from /numbers, /desktop, /feed, /library; /activity became /inbox; the old names still work), plus ?note=<path>&tab=<settings|changes> for a note.
 // ?place=desktop (the SessionStart hook, D241) still works; with no route, the remembered place.
 // D245: the Desktop is the board (old 'kanban' place maps to it)
-const PLACES = ['overview', 'workspace', 'activity', 'vault']
-const ALIASES = { kanban: 'workspace', desktop: 'workspace', feed: 'activity', library: 'vault', numbers: 'overview', about: 'overview' }
+const PLACES = ['overview', 'workspace', 'inbox', 'vault']
+const ALIASES = { kanban: 'workspace', desktop: 'workspace', feed: 'inbox', activity: 'inbox', library: 'vault', numbers: 'overview', about: 'overview' }
 const fixPlace = p => ALIASES[p] || p
 function readUrl() {
   const q = new URLSearchParams(location.search)
@@ -101,7 +102,26 @@ async function onMaybee(cmd) {
 }
 function closeViewer() { open.value = null; syncUrl() }
 function go(p) { p = fixPlace(p); place.value = p; try { localStorage.setItem('maybee.place', p) } catch {}; syncUrl() }
+// The Inbox shows what arrived for you (/api/ready); its unread count is the badge. "Every change" opens the old file feed.
 const unread = ref(0)
+const feedUnread = ref(0)
+const readyData = ref(null)
+const showChanges = ref(false)
+async function loadReady() {
+  try { readyData.value = await fetch('/api/ready').then(r => r.json()); unread.value = readyData.value.unread || 0 } catch {}
+}
+function readySeen(it) {
+  it.read = true
+  unread.value = Math.max(0, unread.value - 1)
+  markSeen([it.key])
+}
+async function readyAllSeen() {
+  const keys = (readyData.value?.items || []).filter(i => !i.read).map(i => { i.read = true; return i.key })
+  unread.value = 0
+  await markSeen(keys)
+}
+// a request that finished (or made a file) changes what's ready
+watch(() => claude.items.map(i => i.id + i.status + (i.outputs ? i.outputs.length : 0)).join(), () => loadReady())
 
 const FILTERS = [
   { key: 'all', label: 'All' },
@@ -155,8 +175,9 @@ async function loadFeed(append = false) {
   items.value = append ? items.value.concat(res.items) : res.items
   next.value = res.next
   total.value = res.total
-  unread.value = res.unread || 0
+  feedUnread.value = res.unread || 0
   loading.value = false
+  loadReady()
 }
 async function loadNumbers() {
   nums.value = await fetch('/api/numbers').then(r => r.json())
@@ -201,15 +222,19 @@ function openItem(payload) {
   open.value = payload
   openTab.value = payload.tab || 'content'
   syncUrl()
+  // opening a card (from the board, a link or the Inbox) counts what's ready on it as seen, so the badge and the card agree
+  const onCard = (readyData.value?.items || []).filter(i => !i.read && (i.card === payload.path || i.file === payload.path))
+  if (onCard.length) { onCard.forEach(i => { i.read = true }); unread.value = Math.max(0, unread.value - onCard.length); markSeen(onCard.map(i => i.key)) }
   if (payload.key) {
     const it = items.value.find(i => (i.type === 'decision' ? 'decision:' + i.id : i.type === 'media' ? 'media:' + i.id : i.path) === payload.key)
-    if (it && !it.read) { it.read = true; unread.value = Math.max(0, unread.value - 1); markSeen([payload.key]) }
+    if (it && !it.read) { it.read = true; feedUnread.value = Math.max(0, feedUnread.value - 1); markSeen([payload.key]) }
   }
 }
 async function markAllRead() {
   await fetch('/api/seen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) })
   items.value.forEach(i => { i.read = true })
-  unread.value = 0
+  feedUnread.value = 0
+  loadReady()
 }
 function toggleAll() { showAll.value = !showAll.value; loadFeed() }
 
@@ -419,7 +444,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
       </div>
       <nav class="places">
         <a class="place" :class="{ active: place === 'workspace' }" @click="go('workspace')">Workspace</a>
-        <a class="place" :class="{ active: place === 'activity' }" @click="go('activity')">Activity<small v-if="unread" class="place-badge" :title="unread + ' unread change' + (unread === 1 ? '' : 's')">{{ unread > 99 ? '99+' : unread }}</small></a>
+        <a class="place" :class="{ active: place === 'inbox' }" @click="go('inbox')">Inbox<small v-if="unread" class="place-badge" :title="unread + (unread === 1 ? ' thing' : ' things') + ' ready for you'">{{ unread > 99 ? '99+' : unread }}</small></a>
         <a class="place" :class="{ active: place === 'vault' }" @click="go('vault')">Vault</a>
         <a class="place" :class="{ active: place === 'overview' }" @click="go('overview')">About</a>
       </nav>
@@ -437,7 +462,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
       <main v-if="place === 'workspace'" class="board-wrap">
         <Board ref="board" :changed-at="lastChange" :active-path="open && open.path" @open="openItem" />
       </main>
-      <main v-else-if="place === 'vault'" class="lib-wrap">
+      <main v-else-if="place === 'vault'" class="board-wrap vault-wrap">
         <Library :changed-at="lastChange" :active-path="open && open.path" @open="openItem" />
       </main>
       <main v-else-if="place === 'overview'" class="lib-wrap">
@@ -445,19 +470,22 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
       </main>
       <main v-else class="feed">
         <div class="feed-inner">
+        <ReadyFeed v-if="!showChanges" :data="readyData" :active-path="open && open.path" @open="openItem" @seen="readySeen" @all-seen="readyAllSeen" @changes="showChanges = true" />
+        <template v-else>
+        <button class="link-btn back-ready" @click="showChanges = false">‹ Inbox</button>
         <div class="hero">
           <div class="hero-kicker">{{ hero.kicker }}</div>
           <h1 class="hero-title"><b>{{ hero.title.strong }}</b>{{ hero.title.rest }}</h1>
           <p class="hero-sub">{{ hero.sub }}</p>
           <div class="hero-actions">
-            <button v-if="unread" class="unread-btn" @click="filter = 'unread'"><i></i>{{ unread }} unread</button>
+            <button v-if="feedUnread" class="unread-btn" @click="filter = 'unread'"><i></i>{{ feedUnread }} unread</button>
             <span v-else class="all-read">You've seen everything.</span>
-            <button v-if="unread" class="link-btn" @click="markAllRead">Mark all as read</button>
+            <button v-if="feedUnread" class="link-btn" @click="markAllRead">Mark all as read</button>
           </div>
         </div>
         <div class="filters">
           <button v-for="f in filters" :key="f.key" class="filter" :class="{ on: filter === f.key }" @click="filter = f.key">
-            {{ f.label }}<small v-if="f.key === 'unread' ? unread : (f.key !== 'all' && f.count)">{{ f.key === 'unread' ? unread : f.count }}</small>
+            {{ f.label }}<small v-if="f.key === 'unread' ? feedUnread : (f.key !== 'all' && f.count)">{{ f.key === 'unread' ? feedUnread : f.count }}</small>
           </button>
           <button class="filter files-toggle" :class="{ on: showAll }" @click="toggleAll" title="Also list the project's own files: STATE, README, owner/, knowledge/ and the like. They are always in the Vault.">Project files<small>{{ showAll ? 'shown' : 'hidden' }}</small></button>
         </div>
@@ -477,6 +505,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
           <p v-else-if="items.length" class="end">That's everything{{ showAll ? '' : ' here. Project files are hidden' }}.</p>
           <p v-else-if="!loading" class="end">Nothing here yet.</p>
         </div>
+        </template>
         </div>
       </main>
 

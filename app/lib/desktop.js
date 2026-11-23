@@ -280,9 +280,19 @@ async function ideaOfTheDay(root, index, appDir, today) {
 // The files a now card points to: links in the note to things that go out (outputs/, logs/metrics) and media.
 export async function nowCards(root, index) {
   const cards = (await loadCards(root, index)).filter(c => c.stage === 'now').sort((a, b) => b.mtime - a.mtime)
+  return withFiles(root, index, cards, 6)
+}
+
+// The same for any cards: what the agent made for a card shows on it in every column, not only in Now.
+// workOnly: only the links under the note's "## Work" heading (what was made for it), not every link in the note.
+export async function withFiles(root, index, cards, max = 6, workOnly = false) {
   for (const c of cards) {
     let text = ''
     try { text = await fsp.readFile(path.join(root, c.path), 'utf8') } catch {}
+    if (workOnly) {
+      const at = text.search(/^## Work[ \t]*$/m)
+      text = at < 0 ? '' : text.slice(at).split(/\n(?=## )/)[0]
+    }
     const dir = path.posix.dirname(c.path)
     const files = []
     for (const m of text.matchAll(/\]\(([^)\s]+)\)|\[\[([^\]|#]+)/g)) {
@@ -296,8 +306,10 @@ export async function nowCards(root, index) {
       if (!files.some(f => f.path === rel)) files.push({ path: rel, name: path.basename(rel).replace(/\.md$/, ''), media: MEDIA.test(rel), video: /\.(mp4|webm|mov)$/i.test(rel), mtime: index.get(rel).mtime })
     }
     files.sort((a, b) => b.mtime - a.mtime)
-    c.files = files.slice(0, 6)
-    c.moreFiles = Math.max(0, files.length - 6)
+    c.files = files.slice(0, max)
+    c.moreFiles = Math.max(0, files.length - max)
+    c.fileCount = files.length // the board shows only this count, with a dot when one is newer than the last time the card was opened
+    c.newest = files.length ? files[0].mtime : 0
   }
   return cards
 }
