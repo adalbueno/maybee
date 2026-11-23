@@ -2,6 +2,12 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.48 · 23 Nov 2026
+
+**A tidier Vault.**
+
+- **The first column** shows a smaller bee and your file count; the workspace's name shows on hover and as the title at the top level.
+
 ## 0.1.47 · 23 Nov 2026
 
 **An Inbox, and a Vault made of cards.**
