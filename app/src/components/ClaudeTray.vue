@@ -19,7 +19,7 @@ const heard = computed(() => {
 const party = ref(0)
 const lastStatus = new Map()
 watch(() => claude.items.map(i => i.id + ':' + i.status).join(), async () => {
-  const finished = claude.items.filter(i => i.status === 'done' && lastStatus.has(i.id) && lastStatus.get(i.id) !== 'done' && i.path && i.path !== '@about')
+  const finished = claude.items.filter(i => i.status === 'done' && lastStatus.has(i.id) && lastStatus.get(i.id) !== 'done' && i.path && !i.path.startsWith('@'))
   claude.items.forEach(i => lastStatus.set(i.id, i.status))
   if (!finished.length) return
   const b = await fetch('/api/board').then(r => r.json()).catch(() => null)
@@ -35,7 +35,7 @@ const groups = computed(() => {
   for (const r of claude.items) { // newest first already
     const key = r.path || r.id
     let g = map.get(key)
-    if (!g) { g = { key, path: r.path, title: r.path === '@about' ? 'About' : r.title || r.path || 'Request', at: r.at, last: r, count: 0, status: 'done' }; map.set(key, g) }
+    if (!g) { g = { key, path: r.path, title: r.path === '@about' ? 'About' : r.path === '@brain' ? 'Brain' : r.path === '@inbox' ? 'Inbox' : r.title || r.path || 'Request', at: r.at, last: r, count: 0, status: 'done' }; map.set(key, g) }
     g.count++
     if (r.status !== 'done' && g.status === 'done') g.status = r.status
   }
@@ -44,7 +44,7 @@ const groups = computed(() => {
 function openGroup(g) {
   if (!g.path) return
   open.value = false
-  emit('open', g.path === '@about' ? { path: g.path } : { path: g.path, chat: Date.now() })
+  emit('open', g.path.startsWith('@') ? { path: g.path } : { path: g.path, chat: Date.now() })
 }
 const statusText = r => r.status === 'done' ? 'Done' : r.status === 'working' ? 'Running now' : r.status === 'queued' ? 'In line' : 'Waiting'
 // what was asked, without the word Request: the text when there is one, otherwise the button that was pressed

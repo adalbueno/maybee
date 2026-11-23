@@ -37,8 +37,10 @@ const props = defineProps({
   // submit: the text goes to this function instead of the AI (the board saves it as a card straight away); it returns true when done.
   // There is no conversation then: the bee is only a mark and nothing opens.
   submit: Function,
+  // about: the note open beside this chat, sent with each request (the Inbox's chat uses it)
+  about: { type: String, default: null },
 })
-const emit = defineEmits(['settled', 'open'])
+const emit = defineEmits(['settled', 'open', 'typing'])
 function onMsgClick(e) {
   const a = e.target.closest && e.target.closest('a[data-open]')
   if (a) { e.preventDefault(); emit('open', a.dataset.open) }
@@ -51,6 +53,8 @@ const open = ref(false)
 const seen = ref(0) // replies already seen: the dot shows when there are more than this
 const box = ref(null)
 const field = ref(null)
+// what is being typed, for a page that filters as you type (the Brain); sending empties it
+watch(text, t => emit('typing', t))
 let timer = null
 let doneIds = null // ids already done at the last look; a new one means the AI finished something
 
@@ -122,7 +126,7 @@ async function send(action = 'Request', extra = text.value) {
   }
   sending.value = true
   toggle(true)
-  try { await ask({ action, text: action === 'Request' ? extra.trim() : '', path: props.path, title: props.title, quiet: true }) } finally { sending.value = false }
+  try { await ask({ action, text: action === 'Request' ? extra.trim() : '', path: props.path, title: props.title, about: props.about, quiet: true }) } finally { sending.value = false }
   if (action === 'Request') { text.value = ''; nextTick(grow) }
   await load()
   scrollEnd()

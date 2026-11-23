@@ -14,6 +14,7 @@ import { desktop, setFields, dayKey, nowCards, withFiles, routinesOn, overviewSt
 import { initInbox, readInbox, addRequest, listening, lastHeard, promptFor } from './lib/inbox.js'
 import { readBridge } from './lib/bridge.js'
 import { ready } from './lib/ready.js'
+import { movePath, renamePath, trashPath, restorePath } from './lib/files.js'
 import { initSnapshots, snapshot, diffFor } from './lib/snapshots.js'
 import { verifySkool } from './local-skool-verifier.js'
 import { ensureBrowser, holdBrowser, defaultChromiumBrowser } from './lib/browser.js'
@@ -811,6 +812,37 @@ async function main() {
           return sendJSON(res, { error: err.message }, err.code === 409 ? 409 : 400)
         }
       }
+      // The Brain: move, rename, delete (into .trash/) and put back. A move fixes every link to what moved (lib/files.js).
+      if (url.pathname.startsWith('/api/files/') && req.method === 'POST') {
+        const body = await readBody(req)
+        const op = url.pathname.slice('/api/files/'.length)
+        try {
+          let r
+          if (op === 'move') r = await movePath(ROOT, body.path, (body.dir ? String(body.dir).replace(/\/+$/, '') + '/' : '') + path.posix.basename(String(body.path || '')))
+          else if (op === 'rename') r = await renamePath(ROOT, body.path, body.name)
+          else if (op === 'delete') r = await trashPath(ROOT, body.path)
+          else if (op === 'restore') r = await restorePath(ROOT, body.trash, body.path)
+          else return sendJSON(res, { error: 'unknown' }, 404)
+          // what the owner had seen stays seen under the new path
+          if (r.map) {
+            for (const k of Object.keys(seen.items)) {
+              const m = k.match(/^(ready:(?:out|card):)?(.*)$/)
+              const moved = r.map(m[2])
+              if (moved !== m[2]) { seen.items[(m[1] || '') + moved] = seen.items[k]; delete seen.items[k] }
+            }
+            saveSeen()
+          }
+          await buildIndex(ROOT)
+          const what = r.isDir ? 'folder' : 'file'
+          if (op === 'move' || op === 'rename') await logChange(ROOT, `${op === 'move' ? 'Moved' : 'Renamed'} the ${what} ${r.from} → ${r.to} in the Brain; links fixed in ${r.updated.length} ${r.updated.length === 1 ? 'note' : 'notes'} (${r.to})`)
+          else if (op === 'delete') await logChange(ROOT, `Deleted the ${what} ${r.from} in the Brain; it is in ${r.trash} until the trash is emptied`)
+          else await logChange(ROOT, `Put back ${r.to} from the trash in the Brain (${r.to})`)
+          delete r.map
+          return sendJSON(res, { ok: true, ...r })
+        } catch (err) {
+          return sendJSON(res, { error: err.message }, err.code === 400 ? 400 : 500)
+        }
+      }
       // Clean up a card in Not: the note moves to _to_delete/ (the only place this server moves a file, and only on this request)
       if (url.pathname === '/api/card/delete' && req.method === 'POST') {
         const body = await readBody(req)
@@ -933,7 +965,7 @@ async function main() {
       }
       if (url.pathname === '/api/inbox') {
         // With ?path=, only the requests about that note (its chat); otherwise the latest ones across the project.
-        const all = readInbox().filter(r => r.path !== '@about' || !r.workspace || r.workspace === activeWorkspace)
+        const all = readInbox().filter(r => !String(r.path || '').startsWith('@') || !r.workspace || r.workspace === activeWorkspace) // About and Brain chats belong to their workspace
         const items = q.path ? all.filter(r => r.path === String(q.path)).slice(-30) : all.slice(-20)
         return sendJSON(res, { listening: listening(), heardAt: lastHeard(), bridge: readBridge(), items: items.reverse() })
       }

@@ -1,11 +1,9 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import logo from './assets/logo.png'
-import FeedCard from './components/FeedCard.vue'
 import ReadyFeed from './components/ReadyFeed.vue'
 import Viewer from './components/Viewer.vue'
 import Board from './components/Board.vue'
-import StatePanel from './components/StatePanel.vue'
 import Library from './components/Library.vue'
 import ClaudeTray from './components/ClaudeTray.vue'
 import Onboarding from './components/Onboarding.vue'
@@ -40,11 +38,11 @@ const accessReady = ref(false)
 const workspaces = ref([])
 const activeWorkspace = ref('default')
 const workspaceMenuOpen = ref(false)
-// D254: routes. /overview · /workspace · /inbox · /vault (D260, D261: renamed from /numbers, /desktop, /feed, /library; /activity became /inbox; the old names still work), plus ?note=<path>&tab=<settings|changes> for a note.
+// D254: routes. /workspace · /inbox · /brain (D260, D261: renamed from /desktop, /feed, /library; /activity became /inbox, /vault became /brain; About (/overview, /numbers) is gone, its parts live in the Brain; the old names still work), plus ?note=<path>&tab=<settings|changes> for a note.
 // ?place=desktop (the SessionStart hook, D241) still works; with no route, the remembered place.
 // D245: the Desktop is the board (old 'kanban' place maps to it)
-const PLACES = ['overview', 'workspace', 'inbox', 'vault']
-const ALIASES = { kanban: 'workspace', desktop: 'workspace', feed: 'inbox', activity: 'inbox', library: 'vault', numbers: 'overview', about: 'overview' }
+const PLACES = ['workspace', 'inbox', 'brain']
+const ALIASES = { kanban: 'workspace', desktop: 'workspace', feed: 'inbox', activity: 'inbox', library: 'brain', vault: 'brain', numbers: 'brain', about: 'brain', overview: 'brain' }
 const fixPlace = p => ALIASES[p] || p
 function readUrl() {
   const q = new URLSearchParams(location.search)
@@ -106,7 +104,6 @@ function go(p) { p = fixPlace(p); place.value = p; try { localStorage.setItem('m
 const unread = ref(0)
 const feedUnread = ref(0)
 const readyData = ref(null)
-const showChanges = ref(false)
 async function loadReady() {
   try { readyData.value = await fetch('/api/ready').then(r => r.json()); unread.value = readyData.value.unread || 0 } catch {}
 }
@@ -215,6 +212,8 @@ async function markSeen(keys) {
   await fetch('/api/seen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }) })
 }
 function openItem(payload) {
+  if (payload.path === '@inbox') return go('inbox') // the Inbox's chat: its answers show on the Inbox
+  if (payload.path === '@brain' || payload.path === '@about') return go('brain') // the Brain's chat (and the old About chat): its answers show on the Brain page
   // Plugin 3/3: drop a stale #fragment when navigating to a different note (the previous
   // note's hash has no meaning on the new one). Keep the hash when only the tab changes.
   const samePath = open.value && open.value.path === payload.path
@@ -445,8 +444,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
       <nav class="places">
         <a class="place" :class="{ active: place === 'workspace' }" @click="go('workspace')">Workspace</a>
         <a class="place" :class="{ active: place === 'inbox' }" @click="go('inbox')">Inbox<small v-if="unread" class="place-badge" :title="unread + (unread === 1 ? ' thing' : ' things') + ' ready for you'">{{ unread > 99 ? '99+' : unread }}</small></a>
-        <a class="place" :class="{ active: place === 'vault' }" @click="go('vault')">Vault</a>
-        <a class="place" :class="{ active: place === 'overview' }" @click="go('overview')">About</a>
+        <a class="place" :class="{ active: place === 'brain' }" @click="go('brain')">Brain</a>
       </nav>
       <div class="tools">
         <ClaudeTray :live="live" @open="openItem" />
@@ -462,51 +460,11 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
       <main v-if="place === 'workspace'" class="board-wrap">
         <Board ref="board" :changed-at="lastChange" :active-path="open && open.path" @open="openItem" />
       </main>
-      <main v-else-if="place === 'vault'" class="board-wrap vault-wrap">
+      <main v-else-if="place === 'brain'" class="board-wrap vault-wrap">
         <Library :workspace="(workspaces.find(w => w.name === activeWorkspace) || {}).label || activeWorkspace" :changed-at="lastChange" :active-path="open && open.path" @open="openItem" />
       </main>
-      <main v-else-if="place === 'overview'" class="lib-wrap">
-        <StatePanel :changed-at="lastChange" @open="openItem" @go="go" />
-      </main>
-      <main v-else class="feed">
-        <div class="feed-inner">
-        <ReadyFeed v-if="!showChanges" :data="readyData" :active-path="open && open.path" @open="openItem" @seen="readySeen" @all-seen="readyAllSeen" @changes="showChanges = true" />
-        <template v-else>
-        <button class="link-btn back-ready" @click="showChanges = false">‹ Inbox</button>
-        <div class="hero">
-          <div class="hero-kicker">{{ hero.kicker }}</div>
-          <h1 class="hero-title"><b>{{ hero.title.strong }}</b>{{ hero.title.rest }}</h1>
-          <p class="hero-sub">{{ hero.sub }}</p>
-          <div class="hero-actions">
-            <button v-if="feedUnread" class="unread-btn" @click="filter = 'unread'"><i></i>{{ feedUnread }} unread</button>
-            <span v-else class="all-read">You've seen everything.</span>
-            <button v-if="feedUnread" class="link-btn" @click="markAllRead">Mark all as read</button>
-          </div>
-        </div>
-        <div class="filters">
-          <button v-for="f in filters" :key="f.key" class="filter" :class="{ on: filter === f.key }" @click="filter = f.key">
-            {{ f.label }}<small v-if="f.key === 'unread' ? feedUnread : (f.key !== 'all' && f.count)">{{ f.key === 'unread' ? feedUnread : f.count }}</small>
-          </button>
-          <button class="filter files-toggle" :class="{ on: showAll }" @click="toggleAll" title="Also list the project's own files: STATE, README, owner/, knowledge/ and the like. They are always in the Vault.">Project files<small>{{ showAll ? 'shown' : 'hidden' }}</small></button>
-        </div>
-        <section v-for="g in days" :key="g.key" class="day">
-          <h2 class="day-label"><span>{{ dayLabel(g.date)[0] }}</span> {{ dayLabel(g.date)[1] }}</h2>
-          <FeedCard
-            v-for="it in g.items"
-            :key="it.type + (it.path || '') + (it.id || '')"
-            :item="it"
-            :fresh="isFresh(it)"
-            :active="open && open.path === it.path && it.type !== 'decision'"
-            @open="openItem"
-          />
-        </section>
-        <div class="more">
-          <button v-if="next" class="more-btn" :disabled="loading" @click="loadFeed(true)">Earlier</button>
-          <p v-else-if="items.length" class="end">That's everything{{ showAll ? '' : ' here. Project files are hidden' }}.</p>
-          <p v-else-if="!loading" class="end">Nothing here yet.</p>
-        </div>
-        </template>
-        </div>
+      <main v-else class="board-wrap inbox-wrap">
+        <ReadyFeed :data="readyData" :active-path="open && open.path" @open="openItem" @seen="readySeen" @all-seen="readyAllSeen" />
       </main>
 
       <Viewer v-if="open" :target="open" :fresh-at="lastChange" :fresh="fresh" @close="closeViewer" @open="openItem" @tab="onTab" @maybee="onMaybee" />

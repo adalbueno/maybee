@@ -34,4 +34,4 @@ The tool works on Markdown links (`[text](path)`, `[text](<path with spaces>)` a
 
 ## A workspace made before the template had the foundations
 
-Workspaces created by an older version lack `knowledge/audience/`, `knowledge/offer/`, `knowledge/brand/` and `decisions/`. The About page offers to add them. You can do the same with `fill`: it adds only the template files the workspace is missing and never touches one that exists. Offer it when the user wants to describe their audience, offer or brand in a workspace that does not have those files yet.
+Workspaces created by an older version lack `knowledge/audience/`, `knowledge/offer/`, `knowledge/brand/` and `decisions/`. The Brain offers to add them, on top of the workspace's root. You can do the same with `fill`: it adds only the template files the workspace is missing and never touches one that exists. Offer it when the user wants to describe their audience, offer or brand in a workspace that does not have those files yet.

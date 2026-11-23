@@ -3,7 +3,7 @@
 // - card: a card the agent created (the owner's own cards, made in the app, are logged "(Maybee app) New idea" and stay out);
 // Answers stay in each card's chat: they are a conversation, not something made.
 // - waiting: what STATE.md lists under "Waiting on the owner", always on top until it is resolved.
-// The raw history of every file stays in each card's Changes tab and in the Vault.
+// The raw history of every file stays in each card's Changes tab and in the Brain.
 import fs from 'node:fs'
 import path from 'node:path'
 
