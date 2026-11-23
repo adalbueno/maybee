@@ -2,6 +2,16 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.47 · 23 Nov 2026
+
+**An Inbox, and a Vault made of cards.**
+
+- **Inbox** replaces Activity: what Maybee made or created for you, by card, new on top, plus what waits for your OK.
+- **Every output is on a card**, under Work and under its reply in the chat; a set of pieces is one note per piece.
+- **Board cards** show a file count with a NEW mark.
+- **Vault**: folders and files as cards, the path as columns like the board, search at the bottom.
+- **Fixes**: no second window after confirming membership; switching workspace keeps scripts on the right one.
+
 ## 0.1.46 · 21 Nov 2026
 
 **The work shows on the card.**
