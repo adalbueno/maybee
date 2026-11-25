@@ -14,7 +14,7 @@ import { desktop, setFields, dayKey, nowCards, withFiles, routinesOn, overviewSt
 import { initInbox, readInbox, addRequest, listening, lastHeard, promptFor } from './lib/inbox.js'
 import { readBridge } from './lib/bridge.js'
 import { ready } from './lib/ready.js'
-import { movePath, renamePath, trashPath, restorePath } from './lib/files.js'
+import { movePath, renamePath, trashPath, restorePath, saveAttachment } from './lib/files.js'
 import { initSnapshots, snapshot, diffFor } from './lib/snapshots.js'
 import { verifySkool } from './local-skool-verifier.js'
 import { ensureBrowser, holdBrowser, defaultChromiumBrowser } from './lib/browser.js'
@@ -813,6 +813,14 @@ async function main() {
         }
       }
       // The Brain: move, rename, delete (into .trash/) and put back. A move fixes every link to what moved (lib/files.js).
+      // A file attached in a chat: the raw bytes, the name in ?name=. It is saved in attachments/ and its path goes with the request.
+      if (url.pathname === '/api/attach' && req.method === 'POST') {
+        try {
+          const a = await saveAttachment(ROOT, q.name, req)
+          await statFile(ROOT, a.path)
+          return sendJSON(res, { ok: true, ...a })
+        } catch (err) { req.resume(); return sendJSON(res, { error: err.message }, err.code === 400 ? 400 : 500) }
+      }
       if (url.pathname.startsWith('/api/files/') && req.method === 'POST') {
         const body = await readBody(req)
         const op = url.pathname.slice('/api/files/'.length)
@@ -861,6 +869,12 @@ async function main() {
         const body = await readBody(req)
         try {
           const c = await createCard(ROOT, getIndex(), body.title)
+          // files attached in the board's chat go on the new card, as links
+          const att = Array.isArray(body.files) ? body.files.filter(f => typeof f === 'string' && /^attachments\//.test(f) && !f.includes('..')).slice(0, 10) : []
+          if (att.length) {
+            const link = f => (/\.(png|jpe?g|gif|webp|svg)$/i.test(f) ? '!' : '') + `[${path.posix.basename(f)}](<../${f}>)`
+            await fsp.appendFile(path.join(ROOT, c.path), `\n## Files\n\n${att.map(f => '- ' + link(f)).join('\n')}\n`)
+          }
           await statFile(ROOT, c.path)
           seen.items[c.path] = Date.now() + 2000; saveSeen(); await snapshot(c.path)
           await logChange(ROOT, `New idea in Maybe: ${c.title} (${c.path})`)

@@ -98,7 +98,9 @@ async function onMaybee(cmd) {
     board.value?.show(what)
   }
 }
-function closeViewer() { open.value = null; syncUrl() }
+// A note can take the whole window for a while (a long read, a wide image); closing it brings the page back next time
+const maxed = ref(false)
+function closeViewer() { open.value = null; maxed.value = false; syncUrl() }
 function go(p) { p = fixPlace(p); place.value = p; try { localStorage.setItem('maybee.place', p) } catch {}; syncUrl() }
 // The Inbox shows what arrived for you (/api/ready); its unread count is the badge. "Every change" opens the old file feed.
 const unread = ref(0)
@@ -405,7 +407,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
 </script>
 
 <template>
-  <div class="shell" :class="{ 'with-viewer': open, onboarding: showOnboarding }" @click="workspaceMenuOpen = false">
+  <div class="shell" :class="{ 'with-viewer': open, 'max-viewer': open && maxed, onboarding: showOnboarding }" @click="workspaceMenuOpen = false">
     <AccessGate v-if="!accessReady || previewGate" :preview="previewGate" @verified="accessVerified" />
     <Onboarding v-if="showOnboarding" @done="onboardingDone" />
     <header class="top">
@@ -467,7 +469,7 @@ onBeforeUnmount(() => { es && es.close(); clearInterval(heartbeatTimer); window.
         <ReadyFeed :data="readyData" :active-path="open && open.path" @open="openItem" @seen="readySeen" @all-seen="readyAllSeen" />
       </main>
 
-      <Viewer v-if="open" :target="open" :fresh-at="lastChange" :fresh="fresh" @close="closeViewer" @open="openItem" @tab="onTab" @maybee="onMaybee" />
+      <Viewer v-if="open" :maxed="maxed" @maximize="maxed = !maxed" :target="open" :fresh-at="lastChange" :fresh="fresh" @close="closeViewer" @open="openItem" @tab="onTab" @maybee="onMaybee" />
     </div>
     <div v-if="claude.toast" class="toast">{{ claude.toast }}</div>
     <div v-if="notice.text" class="toast notice" :class="notice.kind" role="status" @click="notice.text = ''">{{ notice.text }}</div>

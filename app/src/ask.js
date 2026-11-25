@@ -33,10 +33,10 @@ refreshInbox()
 function say(m) { claude.toast = m; setTimeout(() => { if (claude.toast === m) claude.toast = '' }, 4200) }
 
 // quiet: the caller shows the outcome itself (the chat bubble), so no toast over it
-export async function ask({ action, text = '', path = null, title = null, about = null, quiet = false }) {
+export async function ask({ action, text = '', path = null, title = null, about = null, files = [], quiet = false }) {
   const res = await fetch('/api/ask', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, text, path, title, about }),
+    body: JSON.stringify({ action, text, path, title, about, files }),
   }).then(r => r.json())
   if (res.listening) { if (!quiet) say('Sent to ' + (claude.bridge ? agentName(claude.bridge) : 'the assistant') + '. The answer shows up here and in the chat.') }
   else {

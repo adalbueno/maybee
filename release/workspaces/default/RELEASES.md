@@ -2,6 +2,16 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.50 · 25 Nov 2026
+
+**Attach files in every chat.**
+
+- **Attach files** in the board's, the Inbox's, the Brain's and every card's chat: the paperclip, drop a file, or paste a screenshot; an icon shows each file's kind, and Maybee reads them first.
+- **Files stay in the project**, in `attachments/` (shown in the Brain); the same file attached twice is kept once.
+- **On the board**, a file attached in the bar goes on the new card; a file sent alone names the card.
+- **One chat in sight**: with a card open, the board's bar shows while your mouse is over the board, the card's chat while it is over the card.
+- **A card can fill the window**, with the button next to ✕.
+
 ## 0.1.49 · 23 Nov 2026
 
 **A Brain you can ask, and an Inbox like mail.**

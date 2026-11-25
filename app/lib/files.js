@@ -166,3 +166,49 @@ export async function restorePath(root, trash, rel) {
   await fsp.rename(path.join(root, t), path.join(root, to))
   return { to }
 }
+
+// A file the owner attaches in a chat: kept in attachments/ under its own name ("name 2.ext" when the name is taken),
+// so the agent and the Brain find it like any other file of the project.
+export const ATTACH_DIR = 'attachments'
+const ATTACH_MAX = 100 * 1024 * 1024
+export async function saveAttachment(root, name, stream) {
+  let n = String(name || '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().replace(/^[.\s]+/, '').slice(-120).trim()
+  if (!n) n = 'file'
+  const ext = P.extname(n), base = n.slice(0, n.length - ext.length) || 'file'
+  await fsp.mkdir(path.join(root, ATTACH_DIR), { recursive: true })
+  let rel = `${ATTACH_DIR}/${base}${ext}`, i = 2
+  while (await exists(path.join(root, rel))) rel = `${ATTACH_DIR}/${base} ${i++}${ext}`
+  const abs = path.join(root, rel)
+  const out = fs.createWriteStream(abs, { flags: 'wx' })
+  let size = 0
+  try {
+    await new Promise((resolve, reject) => {
+      stream.on('data', c => {
+        size += c.length
+        if (size > ATTACH_MAX) { stream.pause(); reject(Object.assign(new Error('That file is over 100 MB.'), { code: 400 })) }
+        else if (!out.write(c)) { stream.pause(); out.once('drain', () => stream.resume()) }
+      })
+      stream.on('end', () => out.end(resolve))
+      stream.on('error', reject)
+      out.on('error', reject)
+    })
+  } catch (e) { out.destroy(); await fsp.rm(abs, { force: true }); throw e }
+  // the same file attached again (a second try, the same file in two chats) is the one already there, not a copy named "2"
+  const same = await sameFile(root, rel, base, ext, size)
+  if (same) { await fsp.rm(abs, { force: true }); return { path: same, name: P.basename(same), size } }
+  return { path: rel, name: P.basename(rel), size }
+}
+async function sameFile(root, rel, base, ext, size) {
+  const names = await fsp.readdir(path.join(root, ATTACH_DIR)).catch(() => [])
+  const like = new RegExp('^' + esc(base) + '(?: \\d+)?' + esc(ext) + '$')
+  let mine = null
+  for (const n of names) {
+    const r = `${ATTACH_DIR}/${n}`
+    if (r === rel || !like.test(n)) continue
+    const st = await exists(path.join(root, r))
+    if (!st || st.size !== size) continue
+    mine = mine || await fsp.readFile(path.join(root, rel))
+    if (mine.equals(await fsp.readFile(path.join(root, r)))) return r
+  }
+  return null
+}

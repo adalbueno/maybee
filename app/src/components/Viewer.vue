@@ -4,8 +4,8 @@ import NoteProps from './NoteProps.vue'
 import LiveEditor from './LiveEditor.vue'
 import { humanize, when } from '../humanize.js'
 import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
-const props = defineProps({ target: Object, freshAt: Number, fresh: Object })
-const emit = defineEmits(['close', 'open', 'tab', 'maybee'])
+const props = defineProps({ maxed: Boolean, target: Object, freshAt: Number, fresh: Object })
+const emit = defineEmits(['close', 'open', 'tab', 'maybee', 'maximize'])
 
 const note = ref(null)
 // a note always opens on Content (Adal, 8/11), unless the link asks for a tab (D254)
@@ -389,6 +389,9 @@ const updated = computed(() => note.value && note.value.mtime
       <div id="vh-actions" class="vh-actions"></div>
       <a v-if="liveLink" class="v-link" :href="liveLink" target="_blank" rel="noopener">Open live ↗</a>
       <button v-if="note && note.ext === '.md' && !editing" class="v-link quiet edit-btn" @click="startEdit">Edit</button>
+      <button class="icon max-btn" :title="maxed ? 'Back beside the page' : 'Use the whole window'" :aria-label="maxed ? 'Restore' : 'Maximize'" @click="emit('maximize')">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path v-if="!maxed" d="M9.5 2.5h4v4M13.5 2.5L9 7M6.5 13.5h-4v-4M2.5 13.5L7 9" /><path v-else d="M13 3L9.5 6.5M9.5 3v3.5H13M3 13l3.5-3.5M6.5 13V9.5H3" /></svg>
+      </button>
       <button class="icon" title="Close (Esc)" @click="emit('close')">✕</button>
     </div>
 

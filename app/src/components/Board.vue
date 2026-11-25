@@ -280,9 +280,11 @@ if (typeof window !== 'undefined') window.addEventListener('click', () => { sort
 // Then the board goes to the new card and marks it for a moment, so it is clear where it went; the cursor stays in the field for the next idea.
 const fresh = ref(null) // the card just added: highlighted for a moment
 let freshTimer = null
-async function addIdea(title) {
+async function addIdea(title, files = []) {
+  // a file with no words: the card is named after the file, and the file goes on it
+  if (!title && files.length) title = files[0].split('/').pop().replace(/\.[^.]+$/, '')
   if (!title) return false
-  const res = await fetch('/api/card', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: title.slice(0, 140) }) })
+  const res = await fetch('/api/card', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: title.slice(0, 140), files }) })
   const out = await res.json().catch(() => ({}))
   if (!res.ok) { say(out.error || 'Could not add it'); return false }
   await load()

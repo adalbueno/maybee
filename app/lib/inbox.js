@@ -19,16 +19,23 @@ export function listening() { try { return Date.now() - fs.statSync(beat).mtimeM
 // When a session last listened (ms since epoch), or null if none ever did.
 export function lastHeard() { try { return fs.statSync(beat).mtimeMs } catch { return null } }
 
-export function addRequest({ action, text, path: p, title, workspace, about }) {
+export function addRequest({ action, text, path: p, title, workspace, about, files }) {
   const list = readInbox()
   const req = { id: Date.now().toString(36), at: new Date().toISOString(), action: String(action || 'ask').slice(0, 60), text: String(text || '').slice(0, 2000), path: p || null, title: title || null, workspace: workspace || null, status: 'pending', reply: null }
   // the note open beside a page's chat (the Inbox), so the agent knows what "this" is
   if (about && typeof about === 'string') req.about = about.slice(0, 300)
+  // files the owner attached in the chat (saved in attachments/ first), as paths inside the workspace
+  const att = Array.isArray(files) ? files.filter(f => typeof f === 'string' && f && !f.includes('..')).map(f => f.slice(0, 300)).slice(0, 10) : []
+  if (att.length) req.files = att
   list.push(req)
   writeInbox(list)
   return req
 }
+const attached = req => req.files && req.files.length ? ` (the owner attached: ${req.files.join(', ')}; read them first)` : ''
 export function promptFor(req) {
+  return promptText(req) + attached(req)
+}
+function promptText(req) {
   if (req.path === ABOUT_SCOPE) return `[From the Maybee app, Brain page] ${req.text} (${BRAIN_RULES})` // the About page is gone; an old request from it is handled like the Brain's
   if (req.path === BRAIN_SCOPE) return `[From the Maybee app, Brain page] ${req.text} (${BRAIN_RULES})`
   if (req.path === INBOX_SCOPE) return `[From the Maybee app, Inbox] ${req.text}${req.about ? ` (open beside the Inbox: ${req.about})` : ''} (${INBOX_RULES})`

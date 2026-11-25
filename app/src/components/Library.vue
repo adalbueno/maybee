@@ -55,7 +55,7 @@ const bandCards = computed(() => band.value ? [
 ] : [])
 const timeOf = p => (items.value.find(i => i.path === p) || {}).time
 const rootRank = p => { const i = Object.keys(DEFINES).indexOf(p); return i < 0 ? 99 : i }
-const NAMES = { ideas: 'Cards', outputs: 'Work', knowledge: 'Knowledge', decisions: 'Decisions', logs: 'Logs', people: 'People', owner: 'Owner' }
+const NAMES = { ideas: 'Cards', outputs: 'Work', knowledge: 'Knowledge', decisions: 'Decisions', logs: 'Logs', people: 'People', owner: 'Owner', attachments: 'Attachments' }
 function folderOf(dir) {
   const pre = dir ? dir + '/' : ''
   const dirs = new Map(), files = []
