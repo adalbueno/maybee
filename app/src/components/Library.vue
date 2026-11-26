@@ -301,7 +301,7 @@ const titleOf = p => (items.value.find(x => x.path === p) || { title: p.split('/
           </div>
         </section>
         <div class="vgrid">
-          <div v-for="d in (q ? qDirs : current.dirs)" :key="d.path" class="vcard folder" role="button" tabindex="0" :class="{ drop: dropOn === d.path && drag, dragging: drag && drag.path === d.path }" :title="d.path"
+          <div v-for="d in (q ? qDirs : current.dirs)" :key="d.path" class="vcard folder" role="button" tabindex="0" :class="{ drop: dropOn === d.path && drag, dragging: drag && drag.path === d.path, 'menu-open': menuFor === d.path }" :title="d.path"
             :draggable="renaming !== d.path" @dragstart="onDragStart($event, d.path, true)" @dragend="onDragEnd" @dragover="onDragOver($event, d.path)" @dragleave="onDragLeave(d.path)" @drop="onDrop($event, d.path)"
             @click="renaming !== d.path && (q ? openFound(d) : openDir(d.path))" @keydown.enter.self="q ? openFound(d) : openDir(d.path)">
             <span class="vtabmark"></span>
@@ -319,7 +319,7 @@ const titleOf = p => (items.value.find(x => x.path === p) || { title: p.split('/
             <span class="vmeta">{{ d.count }} {{ d.count === 1 ? 'file' : 'files' }}</span>
             <span class="vpeek"><span v-for="n in d.peek" :key="n">{{ n }}</span></span>
           </div>
-          <div v-for="f in gridFiles" :key="f.path" class="vcard vfile" role="button" tabindex="0" :class="{ sel: activePath === f.path, vmed: f.media, dragging: drag && drag.path === f.path }" :title="f.path"
+          <div v-for="f in gridFiles" :key="f.path" class="vcard vfile" role="button" tabindex="0" :class="{ sel: activePath === f.path, vmed: f.media, dragging: drag && drag.path === f.path, 'menu-open': menuFor === f.path }" :title="f.path"
             :draggable="renaming !== f.path" @dragstart="onDragStart($event, f.path, false)" @dragend="onDragEnd"
             @click="renaming !== f.path && emit('open', { path: f.path })" @keydown.enter.self="emit('open', { path: f.path })">
             <span class="vmore" role="button" title="More" @click.stop="menuFor = menuFor === f.path ? null : f.path">⋯</span>
@@ -436,7 +436,8 @@ const titleOf = p => (items.value.find(x => x.path === p) || { title: p.split('/
 .vbig-head h3 { margin: 0; font-size: 22px; letter-spacing: -.03em; }
 .vbig-head small { font-size: 13px; font-weight: 600; color: var(--ink-3); }
 .vgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
-.vcard { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-height: 150px; text-align: left; font: inherit; color: var(--ink); background: var(--card-hi); border: 0; border-radius: 18px; padding: 16px; cursor: pointer; box-shadow: 0 1px 2px rgba(0, 0, 0, .04); transition: box-shadow .15s, transform .15s; overflow: hidden; }
+.vcard { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-height: 150px; text-align: left; font: inherit; color: var(--ink); background: var(--card-hi); border: 0; border-radius: 18px; padding: 16px; cursor: pointer; box-shadow: 0 1px 2px rgba(0, 0, 0, .04); transition: box-shadow .15s, transform .15s; }
+.vcard.menu-open { z-index: 4; }
 .vcard:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, .09); transform: translateY(-2px); }
 .vcard.sel { box-shadow: 0 0 0 2px var(--ink); }
 .vcard b { font-size: 14.5px; line-height: 1.3; letter-spacing: -.01em; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
@@ -452,7 +453,7 @@ const titleOf = p => (items.value.find(x => x.path === p) || { title: p.split('/
 .vicon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-size: 16px; font-weight: 700; color: var(--c); background: color-mix(in srgb, var(--c) 14%, #fff); }
 .vcard.vmed { padding: 0 0 14px; }
 .vcard.vmed b, .vcard.vmed .vmeta { padding: 0 14px; }
-.vmedia { position: relative; width: 100%; height: 110px; background: var(--dark); margin-bottom: 6px; }
+.vmedia { position: relative; width: 100%; height: 110px; background: var(--dark); margin-bottom: 6px; border-radius: 18px 18px 0 0; overflow: hidden; }
 .vmedia img, .vmedia video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .vplay { position: absolute; left: 50%; top: 50%; width: 42px; height: 42px; margin: -21px 0 0 -21px; border-radius: 50%; display: grid; place-items: center; background: rgba(22, 21, 19, .72); color: #fff; box-shadow: 0 2px 12px rgba(0, 0, 0, .3); backdrop-filter: blur(4px); transition: transform .15s; }
 .vplay svg { width: 20px; height: 20px; margin-left: 2px; }
