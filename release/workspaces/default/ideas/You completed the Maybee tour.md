@@ -13,6 +13,6 @@ done: 2026-11-11
 
 # What Done means
 
-This is what the **Done** column is for: finished work that stays visible as history. Completing the onboarding cards is the first useful piece of work in this workspace.
+This is what the **Done** column is for: finished work that stays visible as history. Completing the onboarding cards is the first useful piece of work in this workspace. Open a card here and press **What comes next?** to ask Maybee what could follow.
 
-**Done when:** you know how to ask Maybee to capture an idea, choose a next step, and run a routine.
+**Done when:** you know how to capture an idea, choose a next step, run a routine, and find what Maybee made in the Inbox.

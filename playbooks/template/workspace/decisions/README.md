@@ -6,7 +6,7 @@ description: One file per decision
 
 One file per decision, named `YYYY-MM-DD-short-title.md` (for example `2026-11-14-focus-on-new-founders.md`). The agent reads these before it proposes anything, so a decision here beats its own ideas.
 
-Use this shape. The title and the description are what About shows for the file:
+Use this shape. The title and the description are what the Brain shows for the file:
 
 ```
 ---

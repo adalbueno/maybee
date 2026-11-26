@@ -561,12 +561,12 @@ async function initializeProject(body) {
 
 // The first card of a project made in the Maybee chat: the goal, with the explanation of the Maybee column kept.
 function goalCardText(title, id, day) {
-  return `---\n${id ? `id: ${id}\n` : ''}title: ${JSON.stringify(title)}\ntype: idea\nstage: maybe\nowner: both\nrank: 0\ndescription: "Your first idea: the goal you gave Maybee, kept here until you decide what it should become"\ncaptured: ${day}\nsource: "Maybee first-run chat"\nnext_step: "Ask Maybee for the first small step toward this goal"\n---\n\n`
+  return `---\n${id ? `id: ${id}\n` : ''}title: ${JSON.stringify(title)}\ntype: idea\nstage: maybe\nowner: both\nrank: 0\ndescription: "Your first idea: the goal you gave Maybee, kept here until you decide what it should become"\ncaptured: ${day}\nsource: "Maybee first-run chat"\nnext_step: "Press Explore this idea to see what this goal could become"\n---\n\n`
     + `> [Dashboard](../DASHBOARD.md) · [Start here](Start%20here%20—%20how%20Maybee%20works.md)\n\n# ${title}\n\n`
-    + `This is your first idea. It is the goal you gave Maybee when you set up this project, and it sits in **Maybe**, the column where ideas wait without becoming commitments.\n\n`
-    + `An idea can stay here, become a task when you decide to act, become a routine when it repeats, move to Done if it is already resolved, or move to Not when you deliberately leave it aside.\n\n`
-    + `**Done when:** you know whether this goal stays in Maybe or becomes something you act on.\n\n`
-    + `**First step:** ask Maybee in the chat below, "What would be the first small step toward this goal?"\n`
+    + `This is your first idea: the goal you gave Maybee when you set up this project. Every idea starts here, in **Maybe**, with no promise attached. It can wait here while you look at it again and learn what it is worth.\n\n`
+    + `When you are ready, give it one decision: **no** sends it to Not with the reason, **yes** makes it a plan in Next, **not yet** keeps it here. Not yet is a decision too.\n\n`
+    + `**Done when:** you have given this goal its decision: no, yes or not yet.\n\n`
+    + `**First step:** press **Explore this idea** on the chat bar below, and Maybee will show what this goal could become.\n`
 }
 
 // The voice goes where the workspace keeps it: the Tone list of the template's voice.md, or the whole file when it is the short default.

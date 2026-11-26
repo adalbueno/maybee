@@ -2,10 +2,9 @@
 id: I1
 title: "Capture an idea"
 type: idea
-area: community
 stage: maybe
 owner: both
-description: "Keep a useful idea visible until you decide what it should become"
+description: "Every idea starts in Maybe, with no promise attached"
 value_members: 3
 value_money: 2
 want: 2
@@ -18,12 +17,12 @@ source: "Maybee playbook"
 
 # Capture an idea
 
-This card explains the **Maybe** column. Maybe is where ideas wait without becoming commitments. It should reflect possibilities you want to keep visible while you learn more or decide what they are worth.
+This card explains the **Maybe** column. Every idea starts here, with no promise attached. It can wait here while you look at it again and learn what it is worth.
 
-An idea can stay here, become a task when you decide to act, become a routine when it repeats, move to Done if it is already resolved, or move to Not when you deliberately leave it aside.
+When you are ready, give each idea one decision: **no** sends it to Not with the reason, **yes** makes it a plan in Next, **not yet** keeps it here. Not yet is a decision too.
 
-When you have an idea, ask Maybee to capture it. Maybee should help make the idea clear by recording what it is, why it matters, what done would look like, and the first step — without forcing you to commit immediately.
+To capture an idea, write it in the bar under the board and press Enter: it lands here. Then open it and press **Explore this idea** on its chat bar. Maybee gives it a clear title and description and looks at what it could become, without forcing you to commit.
 
-**Done when:** you have captured one real idea and know whether it should stay in Maybe or become something actionable.
+**Done when:** you have captured one real idea and given it its decision: no, yes or not yet.
 
-**First step:** tell Maybee, "I have an idea," and describe it in one sentence.
+**First step:** write one real idea in the bar under the board, in one sentence, and press Enter.
