@@ -1,6 +1,7 @@
 <script setup>
 // Brain: every file of the project, folder by folder as cards, with search at the bottom.
 // Title, path and description filter in the browser; "inside the files" asks the server.
+import { revealLabel, revealInFolder } from '../reveal.js'
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import logo from '../assets/logo.png'
 import NoteChat from './NoteChat.vue'
@@ -169,6 +170,10 @@ const menuFor = ref(null)
 const renaming = ref(null)
 const renameText = ref('')
 function closeMenu() { menuFor.value = null }
+async function showInFolder(p) {
+  menuFor.value = null
+  if (!await revealInFolder(p)) say('Maybee could not open the folder.')
+}
 onMounted(() => document.addEventListener('click', closeMenu))
 onBeforeUnmount(() => document.removeEventListener('click', closeMenu))
 function startRename(p, isDir, name) {
@@ -300,13 +305,14 @@ const titleOf = p => (items.value.find(x => x.path === p) || { title: p.split('/
             :draggable="renaming !== d.path" @dragstart="onDragStart($event, d.path, true)" @dragend="onDragEnd" @dragover="onDragOver($event, d.path)" @dragleave="onDragLeave(d.path)" @drop="onDrop($event, d.path)"
             @click="renaming !== d.path && (q ? openFound(d) : openDir(d.path))" @keydown.enter.self="q ? openFound(d) : openDir(d.path)">
             <span class="vtabmark"></span>
-            <template v-if="!locked(d.path, true)">
-              <span class="vmore" role="button" title="Rename or delete" @click.stop="menuFor = menuFor === d.path ? null : d.path">⋯</span>
-              <span v-if="menuFor === d.path" class="vmenu" @click.stop>
+            <span class="vmore" role="button" title="More" @click.stop="menuFor = menuFor === d.path ? null : d.path">⋯</span>
+            <span v-if="menuFor === d.path" class="vmenu" @click.stop>
+              <span role="button" @click.stop="showInFolder(d.path)">{{ revealLabel }}</span>
+              <template v-if="!locked(d.path, true)">
                 <span role="button" @click.stop="startRename(d.path, true, baseOf(d.path))">Rename</span>
                 <span role="button" class="danger" @click.stop="remove(d.path, true)">Delete</span>
-              </span>
-            </template>
+              </template>
+            </span>
             <input v-if="renaming === d.path" v-model="renameText" class="vren" @click.stop @keydown.enter.prevent="saveRename" @keydown.esc.stop="renaming = null" @blur="saveRename" />
             <b v-else>{{ label(d.path) }}</b>
             <span v-if="q && d.path.includes('/')" class="vwhere">in {{ d.path.split('/').slice(0, -1).map(label).join(' › ') }}</span>
@@ -316,13 +322,14 @@ const titleOf = p => (items.value.find(x => x.path === p) || { title: p.split('/
           <div v-for="f in gridFiles" :key="f.path" class="vcard vfile" role="button" tabindex="0" :class="{ sel: activePath === f.path, vmed: f.media, dragging: drag && drag.path === f.path }" :title="f.path"
             :draggable="renaming !== f.path" @dragstart="onDragStart($event, f.path, false)" @dragend="onDragEnd"
             @click="renaming !== f.path && emit('open', { path: f.path })" @keydown.enter.self="emit('open', { path: f.path })">
-            <template v-if="!locked(f.path, false)">
-              <span class="vmore" role="button" title="Rename or delete" @click.stop="menuFor = menuFor === f.path ? null : f.path">⋯</span>
-              <span v-if="menuFor === f.path" class="vmenu" @click.stop>
+            <span class="vmore" role="button" title="More" @click.stop="menuFor = menuFor === f.path ? null : f.path">⋯</span>
+            <span v-if="menuFor === f.path" class="vmenu" @click.stop>
+              <span role="button" @click.stop="showInFolder(f.path)">{{ revealLabel }}</span>
+              <template v-if="!locked(f.path, false)">
                 <span role="button" @click.stop="startRename(f.path, false, nameOf(f))">Rename</span>
                 <span role="button" class="danger" @click.stop="remove(f.path, false)">Delete</span>
-              </span>
-            </template>
+              </template>
+            </span>
             <span v-if="f.media" class="vmedia">
               <img v-if="f.media === 'image'" :src="raw(f.path)" loading="lazy" alt="" />
               <video v-else :src="raw(f.path) + '#t=0.5'" preload="metadata" muted @loadedmetadata="e => lengths[f.path] = e.target.duration"></video>

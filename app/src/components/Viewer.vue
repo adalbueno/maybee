@@ -1,4 +1,5 @@
 <script setup>
+import { revealLabel, revealInFolder } from '../reveal.js'
 import NoteChat from './NoteChat.vue'
 import NoteProps from './NoteProps.vue'
 import LiveEditor from './LiveEditor.vue'
@@ -389,6 +390,9 @@ const updated = computed(() => note.value && note.value.mtime
       <div id="vh-actions" class="vh-actions"></div>
       <a v-if="liveLink" class="v-link" :href="liveLink" target="_blank" rel="noopener">Open live ↗</a>
       <button v-if="note && note.ext === '.md' && !editing" class="v-link quiet edit-btn" @click="startEdit">Edit</button>
+      <button v-if="note" class="icon" :title="revealLabel" :aria-label="revealLabel" @click="revealInFolder(target.path)">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M1.75 4.25c0-.83.67-1.5 1.5-1.5h3l1.5 1.75h5c.83 0 1.5.67 1.5 1.5v6.25c0 .83-.67 1.5-1.5 1.5h-9.5c-.83 0-1.5-.67-1.5-1.5z" /></svg>
+      </button>
       <button class="icon max-btn" :title="maxed ? 'Back beside the page' : 'Use the whole window'" :aria-label="maxed ? 'Restore' : 'Maximize'" @click="emit('maximize')">
         <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path v-if="!maxed" d="M9.5 2.5h4v4M13.5 2.5L9 7M6.5 13.5h-4v-4M2.5 13.5L7 9" /><path v-else d="M13 3L9.5 6.5M9.5 3v3.5H13M3 13l3.5-3.5M6.5 13V9.5H3" /></svg>
       </button>

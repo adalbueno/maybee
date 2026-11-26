@@ -7,7 +7,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { buildIndex, feed, numbers, library, search, readNote, resolveName, statFile, isHidden, allPaths, getIndex } from './lib/project.js'
 import { board, backlog, setStage, deleteCard, logChange, createCard, placeCard, topOfColumn, restoreRanks, ranksOf, ORDER_NAMES } from './lib/board.js'
 import { desktop, setFields, dayKey, nowCards, withFiles, routinesOn, overviewState, resolveWaiting } from './lib/desktop.js'
@@ -319,6 +319,32 @@ async function openMaybeeWindow() {
     child.once('spawn', () => { child.unref(); resolve() })
   })
   return { opened: true }
+}
+
+// Opens the system's file manager: on a folder, that folder; on a file, its folder with the file selected where the
+// system can (Finder, Explorer, and on Linux any file manager that speaks org.freedesktop.FileManager1).
+async function revealInFolder(abs, isDir) {
+  const { spawn } = await import('node:child_process')
+  const run = (cmd, args) => new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true })
+    child.once('error', reject)
+    child.once('spawn', () => { child.unref(); resolve(child) })
+  })
+  if (process.platform === 'darwin') return run('open', isDir ? [abs] : ['-R', abs])
+  if (process.platform === 'win32') return run('explorer.exe', isDir ? [abs] : [`/select,${abs}`])
+  if (!isDir) {
+    // wait for gdbus to answer: when no file manager owns the name it fails, and the folder opens instead
+    const ok = await new Promise(resolve => {
+      const uri = pathToFileURL(abs).href
+      const child = spawn('gdbus', ['call', '--session', '--dest', 'org.freedesktop.FileManager1', '--object-path', '/org/freedesktop/FileManager1',
+        '--method', 'org.freedesktop.FileManager1.ShowItems', `['${uri.replace(/'/g, '%27')}']`, ''], { stdio: 'ignore' })
+      const timer = setTimeout(() => { child.kill(); resolve(false) }, 4000)
+      child.once('error', () => { clearTimeout(timer); resolve(false) })
+      child.once('exit', code => { clearTimeout(timer); resolve(code === 0) })
+    })
+    if (ok) return
+  }
+  return run('xdg-open', [isDir ? abs : path.dirname(abs)])
 }
 
 function openMaybeeAfterAccess() {
@@ -947,6 +973,16 @@ async function main() {
         seen.keepRoutines = { ...(seen.keepRoutines || {}), [body.path]: dayKey(d) }
         saveSeen()
         await logChange(ROOT, `${body.title || body.path}: kept as a routine (hidden from "forgotten" for 14 days)`)
+        return sendJSON(res, { ok: true })
+      }
+      // "Show in folder": the system's file manager opens on the file (selected) or on the folder
+      if (url.pathname === '/api/reveal' && req.method === 'POST') {
+        const body = await readBody(req)
+        const abs = body.path ? safePath(body.path) : ROOT
+        if (!abs) return sendJSON(res, { error: 'outside the project' }, 403)
+        let st
+        try { st = await fsp.stat(abs) } catch { return sendJSON(res, { error: 'not found' }, 404) }
+        try { await revealInFolder(abs, st.isDirectory()) } catch (e) { return sendJSON(res, { error: 'could not open the folder' }, 500) }
         return sendJSON(res, { ok: true })
       }
       if (url.pathname === '/api/source') {
