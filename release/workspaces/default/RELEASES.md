@@ -2,6 +2,15 @@
 
 The newest version is at the top. Maybee keeps this file up to date when you update, so it always shows the full history. It is not part of your notes: edit your own files, not this one.
 
+## 0.1.51 · 26 Nov 2026
+
+**Show in folder, and a tour that starts from the method.**
+
+- **Show in folder**: a folder button on every card and an item in the Brain's ⋯ menu open your file manager on the file (Show in Finder on a Mac, Show in Explorer on Windows).
+- **The Brain's ⋯ menu** shows whole instead of being cut by its card; fixed files (Project, State, logs) have it with just Show in folder.
+- **A new tour for new projects**: every idea starts in Maybe and gets one decision (no, yes or not yet); the cards and pictures show the Inbox, the Brain and the Routine column at the right edge.
+- **A daily check-in** replaces the How I post routine in new projects: it reads the board and suggests the one thing worth doing today.
+
 ## 0.1.50 · 25 Nov 2026
 
 **Attach files in every chat.**
